@@ -87,17 +87,6 @@ const ChatWidget: React.FC = () => {
 };
 
 const MapComponent: React.FC = () => {
-  const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-  
-  if (!MAPS_API_KEY) {
-    console.warn('Google Maps API key not found');
-    return (
-      <div className="h-[300px] bg-gray-100 rounded-lg flex items-center justify-center">
-        <p>Map loading...</p>
-      </div>
-    );
-  }
-
   const mapContainerStyle = {
     width: '100%',
     height: '300px'
@@ -120,8 +109,22 @@ const MapComponent: React.FC = () => {
     zoomControl: true
   };
 
+  if (!GOOGLE_MAPS_API_KEY) {
+    return (
+      <div
+        style={mapContainerStyle}
+        className="bg-gradient-to-br from-[#1E3A8A]/10 to-[#7C3AED]/10 rounded-lg flex items-center justify-center"
+      >
+        <div className="text-center p-4">
+          <MapPin className="h-8 w-8 text-[#7C3AED] mx-auto mb-2" />
+          <p className="text-[#1E293B] font-medium">Interactive map coming soon</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <LoadScript googleMapsApiKey={MAPS_API_KEY}>
+    <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
         center={center}
