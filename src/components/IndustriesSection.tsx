@@ -10,7 +10,8 @@ export default function IndustriesSection() {
       items: [
         "Full-service restaurants",
         "Quick-service establishments",
-        "Food delivery services"
+        "Food delivery services",
+        "Food Truck"
       ]
     },
     {
@@ -19,7 +20,8 @@ export default function IndustriesSection() {
       items: [
         "Business coaches",
         "Web agencies",
-        "Consulting firms"
+        "Consulting firms",
+        "Ecommerce"
       ]
     },
     {
@@ -28,7 +30,8 @@ export default function IndustriesSection() {
       items: [
         "Travel agencies",
         "Tour operators",
-        "Booking services"
+        "Booking services",
+        "Cruise, Yacht and Jets"
       ]
     }
   ];

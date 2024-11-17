@@ -79,11 +79,15 @@ const Scene = () => {
 
 const HeroSection: React.FC = () => {
   const [text] = useTypewriter({
-    words: ["Secure Payment Processing for Every Business"],
-    loop: 1,
-    typeSpeed: 75,
-    deleteSpeed: 50,
-    delaySpeed: 1000,
+    words: [
+      "Secure Payment Processing",
+      "For Every Business",
+      "Secure Payment Processing for Every Business"
+    ],
+    loop: true,
+    typeSpeed: 50,
+    deleteSpeed: 25,
+    delaySpeed: 2000,
   });
 
   return (
@@ -99,8 +103,8 @@ const HeroSection: React.FC = () => {
       
       <div className="relative z-20 container mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-8 leading-tight">
-            Secure Payment Processing for Every Business
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-8 leading-tight min-h-[4em] sm:min-h-[3em] md:min-h-[2.5em]">
+            {text}<Cursor cursorStyle="|" />
           </h1>
           
           <p className="text-xl text-gray-600 mb-8">
