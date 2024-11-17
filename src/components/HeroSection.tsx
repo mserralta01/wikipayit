@@ -91,7 +91,7 @@ const HeroSection: React.FC = () => {
   });
 
   return (
-    <section className="relative pt-32 min-h-[calc(100vh-5rem)] bg-gradient-to-b from-blue-50 to-white">
+    <section className="relative pt-16 min-h-[calc(100vh-5rem)] bg-gradient-to-b from-blue-50 to-white">
       <div className="absolute inset-0 z-10">
         <Canvas
           camera={{ position: [0, 3, 12], fov: 50 }}
@@ -101,7 +101,7 @@ const HeroSection: React.FC = () => {
         </Canvas>
       </div>
       
-      <div className="relative z-20 container mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+      <div className="relative z-20 container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="max-w-7xl mx-auto text-center">
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-8 leading-tight min-h-[4em] sm:min-h-[3em] md:min-h-[2.5em]">
             {text}<Cursor cursorStyle="|" />

@@ -11,8 +11,10 @@ export default function PricingSection() {
     <section className="py-20 bg-white relative overflow-hidden" id="pricing">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="section-title">Flexible Pricing Plans</h2>
-          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+          <h2 className="text-5xl font-clash font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#06B6D4] to-[#7C3AED] mb-6">
+            Flexible Pricing Plans
+          </h2>
+          <p className="text-2xl text-[#1E293B] max-w-3xl mx-auto font-inter">
             Choose the pricing structure that best fits your business needs with our competitive low monthly fees
           </p>
         </div>
