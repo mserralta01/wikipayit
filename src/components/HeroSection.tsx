@@ -80,10 +80,10 @@ const Scene = () => {
 const HeroSection: React.FC = () => {
   const [text] = useTypewriter({
     words: [
-      "Secure Payment Processing",
-      "For Every Business",
-      "Secure Payment Processing for Every Business"
-    ],
+      "Accept Payments Today!",
+      "Straightforward Approach - No Games, No Surprises",
+      "We Partner with you!"
+       ],
     loop: true,
     typeSpeed: 50,
     deleteSpeed: 25,
