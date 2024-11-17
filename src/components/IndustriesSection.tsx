@@ -59,7 +59,7 @@ export default function IndustriesSection() {
             Industries We Serve
           </h2>
           <p className="text-2xl text-[#1E293B] max-w-3xl mx-auto font-inter">
-            From traditional to high-risk industries, we deliver tailored payment solutions for every business
+            Unlock unprecedented growth with our next-generation payment solutions that transform transactions into seamless experiences.
           </p>
         </motion.div>
 
@@ -122,7 +122,7 @@ export default function IndustriesSection() {
                 transition={{ duration: 0.8, delay: 0.2 }}
               >
                 <h3 className="text-3xl font-clash font-bold mb-6">High-Risk Industry Specialists</h3>
-                <p className="text-lg mb-6 text-gray-100">We specialize in helping businesses that others turn away:</p>
+                <p className="text-lg mb-6 text-white">We specialize in helping businesses that others turn away:</p>
                 <ul className="space-y-4">
                   {[
                     "Previously shut down by other processors",
@@ -138,7 +138,7 @@ export default function IndustriesSection() {
                       className="flex items-center"
                     >
                       <CheckCircle className="h-5 w-5 text-[#06B6D4] mr-3" />
-                      <span className="text-gray-100">{item}</span>
+                      <span className="text-white">{item}</span>
                     </motion.li>
                   ))}
                 </ul>
@@ -175,7 +175,7 @@ export default function IndustriesSection() {
                       </div>
                       <div>
                         <p className="font-clash font-bold text-lg mb-1">{advantage.title}</p>
-                        <p className="text-gray-200">{advantage.description}</p>
+                        <p className="text-white">{advantage.description}</p>
                       </div>
                     </motion.li>
                   ))}

@@ -154,7 +154,7 @@ export default function GatewaySection() {
           <h2 className="text-5xl font-clash font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#06B6D4] to-[#7C3AED] mb-6">
             Revolutionize Your Payment Experience
           </h2>
-          <p className="text-2xl text-[#F1F5F9] max-w-3xl mx-auto mt-4 font-inter">
+          <p className="text-2xl text-[#1E293B] max-w-3xl mx-auto mt-4 font-inter">
             Unlock unprecedented growth with our next-generation payment solutions that transform transactions into seamless experiences.
           </p>
         </motion.div>
