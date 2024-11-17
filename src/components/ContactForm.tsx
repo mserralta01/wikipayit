@@ -97,15 +97,27 @@ const MapComponent: React.FC = () => {
     lng: -118.2437
   };
 
+  const mapOptions = {
+    styles: [
+      {
+        featureType: "all",
+        elementType: "geometry",
+        stylers: [{ color: "#242f3e" }]
+      }
+    ],
+    disableDefaultUI: true,
+    zoomControl: true
+  };
+
   if (!GOOGLE_MAPS_API_KEY) {
     return (
       <div
         style={mapContainerStyle}
-        className="bg-gray-100 rounded-lg flex items-center justify-center"
+        className="bg-gradient-to-br from-[#1E3A8A]/10 to-[#7C3AED]/10 rounded-lg flex items-center justify-center"
       >
         <div className="text-center p-4">
-          <MapPin className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-gray-600">Map preview unavailable</p>
+          <MapPin className="h-8 w-8 text-[#7C3AED] mx-auto mb-2" />
+          <p className="text-[#1E293B] font-medium">Interactive map coming soon</p>
         </div>
       </div>
     );
@@ -117,17 +129,19 @@ const MapComponent: React.FC = () => {
         mapContainerStyle={mapContainerStyle}
         center={center}
         zoom={13}
-        options={{
-          styles: [
-            {
-              featureType: "all",
-              elementType: "geometry",
-              stylers: [{ color: "#242f3e" }]
-            }
-          ]
-        }}
+        options={mapOptions}
       >
-        <Marker position={center} />
+        <Marker
+          position={center}
+          icon={{
+            path: "M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z",
+            fillColor: "#7C3AED",
+            fillOpacity: 1,
+            strokeColor: "#ffffff",
+            strokeWeight: 2,
+            scale: 2
+          }}
+        />
       </GoogleMap>
     </LoadScript>
   );
@@ -162,8 +176,16 @@ export default function ContactForm() {
   };
 
   return (
-    <section className="relative py-32 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="relative py-32 overflow-hidden" id="contact">
+      <motion.div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: `radial-gradient(circle at 3px 3px, rgba(30, 58, 138, 0.1) 1px, transparent 1px)`,
+          backgroundSize: '32px 32px'
+        }}
+      />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -183,6 +205,7 @@ export default function ContactForm() {
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
+            className="relative"
           >
             <form
               onSubmit={handleSubmit(onSubmit)}
@@ -239,7 +262,7 @@ export default function ContactForm() {
                 <motion.button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] text-white font-clash font-bold py-4 px-8 rounded-lg shadow-lg flex items-center justify-center"
+                  className="w-full bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] text-white font-clash font-bold py-4 px-8 rounded-lg shadow-lg flex items-center justify-center disabled:opacity-70"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
