@@ -15,7 +15,7 @@ export default function GatewaySection() {
         <div className="grid md:grid-cols-3 gap-8">
           <div className="feature-card text-center">
             <img 
-              src="https://www.authorize.net/content/dam/anet-redesign/logo/anet-logo-2021.svg"
+              src="https://www.authorize.net/conf/anet-2021/settings/wcm/templates/en-us-home-page-template/structure/_jcr_content/root/header/logo.img.jpg"
               alt="Authorize.Net"
               className="h-16 mx-auto mb-6"
             />
@@ -59,7 +59,7 @@ export default function GatewaySection() {
 
           <div className="feature-card text-center">
             <img 
-              src="https://fluidpay.com/wp-content/uploads/2020/06/fluidpay-logo-color.svg"
+              src="https://www.fluidpay.com/images/general/logo.svg"
               alt="Fluidpay Gateway"
               className="h-16 mx-auto mb-6"
             />
