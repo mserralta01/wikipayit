@@ -91,7 +91,7 @@ const HeroSection: React.FC = () => {
   });
 
   return (
-    <section className="relative min-h-screen bg-gradient-to-b from-blue-50 to-white pt-20 md:pt-0">
+    <section className="relative pt-32 min-h-[calc(100vh-5rem)] bg-gradient-to-b from-blue-50 to-white">
       <div className="absolute inset-0 z-10">
         <Canvas
           camera={{ position: [0, 3, 12], fov: 50 }}

@@ -12,7 +12,7 @@ import Footer from './components/Footer';
 
 function App() {
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+    <div className="relative min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden pt-20">
       <div className="fixed inset-0 bg-gradient-to-br from-[#1E3A8A]/5 to-[#7C3AED]/5 pointer-events-none" />
       
       <div className="relative z-10">

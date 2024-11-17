@@ -5,7 +5,7 @@ export default function Header() {
   const [isOpen, setIsOpen] = React.useState(false);
 
   return (
-    <header className="fixed w-full bg-white/95 backdrop-blur-md shadow-lg z-50">
+    <header className="fixed w-full bg-white/95 backdrop-blur-md shadow-lg z-50 h-20">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center h-20 px-6">
           <div className="flex items-center">
@@ -33,7 +33,7 @@ export default function Header() {
           </div>
 
           <div className="flex items-center">
-            <div className="hidden md:flex items-center btn btn-primary shadow-md hover:shadow-lg">
+            <div className="hidden md:flex items-center bg-blue-600 text-white px-6 py-2 rounded-lg">
               <PhoneCall className="h-5 w-5 mr-2" />
               +1 (305) 396-1226
             </div>
