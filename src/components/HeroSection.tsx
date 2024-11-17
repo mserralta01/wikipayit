@@ -91,7 +91,7 @@ const HeroSection: React.FC = () => {
   });
 
   return (
-    <section className="relative min-h-screen bg-gradient-to-b from-blue-50 to-white pt-20">
+    <section className="relative min-h-screen bg-gradient-to-b from-blue-50 to-white pt-20 md:pt-0">
       <div className="absolute inset-0 z-10">
         <Canvas
           camera={{ position: [0, 3, 12], fov: 50 }}
@@ -115,9 +115,16 @@ const HeroSection: React.FC = () => {
             <button className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
               Get Started
             </button>
-            <button className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
-              Call Now
-            </button>
+            <div className="md:hidden">
+              <button className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
+                Call Now: +1 (305) 205-9132
+              </button>
+            </div>
+            <div className="hidden md:block">
+              <button className="px-8 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
+                Call Now
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-7xl mx-auto">

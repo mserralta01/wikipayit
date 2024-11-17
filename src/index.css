@@ -241,6 +241,7 @@ section {
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transform: translateY(-100%);
   transition: transform 0.3s ease-in-out;
+  z-index: 60; /* Increase z-index to appear above main content */
 }
 
 .mobile-menu.open {
@@ -317,6 +318,7 @@ section {
 
   .hero-content {
     padding: 2rem 1rem;
+    z-index: 30; /* Increase z-index to appear above header */
   }
 
   .payment-method-icons {
@@ -349,5 +351,10 @@ section {
     display: block;
     padding: 0.75rem 1rem;
     font-size: 1.1rem;
+  }
+
+  /* Hide phone number in top nav on mobile */
+  header .phone-number {
+    display: none;
   }
 }

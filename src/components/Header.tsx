@@ -33,13 +33,10 @@ export default function Header() {
           </div>
 
           <div className="flex items-center">
-            <a 
-              href="tel:+13053961226" 
-              className="hidden md:flex items-center btn btn-primary shadow-md hover:shadow-lg"
-            >
+            <div className="hidden md:flex items-center btn btn-primary shadow-md hover:shadow-lg">
               <PhoneCall className="h-5 w-5 mr-2" />
               +1 (305) 396-1226
-            </a>
+            </div>
 
             <button 
               onClick={() => setIsOpen(!isOpen)} 
