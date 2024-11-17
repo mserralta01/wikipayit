@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, X, Zap, PhoneCall } from 'lucide-react';
+import { Menu, Zap, PhoneCall } from 'lucide-react';
 
 export default function Header() {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -46,7 +46,7 @@ export default function Header() {
               className="md:hidden p-2 ml-4 rounded-lg hover:bg-gray-100 transition-colors"
               aria-label="Toggle menu"
             >
-              {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              <Menu className="h-6 w-6" />
             </button>
           </div>
         </div>
@@ -65,13 +65,6 @@ export default function Header() {
               </a>
               <a href="#contact" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors">
                 Contact
-              </a>
-              <a 
-                href="tel:+13053961226" 
-                className="flex items-center justify-center btn btn-primary w-full"
-              >
-                <PhoneCall className="h-5 w-5 mr-2" />
-                +1 (305) 396-1226
               </a>
             </nav>
           </div>

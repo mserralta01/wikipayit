@@ -1,9 +1,14 @@
 import React from 'react';
 import { DollarSign, Percent, BarChart, CreditCard, CheckCircle } from 'lucide-react';
+import { gsap } from 'gsap';
 
 export default function PricingSection() {
+  React.useEffect(() => {
+    gsap.fromTo('.feature-card', { y: 50, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.2, duration: 0.5 });
+  }, []);
+
   return (
-    <section className="py-20 bg-white" id="pricing">
+    <section className="py-20 bg-white relative overflow-hidden" id="pricing">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
           <h2 className="section-title">Flexible Pricing Plans</h2>
@@ -13,7 +18,7 @@ export default function PricingSection() {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <div className="feature-card">
+          <div className="feature-card bg-gradient-to-r from-blue-100 to-blue-200 p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
             <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-100 text-blue-600 mb-4 mx-auto">
               <Percent className="h-6 w-6" />
             </div>
@@ -35,7 +40,7 @@ export default function PricingSection() {
             </ul>
           </div>
 
-          <div className="feature-card">
+          <div className="feature-card bg-gradient-to-r from-blue-100 to-blue-200 p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
             <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-100 text-blue-600 mb-4 mx-auto">
               <CreditCard className="h-6 w-6" />
             </div>
@@ -57,7 +62,7 @@ export default function PricingSection() {
             </ul>
           </div>
 
-          <div className="feature-card">
+          <div className="feature-card bg-gradient-to-r from-blue-100 to-blue-200 p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
             <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-100 text-blue-600 mb-4 mx-auto">
               <BarChart className="h-6 w-6" />
             </div>
@@ -79,7 +84,7 @@ export default function PricingSection() {
             </ul>
           </div>
 
-          <div className="feature-card">
+          <div className="feature-card bg-gradient-to-r from-blue-100 to-blue-200 p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
             <div className="flex items-center justify-center h-12 w-12 rounded-md bg-blue-100 text-blue-600 mb-4 mx-auto">
               <DollarSign className="h-6 w-6" />
             </div>
