@@ -1,113 +1,75 @@
-import React, { useState } from 'react'
-import { useAuth } from '../contexts/AuthContext'
-import { LoginModal } from './auth/LoginModal'
-import { Menu, Transition } from '@headlessui/react'
-import { auth } from '../config/firebase'
+import React from 'react';
+import { Menu, Zap, PhoneCall } from 'lucide-react';
 
-type MenuItemProps = {
-  active: boolean
-}
-
-const Header: React.FC = () => {
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
-  const { user, isAdmin } = useAuth()
-
-  const handleSignOut = async () => {
-    try {
-      await auth.signOut()
-    } catch (error) {
-      console.error('Sign out error:', error)
-    }
-  }
+export default function Header() {
+  const [isOpen, setIsOpen] = React.useState(false);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
-      <nav className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex justify-between items-center">
+    <header className="fixed w-full bg-white/95 backdrop-blur-md shadow-lg z-50 h-20">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex justify-between items-center h-20 px-6">
           <div className="flex items-center">
-            <img src="/logo.png" alt="Logo" className="h-8 w-auto" />
+            <div className="flex items-center">
+              <Zap className="h-8 w-8 text-blue-600" />
+              <span className="ml-3 text-2xl font-bold">
+                <span className="text-black">Wiki</span>
+                <span className="gradient-text">PayIt</span>
+              </span>
+            </div>
+            
+            <nav className="hidden md:flex items-center ml-16">
+              <div className="flex items-center space-x-10">
+                <a href="#services" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  Services
+                </a>
+                <a href="#industries" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  Industries
+                </a>
+                <a href="#solutions" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  Solutions
+                </a>
+                <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
+                  Contact
+                </a>
+              </div>
+            </nav>
           </div>
 
-          <div className="flex items-center gap-4">
-            {user ? (
-              <Menu as="div" className="relative">
-                <Menu.Button className="flex items-center">
-                  <img
-                    src={user.photoURL || 'https://via.placeholder.com/40'}
-                    alt="Profile"
-                    className="w-10 h-10 rounded-full"
-                  />
-                </Menu.Button>
-                <Transition
-                  enter="transition ease-out duration-100"
-                  enterFrom="transform opacity-0 scale-95"
-                  enterTo="transform opacity-100 scale-100"
-                  leave="transition ease-in duration-75"
-                  leaveFrom="transform opacity-100 scale-100"
-                  leaveTo="transform opacity-0 scale-95"
-                >
-                  <Menu.Items className="absolute right-0 mt-2 w-48 origin-top-right bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    <div className="py-1">
-                      {isAdmin && (
-                        <Menu.Item>
-                          {({ active }: MenuItemProps) => (
-                            <a
-                              href="/admin"
-                              className={`${
-                                active ? 'bg-gray-100' : ''
-                              } block px-4 py-2 text-sm text-gray-700`}
-                            >
-                              Admin Dashboard
-                            </a>
-                          )}
-                        </Menu.Item>
-                      )}
-                      <Menu.Item>
-                        {({ active }: MenuItemProps) => (
-                          <a
-                            href="/profile"
-                            className={`${
-                              active ? 'bg-gray-100' : ''
-                            } block px-4 py-2 text-sm text-gray-700`}
-                          >
-                            My Profile
-                          </a>
-                        )}
-                      </Menu.Item>
-                      <Menu.Item>
-                        {({ active }: MenuItemProps) => (
-                          <button
-                            onClick={handleSignOut}
-                            className={`${
-                              active ? 'bg-gray-100' : ''
-                            } block w-full text-left px-4 py-2 text-sm text-gray-700`}
-                          >
-                            Sign Out
-                          </button>
-                        )}
-                      </Menu.Item>
-                    </div>
-                  </Menu.Items>
-                </Transition>
-              </Menu>
-            ) : (
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-              >
-                Sign In
-              </button>
-            )}
+          <div className="flex items-center">
+            <div className="hidden md:flex items-center bg-blue-600 text-white px-6 py-2 rounded-lg">
+              <PhoneCall className="h-5 w-5 mr-2" />
+              +1 (305) 396-1226
+            </div>
+
+            <button 
+              onClick={() => setIsOpen(!isOpen)} 
+              className="md:hidden p-2 ml-4 rounded-lg hover:bg-gray-100 transition-colors"
+              aria-label="Toggle menu"
+            >
+              <Menu className="h-6 w-6" />
+            </button>
           </div>
         </div>
-      </nav>
 
-      <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
-      />
+        {isOpen && (
+          <div className="md:hidden absolute w-full left-0 top-full bg-white shadow-lg">
+            <nav className="px-6 py-4 space-y-3">
+              <a href="#services" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors">
+                Services
+              </a>
+              <a href="#industries" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors">
+                Industries
+              </a>
+              <a href="#solutions" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors">
+                Solutions
+              </a>
+              <a href="#contact" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors">
+                Contact
+              </a>
+            </nav>
+          </div>
+        )}
+      </div>
     </header>
-  )
+  );
 }
-
-export default Header

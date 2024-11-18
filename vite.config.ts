@@ -6,5 +6,11 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     exclude: ['lucide-react'],
+    include: ['firebase/app', 'firebase/auth', 'firebase/analytics']
   },
+  resolve: {
+    alias: {
+      '@': '/src'
+    }
+  }
 });

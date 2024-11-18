@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, MessageCircle, X, Check, MapPin, Phone, Mail } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -89,47 +89,34 @@ const ChatWidget: React.FC = () => {
 const MapComponent: React.FC = () => {
   const mapContainerStyle = {
     width: '100%',
-    height: '300px'
+    height: '300px',
+    borderRadius: '0.5rem'
   };
 
   const center = {
-    lat: 34.0522,
-    lng: -118.2437
+    lat: 26.6418,
+    lng: -80.2411
   };
 
-  const mapOptions = {
+  const options = {
+    disableDefaultUI: true,
+    zoomControl: true,
     styles: [
       {
         featureType: "all",
         elementType: "geometry",
         stylers: [{ color: "#242f3e" }]
       }
-    ],
-    disableDefaultUI: true,
-    zoomControl: true
+    ]
   };
 
-  if (!GOOGLE_MAPS_API_KEY) {
-    return (
-      <div
-        style={mapContainerStyle}
-        className="bg-gradient-to-br from-[#1E3A8A]/10 to-[#7C3AED]/10 rounded-lg flex items-center justify-center"
-      >
-        <div className="text-center p-4">
-          <MapPin className="h-8 w-8 text-[#7C3AED] mx-auto mb-2" />
-          <p className="text-[#1E293B] font-medium">Interactive map coming soon</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <LoadScript googleMapsApiKey={GOOGLE_MAPS_API_KEY}>
+    <LoadScript googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}>
       <GoogleMap
         mapContainerStyle={mapContainerStyle}
         center={center}
-        zoom={13}
-        options={mapOptions}
+        zoom={15}
+        options={options}
       >
         <Marker
           position={center}
@@ -321,47 +308,6 @@ export default function ContactForm() {
                 Our Location
               </h3>
               <MapComponent />
-            </div>
-
-            <div className="space-y-6">
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-white p-6 rounded-xl shadow-lg flex items-center space-x-4"
-              >
-                <div className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] p-3 rounded-full">
-                  <MapPin className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-clash font-bold text-[#1E293B]">Address</h4>
-                  <p className="text-[#475569]">123 Payment Street, Los Angeles, CA 90012</p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-white p-6 rounded-xl shadow-lg flex items-center space-x-4"
-              >
-                <div className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] p-3 rounded-full">
-                  <Phone className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-clash font-bold text-[#1E293B]">Phone</h4>
-                  <p className="text-[#475569]">+1 (888) WIKIPAY</p>
-                </div>
-              </motion.div>
-
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                className="bg-white p-6 rounded-xl shadow-lg flex items-center space-x-4"
-              >
-                <div className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] p-3 rounded-full">
-                  <Mail className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <h4 className="font-clash font-bold text-[#1E293B]">Email</h4>
-                  <p className="text-[#475569]">contact@wikipayit.com</p>
-                </div>
-              </motion.div>
             </div>
           </motion.div>
         </div>
