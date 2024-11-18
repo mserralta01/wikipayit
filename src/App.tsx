@@ -4,6 +4,7 @@ import HeroSection from './components/HeroSection';
 import IndustriesSection from './components/IndustriesSection';
 import POSSection from './components/POSSection';
 import GatewaySection from './components/GatewaySection';
+import HighRiskSection from './components/HighRiskSection';
 import PricingSection from './components/PricingSection';
 import ACHSection from './components/ACHSection';
 import TestimonialsSection from './components/TestimonialsSection';
@@ -26,8 +27,9 @@ function App() {
             <IndustriesSection />
             <GatewaySection />
             <POSSection />
-            <PricingSection />
+            <HighRiskSection />
             <ACHSection />
+            <PricingSection />
             <TestimonialsSection />
             <ContactForm />
           </div>

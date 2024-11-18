@@ -3,7 +3,7 @@ import { Shield, Lock, Zap, Globe, Rocket, Monitor } from 'lucide-react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import gsap from 'gsap';
 import ScrollTrigger from 'gsap/ScrollTrigger';
-import AuthorizeNetLogo from './icons/AuthorizeNetLogo';
+import authorizeNetLogo from "../assets/authorize.png.webp";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -162,7 +162,13 @@ export default function GatewaySection() {
         <div className="grid md:grid-cols-3 gap-8">
           <FeatureCard
             delay={0.2}
-            logo={<AuthorizeNetLogo />}
+            logo={
+              <img 
+                src={authorizeNetLogo}
+                alt="Authorize.Net"
+                className="h-16 mx-auto"
+              />
+            }
             title="Authorize.Net Integration"
             description="Power your business with enterprise-grade payment processing and industry-leading fraud prevention."
             features={[

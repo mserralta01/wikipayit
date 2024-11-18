@@ -8,8 +8,12 @@ export default function Footer() {
         <div className="grid md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center mb-4">
-              <Zap className="h-8 w-8 text-blue-400" />
-              <span className="ml-2 text-2xl font-bold">WikiPayIt</span>
+              <Zap className="h-8 w-8 text-blue-600" />
+              <span className="ml-3 text-2xl font-bold">
+                <span className="text-white">Wiki </span>
+                <span className="gradient-text">PayIt</span>
+                <span className="text-white text-sm">, LLC</span>
+              </span>
             </div>
             <div className="space-y-2">
               <div className="flex items-start">

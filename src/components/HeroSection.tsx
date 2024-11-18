@@ -80,10 +80,10 @@ const Scene = () => {
 const HeroSection: React.FC = () => {
   const [text] = useTypewriter({
     words: [
-      "Accept Payments Today!",
-      "Straightforward Approach - No Games, No Surprises",
-      "We Partner with you!"
-       ],
+      "Payment Solutions for Every Business",
+      "Seamless Processing, Maximum Security",
+      "Your Trusted Payment Partner"
+    ],
     loop: true,
     typeSpeed: 50,
     deleteSpeed: 25,
@@ -108,7 +108,8 @@ const HeroSection: React.FC = () => {
           </h1>
           
           <p className="text-xl text-gray-600 mb-8">
-            Specialized solutions for high-risk and traditional merchants. Fast approvals, next-day deposits, and dedicated support to help your business grow.
+            Comprehensive payment solutions for all business types. From retail to digital services, 
+            we provide reliable processing, competitive rates, and dedicated support to help your business thrive.
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 mb-16">
@@ -132,9 +133,11 @@ const HeroSection: React.FC = () => {
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full mx-auto mb-6">
                 <span className="text-2xl animate-float">💳</span>
               </div>
-              <h3 className="text-2xl font-bold text-blue-900 mb-4">High-Risk Specialists</h3>
+              <h3 className="text-2xl font-bold text-blue-900 mb-4">Industry Specialists</h3>
               <p className="text-gray-600 leading-relaxed">
-                Expert solutions tailored for challenging industries. Our thorough upfront underwriting process ensures long-term stability for your business, with specialized risk assessment and compliance monitoring to keep you protected.
+                Tailored solutions for every industry. Our comprehensive underwriting process ensures 
+                stable, long-term partnerships with businesses of all types, backed by advanced risk 
+                management and compliance tools.
               </p>
             </div>
 
@@ -142,9 +145,11 @@ const HeroSection: React.FC = () => {
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full mx-auto mb-6">
                 <span className="text-2xl animate-float" style={{ animationDelay: '0.2s' }}>🏦</span>
               </div>
-              <h3 className="text-2xl font-bold text-blue-900 mb-4">Next-Day Deposits</h3>
+              <h3 className="text-2xl font-bold text-blue-900 mb-4">Fast Settlement</h3>
               <p className="text-gray-600 leading-relaxed">
-                Keep your business cash flow healthy with rapid settlement times. Experience the convenience of next-day funding, automated reconciliation, and real-time transaction monitoring for complete financial visibility.
+                Optimize your cash flow with rapid settlement options. Enjoy next-day funding, 
+                automated reconciliation, and comprehensive transaction monitoring for complete 
+                financial control.
               </p>
             </div>
 
@@ -152,9 +157,11 @@ const HeroSection: React.FC = () => {
               <div className="flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-full mx-auto mb-6">
                 <span className="text-2xl animate-float" style={{ animationDelay: '0.4s' }}>📱</span>
               </div>
-              <h3 className="text-2xl font-bold text-blue-900 mb-4">Multiple Solutions</h3>
+              <h3 className="text-2xl font-bold text-blue-900 mb-4">Versatile Solutions</h3>
               <p className="text-gray-600 leading-relaxed">
-                Flexible payment options designed for your needs. Access competitive rates, customizable payment flows, multi-currency support, and advanced fraud protection tools to streamline your payment processing.
+                Adaptable payment options for modern commerce. Access competitive rates, 
+                customizable payment flows, multi-currency support, and advanced security features 
+                to grow your business confidently.
               </p>
             </div>
           </div>

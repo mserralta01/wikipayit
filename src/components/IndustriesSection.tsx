@@ -1,37 +1,37 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Coffee, CheckCircle, Briefcase, Plane, Shield, Building } from 'lucide-react';
+import { Coffee, CheckCircle, Briefcase, Plane, Shield, Building, Rocket, Star, Zap, TrendingUp, Globe, Megaphone, Gift, Users, Building2 } from 'lucide-react';
 
 export default function IndustriesSection() {
   const industries = [
     {
       icon: Coffee,
-      title: "Restaurants & Hospitality",
+      title: "Retail & Hospitality",
       items: [
         "Full-service restaurants",
         "Quick-service establishments",
-        "Food delivery services",
-        "Food Truck"
+        "Retail stores",
+        "Hotels & Lodging"
       ]
     },
     {
       icon: Briefcase,
       title: "Professional Services",
       items: [
-        "Business coaches",
-        "Web agencies",
-        "Consulting firms",
-        "Ecommerce"
+        "Business consultants",
+        "Healthcare providers",
+        "Legal services",
+        "Financial advisors"
       ]
     },
     {
-      icon: Plane,
-      title: "Travel & Tourism",
+      icon: Globe,
+      title: "Global Commerce",
       items: [
-        "Travel agencies",
-        "Tour operators",
-        "Booking services",
-        "Cruise, Yacht and Jets"
+        "E-commerce platforms",
+        "Digital services",
+        "International trade",
+        "Cross-border payments"
       ]
     }
   ];
@@ -56,10 +56,10 @@ export default function IndustriesSection() {
           className="text-center mb-16"
         >
           <h2 className="text-5xl font-clash font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#1E3A8A] to-[#7C3AED] mb-6">
-            Industries We Serve
+            Banking Solutions for Every Business
           </h2>
           <p className="text-2xl text-[#1E293B] max-w-3xl mx-auto font-inter">
-            Unlock unprecedented growth with our next-generation payment solutions that transform transactions into seamless experiences.
+            Our expert banking team matches you with the perfect financial partner for your unique business needs
           </p>
         </motion.div>
 
@@ -106,81 +106,83 @@ export default function IndustriesSection() {
           ))}
         </div>
 
-        {/* High Risk Section */}
+        {/* New Banking Partnership Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="relative rounded-2xl overflow-hidden"
+          className="mt-20"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-[#1E3A8A] to-[#7C3AED]" />
-          <div className="relative p-8 text-white">
-            <div className="grid md:grid-cols-2 gap-8">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-              >
-                <h3 className="text-3xl font-clash font-bold mb-6">High-Risk Industry Specialists</h3>
-                <p className="text-lg mb-6 text-white">We specialize in helping businesses that others turn away:</p>
-                <ul className="space-y-4">
-                  {[
-                    "Previously shut down by other processors",
-                    "MATCH/TMF listed merchants",
-                    "High-volume processors",
-                    "International merchants"
-                  ].map((item, index) => (
-                    <motion.li
-                      key={item}
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
-                      className="flex items-center"
-                    >
-                      <CheckCircle className="h-5 w-5 text-[#06B6D4] mr-3" />
-                      <span className="text-white">{item}</span>
-                    </motion.li>
-                  ))}
-                </ul>
-              </motion.div>
+          <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#06B6D4] to-[#7C3AED] p-1">
+            <div className="bg-white rounded-xl p-8">
+              <div className="grid md:grid-cols-2 gap-12 items-center">
+                <div>
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.8, delay: 0.2 }}
+                    className="space-y-6"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Building2 className="h-8 w-8 text-[#7C3AED]" />
+                      <h3 className="text-3xl font-clash font-bold bg-gradient-to-r from-[#1E3A8A] to-[#7C3AED] bg-clip-text text-transparent">
+                        Expert Banking Network
+                      </h3>
+                    </div>
+                    <p className="text-lg text-[#475569]">
+                      Our extensive network of banking partners allows us to find the perfect match for your business, regardless of industry or transaction volume. With decades of combined experience, our team ensures:
+                    </p>
+                    <ul className="space-y-4">
+                      {[
+                        "Personalized banking partnerships",
+                        "Optimized approval rates",
+                        "Competitive processing rates",
+                        "Seamless onboarding process"
+                      ].map((item, index) => (
+                        <motion.li
+                          key={item}
+                          initial={{ opacity: 0, x: -20 }}
+                          whileInView={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
+                          className="flex items-center text-[#475569]"
+                        >
+                          <CheckCircle className="h-5 w-5 text-[#10B981] mr-3" />
+                          {item}
+                        </motion.li>
+                      ))}
+                    </ul>
+                  </motion.div>
+                </div>
 
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.8, delay: 0.4 }}
-              >
-                <h4 className="text-2xl font-clash font-bold mb-6">Our Advantage</h4>
-                <ul className="space-y-6">
-                  {[
-                    {
-                      icon: Shield,
-                      title: "Thorough Underwriting",
-                      description: "Prevent unexpected shutdowns with proper upfront assessment"
-                    },
-                    {
-                      icon: Building,
-                      title: "Multiple Banking Partners",
-                      description: "We match you with the right bank for your specific needs"
-                    }
-                  ].map((advantage, index) => (
-                    <motion.li
-                      key={advantage.title}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: 0.6 + index * 0.1 }}
-                      className="flex items-start"
-                    >
-                      <div className="bg-white/10 p-3 rounded-lg mr-4">
-                        <advantage.icon className="h-6 w-6 text-[#06B6D4]" />
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.8, delay: 0.4 }}
+                  className="space-y-6"
+                >
+                  <div className="grid gap-6">
+                    <div className="p-6 rounded-xl bg-gradient-to-br from-[#1E3A8A]/5 to-[#7C3AED]/5">
+                      <div className="flex items-center space-x-4 mb-4">
+                        <Shield className="h-8 w-8 text-[#7C3AED]" />
+                        <h5 className="text-xl font-clash font-bold">Dedicated Banking Experts</h5>
                       </div>
-                      <div>
-                        <p className="font-clash font-bold text-lg mb-1">{advantage.title}</p>
-                        <p className="text-white">{advantage.description}</p>
+                      <p className="text-[#475569]">
+                        Our team of banking specialists works directly with financial institutions to ensure your business gets the best possible partnership and terms.
+                      </p>
+                    </div>
+
+                    <div className="p-6 rounded-xl bg-gradient-to-br from-[#1E3A8A]/5 to-[#7C3AED]/5">
+                      <div className="flex items-center space-x-4 mb-4">
+                        <Building className="h-8 w-8 text-[#7C3AED]" />
+                        <h5 className="text-xl font-clash font-bold">Multiple Banking Partners</h5>
                       </div>
-                    </motion.li>
-                  ))}
-                </ul>
-              </motion.div>
+                      <p className="text-[#475569]">
+                        Access to diverse banking relationships means we can accommodate businesses of all sizes and industries, ensuring the right fit for your specific needs.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
             </div>
           </div>
         </motion.div>

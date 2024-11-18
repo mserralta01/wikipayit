@@ -11,7 +11,10 @@ export default function Header() {
           <div className="flex items-center">
             <div className="flex items-center">
               <Zap className="h-8 w-8 text-blue-600" />
-              <span className="ml-3 text-2xl font-bold gradient-text">WikiPayIt</span>
+              <span className="ml-3 text-2xl font-bold">
+                <span className="text-black">Wiki</span>
+                <span className="gradient-text">PayIt</span>
+              </span>
             </div>
             
             <nav className="hidden md:flex items-center ml-16">
