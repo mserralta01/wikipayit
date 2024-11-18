@@ -25,3 +25,8 @@ dist-ssr
 .lh
 /.lh
 
+# Environment variables
+.env
+.env.local
+.env.*.local
+
