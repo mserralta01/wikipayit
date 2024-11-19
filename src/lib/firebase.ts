@@ -1,6 +1,6 @@
 import { initializeApp } from 'firebase/app'
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentSingleTabManager } from 'firebase/firestore'
-import { getAuth } from 'firebase/auth'
+import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore'
+import { getAuth, connectAuthEmulator } from 'firebase/auth'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,15 +13,21 @@ const firebaseConfig = {
 }
 
 const app = initializeApp(firebaseConfig)
+const db = getFirestore(app)
+const auth = getAuth(app)
 
-// Initialize Firestore with settings
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache(
-    {cacheSizeBytes: 50000000, tabManager: persistentSingleTabManager()}
-  )
+// Enable offline persistence
+enableIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.')
+  } else if (err.code === 'unimplemented') {
+    console.warn('The current browser does not support persistence.')
+  }
 })
 
-export const auth = getAuth(app)
-export { db }
+// Use emulators in development
+if (import.meta.env.DEV) {
+  connectAuthEmulator(auth, 'http://localhost:9099')
+}
 
-export default app 
+export { db, auth, app } 

@@ -8,7 +8,9 @@ import {
   getDoc,
   getDocs,
   query,
-  where
+  where,
+  enableNetwork,
+  disableNetwork
 } from 'firebase/firestore'
 
 export type Section = {
@@ -28,7 +30,7 @@ export const websiteService = {
       
       if (docSnap.exists()) {
         const data = docSnap.data()
-        return data.sections as Section[]
+        return (data.sections as Section[]).sort((a, b) => a.order - b.order)
       }
       
       // If no document exists, create one with initial sections
@@ -37,12 +39,29 @@ export const websiteService = {
       return initialSections
     } catch (error) {
       console.error('Error fetching sections:', error)
-      if (error instanceof FirebaseError) {
-        if (error.code === 'permission-denied') {
-          throw new Error('You do not have permission to access this data')
+      
+      // If we're offline, try to get from cache
+      if (error instanceof FirebaseError && 
+          (error.code === 'failed-precondition' || error.code === 'unavailable')) {
+        try {
+          await disableNetwork(db)
+          const docRef = doc(db, 'configuration', WEBSITE_CONFIG_DOC)
+          const docSnap = await getDoc(docRef)
+          
+          if (docSnap.exists()) {
+            const data = docSnap.data()
+            return (data.sections as Section[]).sort((a, b) => a.order - b.order)
+          }
+        } catch (cacheError) {
+          console.error('Failed to fetch from cache:', cacheError)
+        } finally {
+          // Re-enable network for future requests
+          await enableNetwork(db)
         }
       }
-      throw error
+      
+      // Return initial sections as fallback
+      return getInitialSections()
     }
   },
 
@@ -55,18 +74,21 @@ export const websiteService = {
 
       const docRef = doc(db, 'configuration', WEBSITE_CONFIG_DOC)
       await setDoc(docRef, { 
-        sections,
+        sections: sections.map((section, index) => ({
+          ...section,
+          order: index
+        })),
         updatedAt: new Date().toISOString(),
         updatedBy: auth.currentUser.email
-      }, { merge: true })
+      })
     } catch (error) {
       console.error('Error saving sections:', error)
       if (error instanceof FirebaseError) {
         switch (error.code) {
           case 'permission-denied':
             throw new Error('You do not have permission to save changes')
-          case 'unauthenticated':
-            throw new Error('You must be logged in to save changes')
+          case 'unavailable':
+            throw new Error('Unable to save changes while offline')
           default:
             throw new Error('Failed to save changes')
         }
