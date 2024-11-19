@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   DndContext,
   closestCenter,
@@ -15,28 +15,16 @@ import {
 } from '@dnd-kit/sortable'
 import { Switch } from '../../components/ui/switch'
 import { SortableSection } from './SortableSection'
-
-type Section = {
-  id: string
-  name: string
-  enabled: boolean
-}
-
-const initialSections: Section[] = [
-  { id: 'hero', name: 'Hero Section', enabled: true },
-  { id: 'industries', name: 'Industries Section', enabled: true },
-  { id: 'entrepreneur', name: 'Entrepreneur Section', enabled: true },
-  { id: 'pos', name: 'POS Section', enabled: true },
-  { id: 'gateway', name: 'Gateway Section', enabled: true },
-  { id: 'highRisk', name: 'High Risk Section', enabled: true },
-  { id: 'pricing', name: 'Pricing Section', enabled: true },
-  { id: 'ach', name: 'ACH Section', enabled: true },
-  { id: 'testimonials', name: 'Testimonials Section', enabled: true },
-  { id: 'contact', name: 'Contact Form', enabled: true },
-]
+import { websiteService, type Section } from '../../services/websiteService'
+import { useToast } from '../../hooks/useToast'
+import { Loader2 } from 'lucide-react'
 
 export default function WebsiteManagement() {
-  const [sections, setSections] = useState<Section[]>(initialSections)
+  const [sections, setSections] = useState<Section[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const { toast } = useToast()
+  
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -44,33 +32,96 @@ export default function WebsiteManagement() {
     })
   )
 
-  const handleDragEnd = (event: any) => {
+  useEffect(() => {
+    loadSections()
+  }, [])
+
+  const loadSections = async () => {
+    try {
+      const loadedSections = await websiteService.getSections()
+      setSections(loadedSections)
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load sections. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const saveSections = async (updatedSections: Section[]) => {
+    setSaving(true)
+    try {
+      await websiteService.saveSections(updatedSections)
+      toast({
+        title: 'Success',
+        description: 'Changes saved successfully',
+      })
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to save changes. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleDragEnd = async (event: any) => {
     const { active, over } = event
 
     if (active.id !== over.id) {
       setSections((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id)
         const newIndex = items.findIndex((item) => item.id === over.id)
-        return arrayMove(items, oldIndex, newIndex)
+        const reorderedSections = arrayMove(items, oldIndex, newIndex).map(
+          (section, index) => ({
+            ...section,
+            order: index,
+          })
+        )
+        saveSections(reorderedSections)
+        return reorderedSections
       })
     }
   }
 
-  const toggleSection = (id: string) => {
-    setSections((prev) =>
-      prev.map((section) =>
+  const toggleSection = async (id: string) => {
+    setSections((prev) => {
+      const updatedSections = prev.map((section) =>
         section.id === id
           ? { ...section, enabled: !section.enabled }
           : section
       )
+      saveSections(updatedSections)
+      return updatedSections
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-500" />
+      </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900">Homepage Features</h2>
-        <p className="text-gray-500 mt-1">Manage section visibility and order</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Homepage Features</h2>
+          <p className="text-gray-500 mt-1">Manage section visibility and order</p>
+        </div>
+        {saving && (
+          <div className="flex items-center text-sm text-gray-500">
+            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+            Saving changes...
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-lg shadow">

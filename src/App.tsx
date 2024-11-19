@@ -4,8 +4,11 @@ import WebsiteManagement from './components/admin/WebsiteManagement'
 import MainLayout from './components/layouts/MainLayout'
 import HomePage from './pages/HomePage'
 import { AuthProvider } from './contexts/AuthContext'
+import { useToast } from './hooks/useToast'
 
 function App() {
+  const { ToastContainer } = useToast()
+
   return (
     <Router>
       <AuthProvider>
@@ -19,6 +22,7 @@ function App() {
             <Route path="homepage-features" element={<WebsiteManagement />} />
           </Route>
         </Routes>
+        <ToastContainer />
       </AuthProvider>
     </Router>
   )
