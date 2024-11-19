@@ -1,16 +1,17 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public read access to configuration
+    // Allow admin users to read and write website configuration
     match /configuration/{document} {
       allow read: if true;
       allow write: if request.auth != null && 
-        exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+        (request.auth.token.email == 'mserralta@gmail.com' || 
+         request.auth.token.email == 'Mpilotg6@gmail.com');
     }
     
-    // Admin collection
-    match /admins/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 } 
