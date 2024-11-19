@@ -69,33 +69,51 @@ export default function WebsiteManagement() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold">Homepage Features</h2>
-        <p className="text-gray-500">
-          Manage the visibility and order of homepage sections
-        </p>
+        <h2 className="text-2xl font-bold text-gray-900">Homepage Features</h2>
+        <p className="text-gray-500 mt-1">Manage section visibility and order</p>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow">
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={sections}
-            strategy={verticalListSortingStrategy}
+      <div className="bg-white rounded-lg shadow">
+        <div className="p-6">
+          <p className="text-sm text-gray-500 mb-6">
+            Drag to reorder sections or toggle their visibility
+          </p>
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
           >
-            <div className="space-y-4">
-              {sections.map((section) => (
-                <SortableSection
-                  key={section.id}
-                  section={section}
-                  onToggle={() => toggleSection(section.id)}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+            <SortableContext
+              items={sections}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {sections.map((section) => (
+                  <div
+                    key={section.id}
+                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <SortableSection
+                      key={section.id}
+                      section={section}
+                      onToggle={() => toggleSection(section.id)}
+                    >
+                      <div className="flex items-center justify-between w-full pr-4">
+                        <span className="text-gray-900 font-medium">{section.name}</span>
+                        <Switch
+                          checked={section.enabled}
+                          onCheckedChange={() => toggleSection(section.id)}
+                          className="data-[state=checked]:bg-green-500 data-[state=unchecked]:bg-red-500"
+                        />
+                      </div>
+                    </SortableSection>
+                  </div>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
       </div>
     </div>
   )

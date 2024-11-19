@@ -2,7 +2,6 @@ import React from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
-import { Switch } from '../../components/ui/switch'
 
 type SortableSectionProps = {
   section: {
@@ -11,9 +10,10 @@ type SortableSectionProps = {
     enabled: boolean
   }
   onToggle: () => void
+  children: React.ReactNode
 }
 
-export function SortableSection({ section, onToggle }: SortableSectionProps) {
+export function SortableSection({ section, onToggle, children }: SortableSectionProps) {
   const {
     attributes,
     listeners,
@@ -31,19 +31,16 @@ export function SortableSection({ section, onToggle }: SortableSectionProps) {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center justify-between p-4 bg-white border rounded-lg"
+      className="flex items-center w-full"
     >
-      <div className="flex items-center space-x-4">
-        <button
-          className="cursor-move touch-none"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical className="w-5 h-5 text-gray-400" />
-        </button>
-        <span>{section.name}</span>
-      </div>
-      <Switch checked={section.enabled} onCheckedChange={onToggle} />
+      <button
+        className="cursor-move touch-none p-2"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="w-5 h-5 text-gray-400" />
+      </button>
+      {children}
     </div>
   )
 } 

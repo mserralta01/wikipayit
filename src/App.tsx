@@ -13,12 +13,11 @@ function App() {
           <Route path="/" element={<MainLayout />}>
             <Route index element={<HomePage />} />
           </Route>
-          <Route path="/admin" element={<AdminLayout>
-            <Routes>
-              <Route index element={<div>Dashboard</div>} />
-              <Route path="settings" element={<WebsiteManagement />} />
-            </Routes>
-          </AdminLayout>} />
+          <Route path="/admin/*" element={<AdminLayout />}>
+            <Route index element={<div>Dashboard</div>} />
+            <Route path="settings" element={<div>Settings</div>} />
+            <Route path="homepage-features" element={<WebsiteManagement />} />
+          </Route>
         </Routes>
       </AuthProvider>
     </Router>
