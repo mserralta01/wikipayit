@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@headlessui/react": "^1.7.18",
+    "@headlessui/react": "^1.7.19",
     "@hookform/resolvers": "^3.9.1",
     "@react-google-maps/api": "^2.20.3",
     "@react-three/drei": "^9.117.0",

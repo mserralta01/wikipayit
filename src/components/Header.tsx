@@ -2,11 +2,21 @@ import React, { useState } from 'react';
 import { Menu, Zap, PhoneCall } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginModal } from './auth/LoginModal';
+import { Link } from 'react-router-dom';
+import { Menu as HeadlessMenu } from '@headlessui/react';
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <header className="fixed w-full bg-white/95 backdrop-blur-md shadow-lg z-50 h-20">
@@ -48,11 +58,29 @@ export default function Header() {
             {/* Sign In Button / Avatar - Hidden on mobile */}
             <div className="hidden md:block">
               {user ? (
-                <img
-                  src={user.photoURL || 'https://via.placeholder.com/40'}
-                  alt="Profile"
-                  className="w-10 h-10 rounded-full cursor-pointer"
-                />
+                <HeadlessMenu>
+                  <HeadlessMenu.Button className="relative flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
+                    <img
+                      className="h-8 w-8 rounded-full"
+                      src={user.photoURL || 'https://via.placeholder.com/40'}
+                      alt="User avatar"
+                    />
+                  </HeadlessMenu.Button>
+                  <HeadlessMenu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    <HeadlessMenu.Item>
+                      {({ active }) => (
+                        <button
+                          onClick={handleSignOut}
+                          className={`${
+                            active ? 'bg-gray-100' : ''
+                          } block w-full px-4 py-2 text-left text-sm text-gray-700`}
+                        >
+                          Sign Out
+                        </button>
+                      )}
+                    </HeadlessMenu.Item>
+                  </HeadlessMenu.Items>
+                </HeadlessMenu>
               ) : (
                 <button
                   onClick={() => setIsLoginModalOpen(true)}
