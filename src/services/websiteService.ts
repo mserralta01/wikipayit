@@ -1,15 +1,5 @@
 import { db } from '../lib/firebase'
-import { auth } from '../lib/firebase'
-import { FirebaseError } from 'firebase/app'
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc,
-  getDocs,
-  query,
-  where
-} from 'firebase/firestore'
+import { collection, doc, setDoc, getDoc, DocumentData } from 'firebase/firestore'
 
 export type Section = {
   id: string
@@ -19,6 +9,7 @@ export type Section = {
 }
 
 const WEBSITE_CONFIG_DOC = 'website_config'
+const SECTIONS_FIELD = 'sections'
 
 export const websiteService = {
   async getSections(): Promise<Section[]> {
@@ -37,40 +28,19 @@ export const websiteService = {
       return initialSections
     } catch (error) {
       console.error('Error fetching sections:', error)
-      if (error instanceof FirebaseError) {
-        if (error.code === 'permission-denied') {
-          throw new Error('You do not have permission to access this data')
-        }
-      }
       throw error
     }
   },
 
   async saveSections(sections: Section[]): Promise<void> {
     try {
-      // Check if user is authenticated
-      if (!auth.currentUser) {
-        throw new Error('You must be logged in to save changes')
-      }
-
       const docRef = doc(db, 'configuration', WEBSITE_CONFIG_DOC)
       await setDoc(docRef, { 
         sections,
-        updatedAt: new Date().toISOString(),
-        updatedBy: auth.currentUser.email
+        updatedAt: new Date().toISOString()
       }, { merge: true })
     } catch (error) {
       console.error('Error saving sections:', error)
-      if (error instanceof FirebaseError) {
-        switch (error.code) {
-          case 'permission-denied':
-            throw new Error('You do not have permission to save changes')
-          case 'unauthenticated':
-            throw new Error('You must be logged in to save changes')
-          default:
-            throw new Error('Failed to save changes')
-        }
-      }
       throw error
     }
   }

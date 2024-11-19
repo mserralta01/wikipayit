@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentSingleTabManager } from 'firebase/firestore'
+import { getFirestore } from 'firebase/firestore'
 import { getAuth } from 'firebase/auth'
 
 const firebaseConfig = {
@@ -13,15 +13,7 @@ const firebaseConfig = {
 }
 
 const app = initializeApp(firebaseConfig)
-
-// Initialize Firestore with settings
-const db = initializeFirestore(app, {
-  localCache: persistentLocalCache(
-    {cacheSizeBytes: 50000000, tabManager: persistentSingleTabManager()}
-  )
-})
-
+export const db = getFirestore(app)
 export const auth = getAuth(app)
-export { db }
 
 export default app 
