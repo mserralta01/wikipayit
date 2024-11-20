@@ -27,7 +27,7 @@ export default function Header() {
               <Zap className="h-8 w-8 text-blue-600" />
               <span className="ml-3 text-2xl font-bold">
                 <span className="text-black">Wiki</span>
-                <span className="gradient-text">PayIt</span>
+                <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">PayIt</span>
               </span>
             </div>
             
@@ -55,7 +55,6 @@ export default function Header() {
               +1 (305) 396-1226
             </div>
 
-            {/* Sign In Button / Avatar - Hidden on mobile */}
             <div className="hidden md:block relative">
               {user ? (
                 <HeadlessMenu>
