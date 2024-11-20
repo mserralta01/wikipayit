@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { auth } from '../../lib/firebase'
 import {
   DndContext,
   closestCenter,
@@ -16,16 +18,16 @@ import {
 import { Switch } from '../../components/ui/switch'
 import { SortableSection } from './SortableSection'
 import { websiteService, type Section } from '../../services/websiteService'
-import { useToast } from '../../hooks/useToast'
 import { Loader2, RefreshCcw } from 'lucide-react'
+import { useToast } from '../../hooks/useToast'
 
 export default function WebsiteManagement() {
   const [sections, setSections] = useState<Section[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const navigate = useNavigate()
   const { toast } = useToast()
-  
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -34,23 +36,47 @@ export default function WebsiteManagement() {
   )
 
   useEffect(() => {
-    loadSections()
-  }, [])
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (!user || (user.email !== 'mserralta@gmail.com' && user.email !== 'Mpilotg6@gmail.com')) {
+        navigate('/login')
+        return
+      }
+      loadSections()
+    })
+
+    return () => unsubscribe()
+  }, [navigate])
 
   const loadSections = async () => {
-    setLoading(true)
-    setError(null)
     try {
-      const loadedSections = await websiteService.getSections()
-      // Ensure sections are sorted by order
-      const sortedSections = [...loadedSections].sort((a, b) => a.order - b.order)
-      setSections(sortedSections)
+      setLoading(true)
+      let data = await websiteService.getSections()
+      
+      // If no sections exist, initialize with default sections
+      if (data.length === 0) {
+        const defaultSections = [
+          { id: 'hero', name: 'Hero Section', enabled: true, order: 0 },
+          { id: 'industries', name: 'Industries Section', enabled: true, order: 1 },
+          { id: 'entrepreneur', name: 'Entrepreneur Section', enabled: true, order: 2 },
+          { id: 'pos', name: 'POS Section', enabled: true, order: 3 },
+          { id: 'gateway', name: 'Gateway Section', enabled: true, order: 4 },
+          { id: 'highRisk', name: 'High Risk Section', enabled: true, order: 5 },
+          { id: 'pricing', name: 'Pricing Section', enabled: true, order: 6 },
+          { id: 'ach', name: 'ACH Section', enabled: true, order: 7 },
+          { id: 'testimonials', name: 'Testimonials Section', enabled: true, order: 8 },
+          { id: 'contact', name: 'Contact Form', enabled: true, order: 9 },
+        ]
+        
+        await websiteService.initializeSections(defaultSections)
+        data = defaultSections
+      }
+      
+      setSections(data)
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load sections'
-      setError(errorMessage)
+      console.error('Error loading sections:', error)
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: 'Failed to load sections. Please try again.',
         variant: 'destructive',
       })
     } finally {
@@ -59,26 +85,18 @@ export default function WebsiteManagement() {
   }
 
   const saveSections = async (updatedSections: Section[]) => {
-    setSaving(true)
-    setError(null)
     try {
-      // Ensure sections are properly ordered before saving
-      const orderedSections = updatedSections.map((section, index) => ({
-        ...section,
-        order: index,
-      }))
-      await websiteService.saveSections(orderedSections)
-      setSections(orderedSections)
+      setSaving(true)
+      await websiteService.updateSections(updatedSections)
       toast({
         title: 'Success',
-        description: 'Changes saved successfully',
+        description: 'Sections updated successfully',
       })
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to save changes'
-      setError(errorMessage)
+      console.error('Error saving sections:', error)
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: 'Failed to update sections. Please try again.',
         variant: 'destructive',
       })
     } finally {
@@ -143,12 +161,6 @@ export default function WebsiteManagement() {
           </button>
         </div>
       </div>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-sm text-red-800">{error}</p>
-        </div>
-      )}
 
       <div className="bg-white rounded-lg shadow">
         <div className="p-6">

@@ -3,6 +3,7 @@ import AdminLayout from './components/admin/AdminLayout'
 import WebsiteManagement from './components/admin/WebsiteManagement'
 import MainLayout from './components/layouts/MainLayout'
 import HomePage from './pages/HomePage'
+import LoginPage from './pages/LoginPage'
 import { AuthProvider } from './contexts/AuthContext'
 import { useToast } from './hooks/useToast'
 
@@ -15,6 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<MainLayout />}>
             <Route index element={<HomePage />} />
+            <Route path="login" element={<LoginPage />} />
           </Route>
           <Route path="/admin/*" element={<AdminLayout />}>
             <Route index element={<div>Dashboard</div>} />

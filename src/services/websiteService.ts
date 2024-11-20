@@ -1,5 +1,14 @@
 import { db } from '../lib/firebase'
-import { collection, doc, setDoc, getDoc, DocumentData } from 'firebase/firestore'
+import {
+  collection,
+  getDocs,
+  doc,
+  updateDoc,
+  query,
+  orderBy,
+  writeBatch,
+} from 'firebase/firestore'
+import { useToast } from '../hooks/useToast'
 
 export type Section = {
   id: string
@@ -8,70 +17,60 @@ export type Section = {
   order: number
 }
 
-const WEBSITE_CONFIG_DOC = 'website_config'
-const SECTIONS_FIELD = 'sections'
-
 export const websiteService = {
   async getSections(): Promise<Section[]> {
     try {
-      const docRef = doc(db, 'website', WEBSITE_CONFIG_DOC)
-      const docSnap = await getDoc(docRef)
+      const sectionsRef = collection(db, 'sections')
+      const q = query(sectionsRef, orderBy('order', 'asc'))
+      const snapshot = await getDocs(q)
       
-      if (docSnap.exists()) {
-        const data = docSnap.data()
-        if (!data.sections) {
-          console.warn('No sections found in document, initializing with defaults')
-          const initialSections = getInitialSections()
-          await this.saveSections(initialSections)
-          return initialSections
-        }
-        return data.sections as Section[]
+      if (snapshot.empty) {
+        console.log('No sections found')
+        return []
       }
-      
-      console.log('No website_config document exists, creating initial configuration')
-      const initialSections = getInitialSections()
-      await this.saveSections(initialSections)
-      return initialSections
+
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Section[]
     } catch (error) {
-      console.error('Error fetching sections:', error)
-      if (error instanceof Error) {
-        console.error('Error details:', error.message)
-      }
-      throw new Error('Failed to fetch sections. Please check your database connection and permissions.')
+      console.error('Error getting sections:', error)
+      throw error
     }
   },
 
-  async saveSections(sections: Section[]): Promise<void> {
+  async updateSections(sections: Section[]): Promise<void> {
     try {
-      const docRef = doc(db, 'website', WEBSITE_CONFIG_DOC)
-      await setDoc(docRef, { 
-        sections: sections.map((section, index) => ({
-          ...section,
-          order: index // Ensure order is always sequential
-        })),
-        updatedAt: new Date().toISOString()
-      }, { merge: true })
-    } catch (error) {
-      console.error('Error saving sections:', error)
-      if (error instanceof Error) {
-        console.error('Error details:', error.message)
-      }
-      throw new Error('Failed to save sections. Please check your database connection and permissions.')
-    }
-  }
-}
+      const batch = writeBatch(db)
+      
+      sections.forEach((section, index) => {
+        const sectionRef = doc(db, 'sections', section.id)
+        batch.update(sectionRef, {
+          order: index,
+          enabled: section.enabled,
+        })
+      })
 
-export function getInitialSections(): Section[] {
-  return [
-    { id: 'hero', name: 'Hero Section', enabled: true, order: 0 },
-    { id: 'industries', name: 'Industries Section', enabled: true, order: 1 },
-    { id: 'entrepreneur', name: 'Entrepreneur Section', enabled: true, order: 2 },
-    { id: 'pos', name: 'POS Section', enabled: true, order: 3 },
-    { id: 'gateway', name: 'Gateway Section', enabled: true, order: 4 },
-    { id: 'highRisk', name: 'High Risk Section', enabled: true, order: 5 },
-    { id: 'pricing', name: 'Pricing Section', enabled: true, order: 6 },
-    { id: 'ach', name: 'ACH Section', enabled: true, order: 7 },
-    { id: 'testimonials', name: 'Testimonials Section', enabled: true, order: 8 },
-    { id: 'contact', name: 'Contact Form', enabled: true, order: 9 },
-  ]
+      await batch.commit()
+    } catch (error) {
+      console.error('Error updating sections:', error)
+      throw error
+    }
+  },
+
+  async initializeSections(sections: Section[]): Promise<void> {
+    try {
+      const batch = writeBatch(db)
+      
+      sections.forEach((section) => {
+        const sectionRef = doc(db, 'sections', section.id)
+        batch.set(sectionRef, section)
+      })
+
+      await batch.commit()
+    } catch (error) {
+      console.error('Error initializing sections:', error)
+      throw error
+    }
+  },
 }
