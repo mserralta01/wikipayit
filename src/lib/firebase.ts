@@ -1,6 +1,6 @@
-import { initializeApp, getApp, type FirebaseApp } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+import { initializeApp, getApp, getApps } from 'firebase/app'
 import { getAuth } from 'firebase/auth'
+import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -11,16 +11,9 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 }
 
-function createFirebaseApp(): FirebaseApp {
-  try {
-    return getApp()
-  } catch {
-    return initializeApp(firebaseConfig)
-  }
-}
+// Initialize Firebase only if it hasn't been initialized already
+const app = getApps().length ? getApp() : initializeApp(firebaseConfig)
+const auth = getAuth(app)
+const db = getFirestore(app)
 
-const app = createFirebaseApp()
-export const auth = getAuth(app)
-export const db = getFirestore(app)
-
-export default app 
+export { app, auth, db } 

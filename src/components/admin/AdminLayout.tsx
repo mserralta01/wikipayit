@@ -1,66 +1,85 @@
 import React from 'react'
-import { useNavigate, Link, useLocation, Outlet } from 'react-router-dom'
-import { useAuth } from '../../contexts/AuthContext'
-import { LayoutDashboard, Settings, LayoutTemplate } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { cn } from '../../lib/utils'
+import { LayoutDashboard, Settings, Globe, LogOut } from 'lucide-react'
+import { auth } from '../../lib/firebase'
+import { useNavigate } from 'react-router-dom'
 
-export default function AdminLayout() {
-  const { user, isAdmin } = useAuth()
-  const navigate = useNavigate()
+type AdminLayoutProps = {
+  children: React.ReactNode
+}
+
+export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation()
+  const navigate = useNavigate()
 
-  React.useEffect(() => {
-    if (!user || !isAdmin) {
-      navigate('/')
+  const handleLogout = async () => {
+    try {
+      await auth.signOut()
+      navigate('/login')
+    } catch (error) {
+      console.error('Error signing out:', error)
     }
-  }, [user, isAdmin, navigate])
-
-  if (!user || !isAdmin) {
-    return null
   }
+
+  const menuItems = [
+    {
+      title: 'Dashboard',
+      icon: <LayoutDashboard className="w-5 h-5" />,
+      href: '/admin',
+    },
+    {
+      title: 'Website',
+      icon: <Globe className="w-5 h-5" />,
+      href: '/admin/website',
+    },
+  ]
 
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-sm">
-        <div className="p-4">
-          <h2 className="text-xl font-semibold">Admin Panel</h2>
+      <div className="w-64 bg-white shadow-lg">
+        <div className="flex flex-col h-full">
+          <div className="p-6">
+            <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
+          </div>
+          
+          {/* Navigation Menu */}
+          <nav className="flex-1 px-4 pb-4">
+            <ul className="space-y-2">
+              {menuItems.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    to={item.href}
+                    className={cn(
+                      'flex items-center px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors',
+                      location.pathname === item.href && 'bg-gray-100 text-gray-900 font-medium'
+                    )}
+                  >
+                    {item.icon}
+                    <span className="ml-3">{item.title}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {/* Logout Button */}
+          <div className="px-4 pb-6">
+            <button
+              onClick={handleLogout}
+              className="flex items-center w-full px-4 py-3 text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="ml-3">Logout</span>
+            </button>
+          </div>
         </div>
-        <nav className="mt-4">
-          <Link
-            to="/admin"
-            className={`flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 ${
-              location.pathname === '/admin' ? 'bg-gray-100' : ''
-            }`}
-          >
-            <LayoutDashboard className="w-5 h-5 mr-3" />
-            Dashboard
-          </Link>
-          <Link
-            to="/admin/settings"
-            className={`flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 ${
-              location.pathname === '/admin/settings' ? 'bg-gray-100' : ''
-            }`}
-          >
-            <Settings className="w-5 h-5 mr-3" />
-            Settings
-          </Link>
-          <Link
-            to="/admin/homepage-features"
-            className={`flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 ${
-              location.pathname === '/admin/homepage-features' ? 'bg-gray-100' : ''
-            }`}
-          >
-            <LayoutTemplate className="w-5 h-5 mr-3" />
-            Homepage Features
-          </Link>
-        </nav>
       </div>
 
-      {/* Main content */}
+      {/* Main Content */}
       <div className="flex-1 overflow-auto">
-        <main className="p-6">
-          <Outlet />
-        </main>
+        <div className="p-8">{children}</div>
       </div>
     </div>
   )

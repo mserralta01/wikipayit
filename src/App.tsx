@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import AdminLayout from './components/admin/AdminLayout'
+import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom'
+import { AdminLayout } from './components/admin/AdminLayout'
 import WebsiteManagement from './components/admin/WebsiteManagement'
 import MainLayout from './components/layouts/MainLayout'
 import HomePage from './pages/HomePage'
@@ -18,10 +18,16 @@ function App() {
             <Route index element={<HomePage />} />
             <Route path="login" element={<LoginPage />} />
           </Route>
-          <Route path="/admin/*" element={<AdminLayout />}>
+          <Route
+            path="/admin"
+            element={
+              <AdminLayout>
+                <Outlet />
+              </AdminLayout>
+            }
+          >
             <Route index element={<div>Dashboard</div>} />
-            <Route path="settings" element={<div>Settings</div>} />
-            <Route path="homepage-features" element={<WebsiteManagement />} />
+            <Route path="website" element={<WebsiteManagement />} />
           </Route>
         </Routes>
         <ToastContainer />

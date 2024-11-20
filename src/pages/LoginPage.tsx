@@ -11,7 +11,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      navigate('/admin/homepage-features')
+      navigate('/admin/website')
     }
   }, [user, navigate])
 

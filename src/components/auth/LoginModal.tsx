@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { Dialog, Transition } from '@headlessui/react'
 import { Fragment } from 'react'
-import { auth, googleProvider } from '../../config/firebase'
+import { auth } from '../../lib/firebase'
+import { GoogleAuthProvider } from 'firebase/auth'
 import { signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
@@ -30,7 +31,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   const handleGoogleSignIn = async () => {
     try {
-      const result = await signInWithPopup(auth, googleProvider)
+      const result = await signInWithPopup(auth, new GoogleAuthProvider())
       if (result.user.email === 'mserralta@gmail.com') {
         navigate('/admin')
       }

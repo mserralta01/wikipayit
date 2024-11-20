@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Menu, Zap, PhoneCall } from 'lucide-react';
+import { Menu, Zap, PhoneCall, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginModal } from './auth/LoginModal';
 import { Link } from 'react-router-dom';
@@ -8,7 +8,7 @@ import { Menu as HeadlessMenu } from '@headlessui/react';
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
 
   const handleSignOut = async () => {
     try {
@@ -56,7 +56,7 @@ export default function Header() {
             </div>
 
             {/* Sign In Button / Avatar - Hidden on mobile */}
-            <div className="hidden md:block">
+            <div className="hidden md:block relative">
               {user ? (
                 <HeadlessMenu>
                   <HeadlessMenu.Button className="relative flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
@@ -66,15 +66,31 @@ export default function Header() {
                       alt="User avatar"
                     />
                   </HeadlessMenu.Button>
-                  <HeadlessMenu.Items className="absolute right-0 mt-2 w-48 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                  <HeadlessMenu.Items className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                    {isAdmin && (
+                      <HeadlessMenu.Item>
+                        {({ active }) => (
+                          <Link
+                            to="/admin/homepage-features"
+                            className={`${
+                              active ? 'bg-gray-100' : ''
+                            } flex items-center px-4 py-2 text-sm text-gray-700`}
+                          >
+                            <Settings className="h-4 w-4 mr-2" />
+                            Admin Dashboard
+                          </Link>
+                        )}
+                      </HeadlessMenu.Item>
+                    )}
                     <HeadlessMenu.Item>
                       {({ active }) => (
                         <button
                           onClick={handleSignOut}
                           className={`${
                             active ? 'bg-gray-100' : ''
-                          } block w-full px-4 py-2 text-left text-sm text-gray-700`}
+                          } flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                         >
+                          <LogOut className="h-4 w-4 mr-2" />
                           Sign Out
                         </button>
                       )}
