@@ -14,34 +14,49 @@ const SECTIONS_FIELD = 'sections'
 export const websiteService = {
   async getSections(): Promise<Section[]> {
     try {
-      const docRef = doc(db, 'configuration', WEBSITE_CONFIG_DOC)
+      const docRef = doc(db, 'website', WEBSITE_CONFIG_DOC)
       const docSnap = await getDoc(docRef)
       
       if (docSnap.exists()) {
         const data = docSnap.data()
+        if (!data.sections) {
+          console.warn('No sections found in document, initializing with defaults')
+          const initialSections = getInitialSections()
+          await this.saveSections(initialSections)
+          return initialSections
+        }
         return data.sections as Section[]
       }
       
-      // If no document exists, create one with initial sections
+      console.log('No website_config document exists, creating initial configuration')
       const initialSections = getInitialSections()
       await this.saveSections(initialSections)
       return initialSections
     } catch (error) {
       console.error('Error fetching sections:', error)
-      throw error
+      if (error instanceof Error) {
+        console.error('Error details:', error.message)
+      }
+      throw new Error('Failed to fetch sections. Please check your database connection and permissions.')
     }
   },
 
   async saveSections(sections: Section[]): Promise<void> {
     try {
-      const docRef = doc(db, 'configuration', WEBSITE_CONFIG_DOC)
+      const docRef = doc(db, 'website', WEBSITE_CONFIG_DOC)
       await setDoc(docRef, { 
-        sections,
+        sections: sections.map((section, index) => ({
+          ...section,
+          order: index // Ensure order is always sequential
+        })),
         updatedAt: new Date().toISOString()
       }, { merge: true })
     } catch (error) {
       console.error('Error saving sections:', error)
-      throw error
+      if (error instanceof Error) {
+        console.error('Error details:', error.message)
+      }
+      throw new Error('Failed to save sections. Please check your database connection and permissions.')
     }
   }
 }
@@ -59,4 +74,4 @@ export function getInitialSections(): Section[] {
     { id: 'testimonials', name: 'Testimonials Section', enabled: true, order: 8 },
     { id: 'contact', name: 'Contact Form', enabled: true, order: 9 },
   ]
-} 
+}

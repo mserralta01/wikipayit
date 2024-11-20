@@ -17,12 +17,13 @@ import { Switch } from '../../components/ui/switch'
 import { SortableSection } from './SortableSection'
 import { websiteService, type Section } from '../../services/websiteService'
 import { useToast } from '../../hooks/useToast'
-import { Loader2 } from 'lucide-react'
+import { Loader2, RefreshCcw } from 'lucide-react'
 
 export default function WebsiteManagement() {
   const [sections, setSections] = useState<Section[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
   
   const sensors = useSensors(
@@ -37,13 +38,19 @@ export default function WebsiteManagement() {
   }, [])
 
   const loadSections = async () => {
+    setLoading(true)
+    setError(null)
     try {
       const loadedSections = await websiteService.getSections()
-      setSections(loadedSections)
+      // Ensure sections are sorted by order
+      const sortedSections = [...loadedSections].sort((a, b) => a.order - b.order)
+      setSections(sortedSections)
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to load sections'
+      setError(errorMessage)
       toast({
         title: 'Error',
-        description: 'Failed to load sections. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {
@@ -53,16 +60,25 @@ export default function WebsiteManagement() {
 
   const saveSections = async (updatedSections: Section[]) => {
     setSaving(true)
+    setError(null)
     try {
-      await websiteService.saveSections(updatedSections)
+      // Ensure sections are properly ordered before saving
+      const orderedSections = updatedSections.map((section, index) => ({
+        ...section,
+        order: index,
+      }))
+      await websiteService.saveSections(orderedSections)
+      setSections(orderedSections)
       toast({
         title: 'Success',
         description: 'Changes saved successfully',
       })
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save changes'
+      setError(errorMessage)
       toast({
         title: 'Error',
-        description: 'Failed to save changes. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {
@@ -77,12 +93,7 @@ export default function WebsiteManagement() {
       setSections((items) => {
         const oldIndex = items.findIndex((item) => item.id === active.id)
         const newIndex = items.findIndex((item) => item.id === over.id)
-        const reorderedSections = arrayMove(items, oldIndex, newIndex).map(
-          (section, index) => ({
-            ...section,
-            order: index,
-          })
-        )
+        const reorderedSections = arrayMove(items, oldIndex, newIndex)
         saveSections(reorderedSections)
         return reorderedSections
       })
@@ -116,13 +127,28 @@ export default function WebsiteManagement() {
           <h2 className="text-2xl font-bold text-gray-900">Homepage Features</h2>
           <p className="text-gray-500 mt-1">Manage section visibility and order</p>
         </div>
-        {saving && (
-          <div className="flex items-center text-sm text-gray-500">
-            <Loader2 className="w-4 h-4 animate-spin mr-2" />
-            Saving changes...
-          </div>
-        )}
+        <div className="flex items-center gap-4">
+          {saving && (
+            <div className="flex items-center text-sm text-gray-500">
+              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              Saving changes...
+            </div>
+          )}
+          <button
+            onClick={loadSections}
+            className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          >
+            <RefreshCcw className="w-4 h-4 mr-2" />
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm text-red-800">{error}</p>
+        </div>
+      )}
 
       <div className="bg-white rounded-lg shadow">
         <div className="p-6">
@@ -168,4 +194,4 @@ export default function WebsiteManagement() {
       </div>
     </div>
   )
-} 
+}
