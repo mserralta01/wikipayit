@@ -7,8 +7,8 @@ import {
   query,
   orderBy,
   writeBatch,
+  getDoc,
 } from 'firebase/firestore'
-import { useToast } from '../hooks/useToast'
 
 export type Section = {
   id: string
@@ -17,9 +17,32 @@ export type Section = {
   order: number
 }
 
+// Cache management
+let cachedSections: Section[] | null = null
+let lastFetch = 0
+const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
+
 export const websiteService = {
+  async checkConnection(): Promise<boolean> {
+    try {
+      // Try to fetch a small document to verify connection
+      const testDoc = doc(db, 'sections', 'hero')
+      await getDoc(testDoc)
+      return true
+    } catch (error) {
+      console.error('Database connection check failed:', error)
+      return false
+    }
+  },
+
   async getSections(): Promise<Section[]> {
     try {
+      // Check if we have valid cached data
+      const now = Date.now()
+      if (cachedSections && (now - lastFetch) < CACHE_DURATION) {
+        return cachedSections
+      }
+
       const sectionsRef = collection(db, 'sections')
       const q = query(sectionsRef, orderBy('order', 'asc'))
       const snapshot = await getDocs(q)
@@ -29,10 +52,16 @@ export const websiteService = {
         return []
       }
 
-      return snapshot.docs.map((doc) => ({
+      const sections = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Section[]
+
+      // Update cache
+      cachedSections = sections
+      lastFetch = now
+
+      return sections
     } catch (error) {
       console.error('Error getting sections:', error)
       throw error
@@ -52,6 +81,10 @@ export const websiteService = {
       })
 
       await batch.commit()
+      
+      // Invalidate cache after update
+      cachedSections = null
+      lastFetch = 0
     } catch (error) {
       console.error('Error updating sections:', error)
       throw error
@@ -68,6 +101,10 @@ export const websiteService = {
       })
 
       await batch.commit()
+      
+      // Invalidate cache after initialization
+      cachedSections = null
+      lastFetch = 0
     } catch (error) {
       console.error('Error initializing sections:', error)
       throw error

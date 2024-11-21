@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { Menu, Zap, PhoneCall, LogOut, Settings } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginModal } from './auth/LoginModal';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Menu as HeadlessMenu } from '@headlessui/react';
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const { user, signOut, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     try {
@@ -16,6 +17,10 @@ export default function Header() {
     } catch (error) {
       console.error('Error signing out:', error);
     }
+  };
+
+  const handleAdminDashboard = () => {
+    navigate('/admin');
   };
 
   return (
@@ -69,15 +74,15 @@ export default function Header() {
                     {isAdmin && (
                       <HeadlessMenu.Item>
                         {({ active }) => (
-                          <Link
-                            to="/admin/homepage-features"
+                          <button
+                            onClick={handleAdminDashboard}
                             className={`${
                               active ? 'bg-gray-100' : ''
-                            } flex items-center px-4 py-2 text-sm text-gray-700`}
+                            } flex items-center w-full px-4 py-2 text-sm text-gray-700`}
                           >
                             <Settings className="h-4 w-4 mr-2" />
                             Admin Dashboard
-                          </Link>
+                          </button>
                         )}
                       </HeadlessMenu.Item>
                     )}
