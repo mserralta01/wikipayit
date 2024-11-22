@@ -9,7 +9,16 @@ import {
   ChevronDown,
   User,
   Bell,
-  ChevronRight
+  ChevronRight,
+  Store,
+  Users,
+  FileText,
+  GitBranch,
+  BarChart,
+  DollarSign,
+  TrendingUp,
+  Mail,
+  Plus
 } from 'lucide-react'
 import { auth } from '../../lib/firebase'
 import { signOut } from 'firebase/auth'
@@ -57,6 +66,43 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       href: '/admin',
     },
     {
+      title: 'Merchants',
+      icon: <Store className="w-5 h-5" />,
+      submenu: [
+        {
+          title: 'All Merchants',
+          icon: <Users className="w-5 h-5" />,
+          href: '/admin/merchants',
+        },
+        {
+          title: 'Applications',
+          icon: <FileText className="w-5 h-5" />,
+          href: '/admin/applications',
+        },
+        {
+          title: 'Pipeline',
+          icon: <GitBranch className="w-5 h-5" />,
+          href: '/admin/pipeline',
+        }
+      ]
+    },
+    {
+      title: 'Reports',
+      icon: <BarChart className="w-5 h-5" />,
+      submenu: [
+        {
+          title: 'Processing Volume',
+          icon: <DollarSign className="w-5 h-5" />,
+          href: '/admin/reports/volume',
+        },
+        {
+          title: 'Sales Analytics',
+          icon: <TrendingUp className="w-5 h-5" />,
+          href: '/admin/reports/sales',
+        }
+      ]
+    },
+    {
       title: 'Settings',
       icon: <Settings className="w-5 h-5" />,
       submenu: [
@@ -65,7 +111,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           icon: <Globe className="w-5 h-5" />,
           href: '/admin/website',
         },
-        // Add more settings submenu items here
+        {
+          title: 'Email Templates',
+          icon: <Mail className="w-5 h-5" />,
+          href: '/admin/email-templates',
+        },
+        {
+          title: 'Team',
+          icon: <Users className="w-5 h-5" />,
+          href: '/admin/team',
+        }
       ]
     },
   ]
@@ -131,6 +186,29 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     )
   }
 
+  const getPageTitle = (pathname: string): string => {
+    switch (true) {
+      case pathname === '/admin':
+        return 'Dashboard'
+      case pathname.includes('/admin/merchants'):
+        return 'Merchant Management'
+      case pathname.includes('/admin/applications'):
+        return 'Application Pipeline'
+      case pathname.includes('/admin/reports/volume'):
+        return 'Processing Volume'
+      case pathname.includes('/admin/reports/sales'):
+        return 'Sales Analytics'
+      case pathname === '/admin/website':
+        return 'Website Settings'
+      case pathname === '/admin/email-templates':
+        return 'Email Templates'
+      case pathname === '/admin/team':
+        return 'Team Management'
+      default:
+        return 'Dashboard'
+    }
+  }
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
@@ -177,15 +255,36 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           <header className="h-16 bg-white shadow-sm flex items-center justify-between px-6 fixed top-0 right-0 left-64 z-10">
             <div className="flex items-center">
               <h2 className="text-lg font-medium text-gray-800">
-                {location.pathname === '/admin/website' ? 'Website Settings' : 'Dashboard'}
+                {getPageTitle(location.pathname)}
               </h2>
+              {/* Add quick action buttons based on current page */}
+              {location.pathname.includes('/admin/merchants') && (
+                <Button variant="outline" size="sm" className="ml-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Merchant
+                </Button>
+              )}
             </div>
 
             <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="icon">
-                <Bell className="h-5 w-5" />
-              </Button>
+              {/* Notifications with badge */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-5 w-5" />
+                    <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-[10px] text-white flex items-center justify-center">
+                      3
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-80" align="end">
+                  <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {/* Add notification items */}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
+              {/* User menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">

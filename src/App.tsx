@@ -8,6 +8,10 @@ import LoginPage from './pages/LoginPage'
 import { AuthProvider } from './contexts/AuthContext'
 import { useAuth } from './contexts/AuthContext'
 import { Loader2 } from 'lucide-react'
+import { QueryProvider } from './lib/providers/QueryProvider'
+import MerchantList from './components/admin/MerchantList'
+import Pipeline from './components/admin/Pipeline'
+import Applications from './components/admin/Applications'
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -64,6 +68,18 @@ const router = createBrowserRouter([
         path: 'website',
         element: <WebsiteManagement />,
       },
+      {
+        path: 'merchants',
+        element: <MerchantList />,
+      },
+      {
+        path: 'pipeline',
+        element: <Pipeline />,
+      },
+      {
+        path: 'applications',
+        element: <Applications />,
+      },
     ],
   },
 ])
@@ -71,7 +87,9 @@ const router = createBrowserRouter([
 export default function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
+      <QueryProvider>
+        <RouterProvider router={router} />
+      </QueryProvider>
     </AuthProvider>
   )
 }
