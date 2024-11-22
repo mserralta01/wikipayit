@@ -25,10 +25,22 @@ const sectionComponents = {
   contact: ContactForm,
 }
 
+const defaultSections = [
+  { id: 'hero', name: 'Hero Section', enabled: true, order: 0 },
+  { id: 'industries', name: 'Industries Section', enabled: true, order: 1 },
+  { id: 'entrepreneur', name: 'Entrepreneur Section', enabled: true, order: 2 },
+  { id: 'pos', name: 'POS Section', enabled: true, order: 3 },
+  { id: 'gateway', name: 'Gateway Section', enabled: true, order: 4 },
+  { id: 'highRisk', name: 'High Risk Section', enabled: true, order: 5 },
+  { id: 'pricing', name: 'Pricing Section', enabled: true, order: 6 },
+  { id: 'ach', name: 'ACH Section', enabled: true, order: 7 },
+  { id: 'testimonials', name: 'Testimonials Section', enabled: true, order: 8 },
+  { id: 'contact', name: 'Contact Form', enabled: true, order: 9 },
+]
+
 export default function HomePage() {
-  const [sections, setSections] = useState<Section[]>([])
+  const [sections, setSections] = useState<Section[]>(defaultSections)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let mounted = true
@@ -36,28 +48,16 @@ export default function HomePage() {
     const loadSections = async () => {
       try {
         setLoading(true)
-        setError(null)
-        
-        // First check DB connection
-        const isConnected = await websiteService.checkConnection()
-        if (!isConnected) {
-          throw new Error('Database connection failed')
-        }
-
         const data = await websiteService.getSections()
         
-        // Validate we have the minimum required sections
-        if (!data.length) {
-          throw new Error('No sections found')
-        }
-
         if (mounted) {
-          setSections(data)
+          setSections(data.length ? data : defaultSections)
         }
-      } catch (err) {
-        console.error('Error loading sections:', err)
+      } catch (error) {
+        console.error('Error loading sections:', error)
         if (mounted) {
-          setError('Failed to load page content. Please refresh.')
+          // Fallback to default sections if there's an error
+          setSections(defaultSections)
         }
       } finally {
         if (mounted) {
@@ -76,22 +76,6 @@ export default function HomePage() {
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading content...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Retry
-          </button>
         </div>
       </div>
     )

@@ -8,6 +8,7 @@ import {
   orderBy,
   writeBatch,
   getDoc,
+  limit,
 } from 'firebase/firestore'
 
 export type Section = {
@@ -25,12 +26,19 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 export const websiteService = {
   async checkConnection(): Promise<boolean> {
     try {
-      // Try to fetch a small document to verify connection
-      const testDoc = doc(db, 'sections', 'hero')
-      await getDoc(testDoc)
+      // Try to fetch the sections collection instead of a specific document
+      const sectionsRef = collection(db, 'sections')
+      const q = query(sectionsRef, limit(1))
+      await getDocs(q)
       return true
     } catch (error) {
-      console.error('Database connection check failed:', error)
+      if (error instanceof Error) {
+        if (error.message.includes('offline')) {
+          console.warn('App is offline, using cached data if available')
+          return false
+        }
+        console.error('Database connection check failed:', error)
+      }
       return false
     }
   },
@@ -40,15 +48,17 @@ export const websiteService = {
       // Check if we have valid cached data
       const now = Date.now()
       if (cachedSections && (now - lastFetch) < CACHE_DURATION) {
+        console.log('Returning cached sections:', cachedSections)
         return cachedSections
       }
 
+      console.log('Fetching sections from Firestore...')
       const sectionsRef = collection(db, 'sections')
       const q = query(sectionsRef, orderBy('order', 'asc'))
       const snapshot = await getDocs(q)
       
       if (snapshot.empty) {
-        console.log('No sections found')
+        console.log('No sections found in Firestore')
         return []
       }
 
@@ -57,6 +67,8 @@ export const websiteService = {
         ...doc.data(),
       })) as Section[]
 
+      console.log('Fetched sections:', sections)
+      
       // Update cache
       cachedSections = sections
       lastFetch = now

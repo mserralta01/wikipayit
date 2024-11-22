@@ -12,6 +12,7 @@ import {
   ChevronRight
 } from 'lucide-react'
 import { auth } from '../../lib/firebase'
+import { signOut } from 'firebase/auth'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,10 +43,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     try {
-      await auth.signOut()
-      navigate('/login')
+      await signOut(auth)
+      navigate('/')
     } catch (error) {
-      console.error('Error signing out:', error)
+      console.error('Logout error:', error)
     }
   }
 
@@ -210,7 +211,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
+                    <span>Logout</span>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

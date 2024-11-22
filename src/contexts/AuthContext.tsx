@@ -1,49 +1,41 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { User, onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../lib/firebase'
-import { signOut as firebaseSignOut } from 'firebase/auth'
+import { User } from 'firebase/auth'
 
 type AuthContextType = {
   user: User | null
   loading: boolean
   isAdmin: boolean
-  signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   isAdmin: false,
-  signOut: async () => {}
 })
 
-export const useAuth = () => useContext(AuthContext)
-
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser: User | null) => {
-      setUser(currentUser)
-      setIsAdmin(
-        currentUser?.email === 'mserralta@gmail.com' || 
-        currentUser?.email === 'Mpilotg6@gmail.com'
-      )
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUser(user)
       setLoading(false)
     })
 
     return unsubscribe
   }, [])
 
-  const signOut = async () => {
-    await firebaseSignOut(auth)
-  }
+  const isAdmin = user?.email === 'mserralta@gmail.com' || user?.email === 'Mpilotg6@gmail.com'
 
   return (
-    <AuthContext.Provider value={{ user, loading, isAdmin, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isAdmin }}>
       {!loading && children}
     </AuthContext.Provider>
   )
+}
+
+export function useAuth() {
+  return useContext(AuthContext)
 } 
