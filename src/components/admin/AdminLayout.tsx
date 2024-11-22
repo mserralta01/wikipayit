@@ -249,7 +249,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 ml-64">
+      <div className="flex-1 ml-64 relative">
         <div className="flex flex-col min-h-screen">
           {/* Top Navigation */}
           <header className="h-16 bg-white shadow-sm flex items-center justify-between px-6 fixed top-0 right-0 left-64 z-10">

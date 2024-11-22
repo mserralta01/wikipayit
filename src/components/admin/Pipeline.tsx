@@ -1,24 +1,43 @@
 import React from 'react'
-import { Card, CardContent } from '../../components/ui/card'
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
+import { Card, CardContent } from '@/components/ui/card'
 import { 
   Users, Phone, Send, FileText, 
   CheckCircle, MoreVertical, Mail, 
   MessageSquare, Clock, DollarSign,
-  Plus 
+  Building, Download, Plus 
 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '../../components/ui/dropdown-menu'
-import { Button } from '../../components/ui/button'
-import { Badge } from '../../components/ui/badge'
-import { useQuery } from '@tanstack/react-query'
-import { merchantService } from '../../services/merchantService'
-import { Merchant, MerchantStatus } from '../../types/merchant'
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { merchantService } from '@/services/merchantService'
+
+type MerchantStatus = 'lead' | 'phone' | 'offer' | 'underwriting' | 'documents' | 'approved'
+
+type Merchant = {
+  id: string
+  businessName: string
+  contactName: string
+  status: MerchantStatus
+  businessType?: string
+  processingVolume?: number
+  phone?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+type Column = {
+  id: MerchantStatus
+  title: string
+  items: Merchant[]
+}
 
 const statusConfig = {
   lead: {
@@ -53,104 +72,45 @@ const statusConfig = {
   }
 } as const
 
-type MerchantCardProps = {
-  merchant: Merchant
-  onStatusChange: (merchantId: string, newStatus: MerchantStatus) => void
-}
-
-const MerchantCard = ({ merchant, onStatusChange }: MerchantCardProps) => {
-  const StatusIcon = statusConfig[merchant.status].icon
-
-  return (
-    <Card className="mb-4">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h3 className="font-medium">{merchant.businessName}</h3>
-            <p className="text-sm text-gray-500">{merchant.contactName}</p>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem>
-                <Mail className="mr-2 h-4 w-4" />
-                Send Email
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Add Note
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Move to</DropdownMenuLabel>
-              {Object.entries(statusConfig).map(([status, config]) => (
-                <DropdownMenuItem
-                  key={status}
-                  onClick={() => onStatusChange(merchant.id, status as MerchantStatus)}
-                  disabled={status === merchant.status}
-                >
-                  <config.icon className="mr-2 h-4 w-4" />
-                  {config.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-        
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center text-sm">
-            <Mail className="h-4 w-4 mr-2 text-gray-400" />
-            {merchant.email}
-          </div>
-          <div className="flex items-center text-sm">
-            <Phone className="h-4 w-4 mr-2 text-gray-400" />
-            {merchant.phone}
-          </div>
-          {merchant.processingVolume && (
-            <div className="flex items-center text-sm">
-              <DollarSign className="h-4 w-4 mr-2 text-gray-400" />
-              ${merchant.processingVolume.toLocaleString()}
-            </div>
-          )}
-          <div className="flex items-center text-sm">
-            <Clock className="h-4 w-4 mr-2 text-gray-400" />
-            {new Date(merchant.createdAt).toLocaleDateString()}
-          </div>
-        </div>
-
-        <div className="mt-4 flex items-center justify-between">
-          <Badge variant="secondary" className={statusConfig[merchant.status].color}>
-            {statusConfig[merchant.status].label}
-          </Badge>
-          {merchant.processingVolume && merchant.processingVolume > 100000 && (
-            <Badge variant="secondary" className="bg-green-100 text-green-800">
-              High Value
-            </Badge>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
 export default function Pipeline() {
+  const queryClient = useQueryClient()
+  
   const { data: merchants, isLoading } = useQuery({
     queryKey: ['merchants'],
-    queryFn: () => merchantService.getAllMerchants()
+    queryFn: () => merchantService.getMerchants()
   })
 
-  const handleStatusChange = async (merchantId: string, newStatus: MerchantStatus) => {
-    try {
-      await merchantService.updateMerchantStatus(merchantId, newStatus)
-      // React Query will automatically refetch the merchants
-    } catch (error) {
-      console.error('Error updating merchant status:', error)
-      // Add toast notification here
+  const updateMerchantStatus = useMutation({
+    mutationFn: (variables: { merchantId: string; status: MerchantStatus }) =>
+      merchantService.updateMerchantStatus(variables.merchantId, variables.status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['merchants'] })
     }
+  })
+
+  const columns: Column[] = [
+    'lead',
+    'phone',
+    'offer',
+    'underwriting',
+    'documents',
+    'approved'
+  ].map(status => ({
+    id: status as MerchantStatus,
+    title: statusConfig[status as MerchantStatus].label,
+    items: merchants?.filter(m => m.status === status) || []
+  }))
+
+  const onDragEnd = async (result: any) => {
+    if (!result.destination) return
+
+    const { draggableId, destination } = result
+    const newStatus = destination.droppableId as MerchantStatus
+
+    await updateMerchantStatus.mutateAsync({
+      merchantId: draggableId,
+      status: newStatus
+    })
   }
 
   if (isLoading) {
@@ -164,32 +124,6 @@ export default function Pipeline() {
     )
   }
 
-  const columns = Object.entries(statusConfig).map(([status, config]) => {
-    const columnMerchants = merchants?.filter(m => m.status === status) || []
-    
-    return (
-      <div key={status} className="flex-1 min-w-[300px]">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="flex items-center">
-            <config.icon className="h-5 w-5 mr-2" />
-            <h2 className="font-semibold">{config.label}</h2>
-          </div>
-          <Badge variant="secondary">{columnMerchants.length}</Badge>
-        </div>
-        
-        <div className="space-y-4">
-          {columnMerchants.map(merchant => (
-            <MerchantCard
-              key={merchant.id}
-              merchant={merchant}
-              onStatusChange={handleStatusChange}
-            />
-          ))}
-        </div>
-      </div>
-    )
-  })
-
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-8">
@@ -200,9 +134,83 @@ export default function Pipeline() {
         </Button>
       </div>
 
-      <div className="flex gap-6 overflow-x-auto pb-8">
-        {columns}
-      </div>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
+          {columns.map(column => (
+            <div key={column.id} className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  {React.createElement(statusConfig[column.id].icon, {
+                    className: 'h-5 w-5 text-gray-500'
+                  })}
+                  <h2 className="font-semibold">{column.title}</h2>
+                </div>
+                <Badge variant="secondary">{column.items.length}</Badge>
+              </div>
+
+              <Droppable droppableId={column.id}>
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="space-y-4"
+                  >
+                    {column.items.map((merchant, index) => (
+                      <Draggable
+                        key={merchant.id}
+                        draggableId={merchant.id}
+                        index={index}
+                      >
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                          >
+                            <Card>
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <h3 className="font-medium">{merchant.businessName}</h3>
+                                    <p className="text-sm text-gray-500">{merchant.contactName}</p>
+                                  </div>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="sm">
+                                        <MoreVertical className="h-4 w-4" />
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                      <DropdownMenuItem>
+                                        <Mail className="mr-2 h-4 w-4" />
+                                        Send Email
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem>
+                                        <MessageSquare className="mr-2 h-4 w-4" />
+                                        Add Note
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem>
+                                        <Download className="mr-2 h-4 w-4" />
+                                        Download Documents
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </div>
+          ))}
+        </div>
+      </DragDropContext>
     </div>
   )
 } 

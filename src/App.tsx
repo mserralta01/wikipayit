@@ -12,6 +12,10 @@ import { QueryProvider } from './lib/providers/QueryProvider'
 import MerchantList from './components/admin/MerchantList'
 import Pipeline from './components/admin/Pipeline'
 import Applications from './components/admin/Applications'
+import ProcessingVolumeReport from './components/admin/reports/ProcessingVolumeReport'
+import SalesAnalyticsReport from './components/admin/reports/SalesAnalyticsReport'
+import EmailTemplates from './components/admin/settings/EmailTemplates'
+import TeamManagement from './components/admin/settings/TeamManagement'
 
 // Protected Route Component
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -80,9 +84,34 @@ const router = createBrowserRouter([
         path: 'applications',
         element: <Applications />,
       },
+      {
+        path: 'reports/volume',
+        element: <ProcessingVolumeReport />,
+      },
+      {
+        path: 'reports/sales',
+        element: <SalesAnalyticsReport />,
+      },
+      {
+        path: 'email-templates',
+        element: <EmailTemplates />,
+      },
+      {
+        path: 'team',
+        element: <TeamManagement />,
+      },
     ],
   },
-])
+], {
+  future: {
+    v7_startTransition: true,
+    v7_relativeSplatPath: true,
+    v7_fetcherPersist: true,
+    v7_normalizeFormMethod: true,
+    v7_partialHydration: true,
+    v7_skipActionErrorRevalidation: true
+  }
+});
 
 export default function App() {
   return (
