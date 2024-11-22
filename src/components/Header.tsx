@@ -1,151 +1,161 @@
-import React, { useState } from 'react';
-import { Menu, Zap, PhoneCall, LogOut, Settings } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
-import { LoginModal } from './auth/LoginModal';
-import { Link, useNavigate } from 'react-router-dom';
-import { Menu as HeadlessMenu } from '@headlessui/react';
+import React, { useState } from 'react'
+import { useAuth } from '../contexts/AuthContext'
+import { LoginModal } from './auth/LoginModal'
+import { useNavigate } from 'react-router-dom'
+import { 
+  Settings, 
+  LogOut,
+  User,
+  Menu,
+  X,
+  PhoneCall
+} from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu'
+import { Button } from './ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
 
 export default function Header() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const { user, signOut, isAdmin } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-      navigate('/');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  };
+  const { user, isAdmin } = useAuth()
+  const [isOpen, setIsOpen] = useState(false)
+  const [showLoginModal, setShowLoginModal] = useState(false)
+  const navigate = useNavigate()
 
   const handleAdminDashboard = () => {
-    navigate('/admin');
-  };
+    navigate('/admin')
+  }
+
+  const toggleMenu = () => {
+    setIsOpen(!isOpen)
+  }
 
   return (
-    <header className="fixed w-full bg-white/95 backdrop-blur-md shadow-lg z-50 h-20">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center h-20 px-6">
-          <div className="flex items-center">
-            <div className="flex items-center">
-              <Zap className="h-8 w-8 text-blue-600" />
-              <span className="ml-3 text-2xl font-bold">
-                <span className="text-black">Wiki</span>
-                <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">PayIt</span>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            <a href="/" className="text-2xl font-bold">
+              <span className="text-black">Wiki</span>
+              <span className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] bg-clip-text text-transparent">
+                PayIt
               </span>
-            </div>
-            
-            <nav className="hidden md:flex items-center ml-16">
-              <div className="flex items-center space-x-10">
-                <a href="#services" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                  Services
-                </a>
-                <a href="#industries" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                  Industries
-                </a>
-                <a href="#solutions" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                  Solutions
-                </a>
-                <a href="#contact" className="text-gray-700 hover:text-blue-600 transition-colors font-medium">
-                  Contact
-                </a>
-              </div>
-            </nav>
+            </a>
           </div>
 
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex space-x-8">
+            <a href="#services" className="text-gray-700 hover:text-blue-600">
+              Services
+            </a>
+            <a href="#industries" className="text-gray-700 hover:text-blue-600">
+              Industries
+            </a>
+            <a href="#pricing" className="text-gray-700 hover:text-blue-600">
+              Pricing
+            </a>
+            <a href="#contact" className="text-gray-700 hover:text-blue-600">
+              Contact
+            </a>
+          </nav>
+
+          {/* Phone Number and User Menu */}
           <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center bg-blue-600 text-white px-6 py-2 rounded-lg">
+            <div className="hidden md:flex items-center text-blue-600">
               <PhoneCall className="h-5 w-5 mr-2" />
               +1 (305) 396-1226
             </div>
 
-            <div className="hidden md:block relative">
-              {user ? (
-                <HeadlessMenu>
-                  <HeadlessMenu.Button className="relative flex rounded-full bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800">
-                    <img
-                      className="h-8 w-8 rounded-full"
-                      src={user.photoURL || 'https://via.placeholder.com/40'}
-                      alt="User avatar"
-                    />
-                  </HeadlessMenu.Button>
-                  <HeadlessMenu.Items className="absolute right-0 mt-2 w-56 origin-top-right rounded-md bg-white py-1 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    {isAdmin && (
-                      <HeadlessMenu.Item>
-                        {({ active }) => (
-                          <button
-                            onClick={handleAdminDashboard}
-                            className={`${
-                              active ? 'bg-gray-100' : ''
-                            } flex items-center w-full px-4 py-2 text-sm text-gray-700`}
-                          >
-                            <Settings className="h-4 w-4 mr-2" />
-                            Admin Dashboard
-                          </button>
-                        )}
-                      </HeadlessMenu.Item>
-                    )}
-                    <HeadlessMenu.Item>
-                      {({ active }) => (
-                        <button
-                          onClick={handleSignOut}
-                          className={`${
-                            active ? 'bg-gray-100' : ''
-                          } flex items-center w-full px-4 py-2 text-sm text-gray-700`}
-                        >
-                          <LogOut className="h-4 w-4 mr-2" />
-                          Sign Out
-                        </button>
-                      )}
-                    </HeadlessMenu.Item>
-                  </HeadlessMenu.Items>
-                </HeadlessMenu>
-              ) : (
-                <button
-                  onClick={() => setIsLoginModalOpen(true)}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
-                >
-                  Sign In
-                </button>
-              )}
-            </div>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+                    <Avatar>
+                      <AvatarImage src={user.photoURL || undefined} />
+                      <AvatarFallback>
+                        {user.email?.charAt(0).toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {isAdmin && (
+                    <DropdownMenuItem onClick={handleAdminDashboard}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Admin Dashboard
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem>
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/login')}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => setShowLoginModal(true)}
+              >
+                Sign In
+              </Button>
+            )}
 
-            <button 
-              onClick={() => setIsOpen(!isOpen)} 
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="Toggle menu"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
+            {/* Mobile menu button */}
+            <div className="md:hidden">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleMenu}
+              >
+                {isOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </Button>
+            </div>
           </div>
         </div>
 
+        {/* Mobile menu */}
         {isOpen && (
-          <div className="md:hidden absolute w-full left-0 top-full bg-white shadow-lg">
-            <nav className="px-6 py-4 space-y-3">
-              <a href="#services" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors">
+          <div className="md:hidden py-4">
+            <div className="flex flex-col space-y-4">
+              <a href="#services" className="text-gray-700 hover:text-blue-600">
                 Services
               </a>
-              <a href="#industries" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors">
+              <a href="#industries" className="text-gray-700 hover:text-blue-600">
                 Industries
               </a>
-              <a href="#solutions" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors">
-                Solutions
+              <a href="#pricing" className="text-gray-700 hover:text-blue-600">
+                Pricing
               </a>
-              <a href="#contact" className="block px-4 py-2 text-gray-700 hover:bg-blue-50 rounded-lg transition-colors">
+              <a href="#contact" className="text-gray-700 hover:text-blue-600">
                 Contact
               </a>
-            </nav>
+            </div>
           </div>
         )}
       </div>
 
+      {/* Login Modal */}
       <LoginModal
-        isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
       />
     </header>
-  );
+  )
 }

@@ -1,3 +1,12 @@
+This is a software project for a payment company. We are using Next.js, Shadcn UI, Tailwind CSS, TypeScript, and Firebase. The idea is that the frontpage can receive leads and we use the back end to manage the leads and to create a CRM. 
+Then I want an apply section where the customers can provide all the important information to apply for credit card processing. 
+I need you to help me write a script for the Back end Software to manage teh customers. Customers can be a lead, a merchant, . I would like a system like trello to manage the lead and ths status. With ability to send email when changing status. 
+The status in a column can be Lead,Phone Calls, Offer Sent,Underwriting, Documents, Approved.
+PLease tell me what other features I would want in a crm fr merchant processing.
+
+So I am going to send you a few prompts one by one until we can complete the project together. 
+
+
 # Code Completeness Rules
 CODE_COMPLETENESS:
 - Write the complete file content from start to finish without any placeholders or comments about previous content
