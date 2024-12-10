@@ -48,10 +48,17 @@ export default function HomePage() {
     const loadSections = async () => {
       try {
         setLoading(true)
+        // First, try to get sections from Firestore
         const data = await websiteService.getSections()
         
         if (mounted) {
-          setSections(data.length ? data : defaultSections)
+          if (data.length === 0) {
+            // If no sections exist in Firestore, initialize with default sections
+            await websiteService.initializeSections(defaultSections)
+            setSections(defaultSections)
+          } else {
+            setSections(data)
+          }
         }
       } catch (error) {
         console.error('Error loading sections:', error)
@@ -85,10 +92,11 @@ export default function HomePage() {
     <div className="relative">
       {sections
         .filter((section) => section.enabled)
+        .sort((a, b) => a.order - b.order)
         .map((section) => {
           const Component = sectionComponents[section.id as keyof typeof sectionComponents]
           return Component ? <Component key={section.id} /> : null
         })}
     </div>
   )
-} 
+}

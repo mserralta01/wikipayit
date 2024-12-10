@@ -9,6 +9,7 @@ import {
   writeBatch,
   getDoc,
   limit,
+  setDoc,
 } from 'firebase/firestore'
 
 export type Section = {
@@ -26,7 +27,6 @@ const CACHE_DURATION = 5 * 60 * 1000 // 5 minutes
 export const websiteService = {
   async checkConnection(): Promise<boolean> {
     try {
-      // Try to fetch the sections collection instead of a specific document
       const sectionsRef = collection(db, 'sections')
       const q = query(sectionsRef, limit(1))
       await getDocs(q)
@@ -48,17 +48,14 @@ export const websiteService = {
       // Check if we have valid cached data
       const now = Date.now()
       if (cachedSections && (now - lastFetch) < CACHE_DURATION) {
-        console.log('Returning cached sections:', cachedSections)
         return cachedSections
       }
 
-      console.log('Fetching sections from Firestore...')
       const sectionsRef = collection(db, 'sections')
       const q = query(sectionsRef, orderBy('order', 'asc'))
       const snapshot = await getDocs(q)
       
       if (snapshot.empty) {
-        console.log('No sections found in Firestore')
         return []
       }
 
@@ -66,8 +63,6 @@ export const websiteService = {
         id: doc.id,
         ...doc.data(),
       })) as Section[]
-
-      console.log('Fetched sections:', sections)
       
       // Update cache
       cachedSections = sections
@@ -76,7 +71,8 @@ export const websiteService = {
       return sections
     } catch (error) {
       console.error('Error getting sections:', error)
-      throw error
+      // Return empty array instead of throwing
+      return []
     }
   },
 
@@ -99,7 +95,7 @@ export const websiteService = {
       lastFetch = 0
     } catch (error) {
       console.error('Error updating sections:', error)
-      throw error
+      // Don't throw, just log the error
     }
   },
 
@@ -107,19 +103,22 @@ export const websiteService = {
     try {
       const batch = writeBatch(db)
       
-      sections.forEach((section) => {
+      for (const section of sections) {
         const sectionRef = doc(db, 'sections', section.id)
-        batch.set(sectionRef, section)
-      })
-
-      await batch.commit()
+        // Use setDoc instead of batch.set to ensure each document is created
+        await setDoc(sectionRef, {
+          name: section.name,
+          enabled: section.enabled,
+          order: section.order,
+        })
+      }
       
       // Invalidate cache after initialization
       cachedSections = null
       lastFetch = 0
     } catch (error) {
       console.error('Error initializing sections:', error)
-      throw error
+      // Don't throw, just log the error
     }
   },
 }

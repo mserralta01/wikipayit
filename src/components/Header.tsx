@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { LoginModal } from './auth/LoginModal'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { 
   Settings, 
   LogOut,
@@ -41,12 +41,12 @@ export default function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <a href="/" className="text-2xl font-bold">
+            <Link to="/" className="text-2xl font-bold">
               <span className="text-black">Wiki</span>
               <span className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] bg-clip-text text-transparent">
                 PayIt
               </span>
-            </a>
+            </Link>
           </div>
 
           {/* Desktop Navigation */}
@@ -65,12 +65,18 @@ export default function Header() {
             </a>
           </nav>
 
-          {/* Phone Number and User Menu */}
+          {/* Phone Number, Apply Now, and User Menu */}
           <div className="flex items-center space-x-4">
             <div className="hidden md:flex items-center text-blue-600">
               <PhoneCall className="h-5 w-5 mr-2" />
               +1 (305) 396-1226
             </div>
+
+            <Link to="/apply">
+              <Button className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] text-white hover:opacity-90">
+                Apply Now
+              </Button>
+            </Link>
 
             {user ? (
               <DropdownMenu>
@@ -146,6 +152,9 @@ export default function Header() {
               <a href="#contact" className="text-gray-700 hover:text-blue-600">
                 Contact
               </a>
+              <Link to="/apply" className="text-gray-700 hover:text-blue-600">
+                Apply Now
+              </Link>
             </div>
           </div>
         )}

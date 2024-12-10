@@ -1,53 +1,43 @@
-export type MerchantStatus = 'lead' | 'phone' | 'offer' | 'underwriting' | 'documents' | 'approved'
-
-export type Priority = 'high' | 'medium' | 'low'
-
-export type AssignedUser = {
-  id: string
-  name: string
+export type BeneficialOwner = {
+  firstName: string
+  lastName: string
+  title: string
+  ownershipPercentage: string
   email: string
-  avatar?: string
-  initials: string
-}
-
-export type Note = {
-  id: string
-  content: string
-  createdBy: string
-  createdAt: Date
-}
-
-export type Document = {
-  id: string
-  name: string
-  url: string
-  type: string
-  uploadedBy: string
-  uploadedAt: Date
+  phone: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  ssn: string
+  dateOfBirth: string
 }
 
 export type Merchant = {
-  id: string
+  id?: string
   businessName: string
-  contactName: string
-  email: string
-  phone: string
-  status: MerchantStatus
-  priority: Priority
-  processingVolume?: number
-  businessType?: string
-  assignedTo?: AssignedUser
-  notes: Note[]
-  documents: Document[]
-  createdAt: Date
-  lastUpdated: Date
+  dba?: string
+  taxId: string
+  businessType: string
+  yearEstablished: string
+  website?: string
+  isCurrentlyProcessing: string
+  currentProcessor?: string
+  hasBeenTerminated: string
+  terminationExplanation?: string
+  monthlyVolume: string
+  averageTicket: string
+  highTicket: string
+  cardPresentPercentage: string
+  ecommercePercentage: string
+  motoPercentage: string
+  beneficialOwners: BeneficialOwner[]
+  documents: {
+    businessLicense?: File[]
+    voidedCheck?: File[]
+    bankStatements?: File[]
+  }
+  status?: 'pending' | 'approved' | 'rejected'
+  createdAt?: string
+  updatedAt?: string
 }
-
-export type Activity = {
-  id: string
-  type: 'status_change' | 'note_added' | 'document_uploaded' | 'email_sent'
-  merchantId: string
-  description: string
-  performedBy: string
-  timestamp: Date
-} 
