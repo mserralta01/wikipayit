@@ -20,6 +20,7 @@ export const merchantService = {
       const docRef = await addDoc(leadsRef, {
         email,
         status: "started",
+        pipelineStatus: "lead",
         currentStep: 1,
         formData: { email },
         createdAt: Timestamp.now(),
@@ -85,6 +86,7 @@ export const merchantService = {
           currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
           formData: data.formData || {},
           status: data.status || "started",
+          pipelineStatus: data.pipelineStatus || "lead",
           createdAt: data.createdAt.toDate().toISOString(),
           updatedAt: data.updatedAt.toDate().toISOString(),
         } as Lead

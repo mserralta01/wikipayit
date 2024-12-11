@@ -1,35 +1,17 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { styled, Theme } from '@mui/material/styles'
+import { styled } from '@mui/material/styles'
 import {
-  AppBar,
   Box,
-  Button,
-  Card,
   Chip,
-  IconButton,
-  LinearProgress,
-  Paper,
-  Toolbar,
   Typography,
-  Menu,
-  MenuItem,
-  Divider,
-  LinearProgressProps,
-  SxProps
+  LinearProgress,
 } from '@mui/material'
 import {
-  Add as AddIcon,
-  MoreVert as MoreVertIcon,
-  Mail as MailIcon,
-  Message as MessageIcon,
-  Download as DownloadIcon,
   Business as BusinessIcon,
-  AttachMoney as MoneyIcon,
   Email as EmailIcon,
-  Person as PersonIcon,
 } from '@mui/icons-material'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { merchantService } from '../../services/merchantService'
 import { CardModal } from './CardModal'
 import { format } from 'date-fns'
@@ -44,471 +26,312 @@ import {
   isPipelineLead,
   isPipelineMerchant
 } from '../../types/pipeline'
-import {
-  calculateProgress,
-  transformServiceResponse
-} from '../../services/pipelineTransforms'
+import { Lead, Merchant } from '../../types/merchant'
 
-interface CustomLinearProgressProps extends LinearProgressProps {
-  progresscolor: string;
-}
-
-const Root = styled('div')(({ theme }: { theme: Theme }) => ({
+const Root = styled('div')({
   display: 'flex',
   flexDirection: 'column',
   height: '100vh',
-  backgroundColor: theme.palette.background.default
-}))
+  backgroundColor: '#f5f5f5'
+})
 
-const Header = styled(AppBar)(({ theme }: { theme: Theme }) => ({
-  backgroundColor: theme.palette.background.paper,
-  color: theme.palette.text.primary,
-  boxShadow: 'none',
-  borderBottom: `1px solid ${theme.palette.divider}`
-}))
-
-const ColumnHeader = styled(Box)(({ theme }: { theme: Theme }) => ({
-  padding: theme.spacing(2),
-  backgroundColor: 'rgba(0,0,0,0.08)',
-  borderRadius: theme.shape.borderRadius,
-  marginBottom: theme.spacing(2),
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center'
-}))
-
-const ColumnContainer = styled(Paper)(({ theme }: { theme: Theme }) => ({
+const ColumnContainer = styled(Box)({
   width: 280,
-  backgroundColor: '#f5f5f5',
-  borderRadius: theme.spacing(1),
-  padding: theme.spacing(1),
-  margin: theme.spacing(1),
-  minHeight: 'calc(100vh - 100px)'
-}))
-
-const CardContainer = styled(Card)(({ theme }: { theme: Theme }) => ({
   backgroundColor: '#fff',
   borderRadius: 8,
+  padding: 16,
   margin: 8,
-  padding: 12,
+  minHeight: 'calc(100vh - 200px)',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+})
+
+const CardContainer = styled(Box)({
+  backgroundColor: '#fff',
+  borderRadius: 8,
+  margin: '8px 0',
+  padding: 16,
   cursor: 'pointer',
   transition: 'all 0.2s ease',
   '&:hover': {
     boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
     transform: 'translateY(-2px)'
   }
-}))
+})
 
-const ProgressBarContainer = styled(Box)(({ theme }: { theme: Theme }) => ({
-  marginTop: theme.spacing(1),
-  padding: theme.spacing(1, 0)
-}))
-
-const CustomLinearProgress = styled(LinearProgress, {
-  shouldForwardProp: (prop) => prop !== 'progresscolor'
-})<CustomLinearProgressProps>(({ theme, progresscolor }) => ({
+const ProgressBar = styled(LinearProgress)({
   height: 8,
   borderRadius: 4,
   backgroundColor: 'rgba(0,0,0,0.08)',
   '& .MuiLinearProgress-bar': {
-    borderRadius: 4,
-    backgroundColor: progresscolor,
-    backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent)',
-    backgroundSize: '1rem 1rem',
-    animation: 'progress-animation 1s linear infinite'
-  },
-  '@keyframes progress-animation': {
-    '0%': {
-      backgroundPosition: '1rem 0'
-    },
-    '100%': {
-      backgroundPosition: '0 0'
-    }
+    borderRadius: 4
   }
-}))
+})
 
-const getProgressColor = (progress: number): string => {
-  if (progress < 25) return '#ef5350'
-  if (progress < 50) return '#ff9800'
-  if (progress < 75) return '#66bb6a'
-  return '#2196f3'
-}
-
-const formatDate = (date: string | undefined) => {
-  if (!date) return 'N/A'
-  return format(new Date(date), 'MMM d, yyyy')
-}
-
-const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => {
-  const progressColor = getProgressColor(progress)
-  
-  return (
-    <ProgressBarContainer>
-      <Box display="flex" justifyContent="space-between" mb={0.5}>
-        <Typography variant="caption">Progress</Typography>
-        <Typography variant="caption">{progress}%</Typography>
-      </Box>
-      <CustomLinearProgress
-        variant="determinate"
-        value={progress}
-        progresscolor={progressColor}
-      />
-    </ProgressBarContainer>
-  )
-}
-
-const LeadCard: React.FC<{
-  item: PipelineLead
-  onMenuOpen: (event: React.MouseEvent<HTMLElement>) => void
-}> = ({ item, onMenuOpen }) => {
-  const { email, formData, createdAt } = item
-  const progress = calculateProgress(item)
-  const config = COLUMN_CONFIGS[item.pipelineStatus]
-
-  const commonSx: SxProps = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 1
+const calculateProgress = (item: PipelineItem): number => {
+  if (isPipelineLead(item)) {
+    const formData = item.formData || {}
+    const totalFields = 20
+    const filledFields = Object.keys(formData).filter(key => 
+      formData[key] !== undefined && formData[key] !== null && formData[key] !== ''
+    ).length
+    return Math.round((filledFields / totalFields) * 100)
+  } else {
+    const requiredFields = [
+      'businessName',
+      'taxId',
+      'businessType',
+      'yearEstablished',
+      'monthlyVolume',
+      'averageTicket',
+      'beneficialOwners',
+      'bankDetails'
+    ]
+    const filledFields = requiredFields.filter(field => {
+      const value = item[field as keyof Merchant]
+      return value !== undefined && value !== null && value !== ''
+    }).length
+    return Math.round((filledFields / requiredFields.length) * 100)
   }
-
-  return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
-        <Box flex={1}>
-          <Box sx={commonSx} mb={1}>
-            <Chip
-              label={item.pipelineStatus}
-              size="small"
-              style={{ backgroundColor: config.color, color: '#fff' }}
-            />
-            <Typography variant="caption" color="textSecondary">
-              {formatDate(createdAt)}
-            </Typography>
-          </Box>
-          <Box sx={commonSx}>
-            <EmailIcon fontSize="small" color="primary" />
-            <Typography variant="body2" noWrap>{email}</Typography>
-          </Box>
-          {formData?.businessName && (
-            <Box sx={{ ...commonSx, mt: 0.5 }}>
-              <BusinessIcon fontSize="small" color="action" />
-              <Typography variant="body2" color="textSecondary" noWrap>
-                {formData.businessName}
-              </Typography>
-            </Box>
-          )}
-          {formData?.firstName && formData?.lastName && (
-            <Box sx={{ ...commonSx, mt: 0.5 }}>
-              <PersonIcon fontSize="small" color="action" />
-              <Typography variant="body2" color="textSecondary" noWrap>
-                {`${formData.firstName} ${formData.lastName}`}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-        <IconButton
-          size="small"
-          onClick={onMenuOpen}
-          sx={{ ml: 1 }}
-        >
-          <MoreVertIcon />
-        </IconButton>
-      </Box>
-      <ProgressBar progress={progress} />
-    </Box>
-  )
 }
 
-const MerchantCard: React.FC<{
-  item: PipelineMerchant
-  onMenuOpen: (event: React.MouseEvent<HTMLElement>) => void
-}> = ({ item, onMenuOpen }) => {
-  const progress = calculateProgress(item)
-  const config = COLUMN_CONFIGS[item.pipelineStatus]
-
-  const commonSx: SxProps = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 1
-  }
-
-  return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
-        <Box flex={1}>
-          <Box sx={commonSx} mb={1}>
-            <Chip
-              label={item.pipelineStatus}
-              size="small"
-              style={{ backgroundColor: config.color, color: '#fff' }}
-            />
-            <Typography variant="caption" color="textSecondary">
-              {formatDate(item.createdAt)}
-            </Typography>
-          </Box>
-          <Typography variant="subtitle2" noWrap>{item.businessName}</Typography>
-          {item.dba && (
-            <Typography variant="body2" color="textSecondary" noWrap>
-              DBA: {item.dba}
-            </Typography>
-          )}
-          <Box sx={{ ...commonSx, mt: 0.5 }}>
-            <BusinessIcon fontSize="small" color="action" />
-            <Typography variant="body2" color="textSecondary" noWrap>
-              {item.businessType}
-            </Typography>
-          </Box>
-          {item.monthlyVolume && (
-            <Box sx={{ ...commonSx, mt: 0.5 }}>
-              <MoneyIcon fontSize="small" color="action" />
-              <Typography variant="body2" color="textSecondary" noWrap>
-                ${Number(item.monthlyVolume).toLocaleString()}/mo
-              </Typography>
-            </Box>
-          )}
-        </Box>
-        <IconButton
-          size="small"
-          onClick={onMenuOpen}
-          sx={{ ml: 1 }}
-        >
-          <MoreVertIcon />
-        </IconButton>
-      </Box>
-      <ProgressBar progress={progress} />
-    </Box>
-  )
-}
-
-export default function Pipeline() {
+const Pipeline: React.FC = () => {
+  const [columns, setColumns] = useState<Column[]>([])
+  const [selectedItem, setSelectedItem] = useState<PipelineItem | null>(null)
   const queryClient = useQueryClient()
-  const [selectedItem, setSelectedItem] = React.useState<PipelineItem | null>(null)
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
-  const [selectedItemForMenu, setSelectedItemForMenu] = React.useState<PipelineItem | null>(null)
-  
-  const { data: pipelineItems = [], isLoading } = useQuery({
-    queryKey: ['pipeline-items'],
+
+  const { data: pipelineData, isLoading } = useQuery({
+    queryKey: ['pipeline'],
     queryFn: async () => {
-      const items = await merchantService.getPipelineItems()
-      return transformServiceResponse(items)
+      const [leads, merchants] = await Promise.all([
+        merchantService.getLeads(),
+        merchantService.getMerchants()
+      ])
+      
+      // Initialize columns with empty arrays
+      const initialColumns = PIPELINE_STATUSES.map(status => ({
+        ...COLUMN_CONFIGS[status],
+        id: status,
+        items: []
+      }))
+
+      // Transform leads into pipeline items
+      const pipelineLeads = leads.map((lead: Lead) => ({
+        ...lead,
+        kind: 'lead' as const,
+        type: 'lead' as const,
+        pipelineStatus: lead.pipelineStatus || 'lead'
+      }))
+
+      // Transform merchants into pipeline items
+      const pipelineMerchants = merchants.map((merchant: Merchant) => ({
+        ...merchant,
+        kind: 'merchant' as const,
+        type: 'merchant' as const,
+        pipelineStatus: merchant.pipelineStatus || 'lead'
+      }))
+
+      // Distribute items to columns
+      const allItems = [...pipelineLeads, ...pipelineMerchants]
+      allItems.forEach(item => {
+        const column = initialColumns.find(col => col.id === item.pipelineStatus)
+        if (column) {
+          column.items.push(item)
+        } else {
+          // If no pipeline status or invalid status, put in leads column
+          initialColumns[0].items.push({ ...item, pipelineStatus: 'lead' })
+        }
+      })
+
+      return initialColumns
     }
   })
 
-  const updateItemStatus = useMutation({
-    mutationFn: async (variables: { id: string; status: PipelineStatus }) => {
-      const merchantStatus = variables.status === 'approved' ? 'approved' : 'pending'
-      await merchantService.updateMerchantStatus(variables.id, merchantStatus)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
+  useEffect(() => {
+    if (pipelineData) {
+      setColumns(pipelineData)
     }
-  })
-
-  const filterByStatus = React.useCallback((status: PipelineStatus) => (item: PipelineItem) => {
-    return item.pipelineStatus === status
-  }, [])
-
-  const columns: Column[] = React.useMemo(() => 
-    PIPELINE_STATUSES.map(status => ({
-      id: status,
-      ...COLUMN_CONFIGS[status],
-      items: pipelineItems.filter(filterByStatus(status))
-    })), [pipelineItems, filterByStatus])
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, item: PipelineItem) => {
-    event.stopPropagation()
-    setAnchorEl(event.currentTarget)
-    setSelectedItemForMenu(item)
-  }
-
-  const handleMenuClose = () => {
-    setAnchorEl(null)
-    setSelectedItemForMenu(null)
-  }
+  }, [pipelineData])
 
   const onDragEnd = async (result: DropResult) => {
-    if (!result.destination) return
+    const { destination, source } = result
 
-    const { draggableId, destination } = result
-    const newStatus = destination.droppableId as PipelineStatus
+    if (!destination || !columns) return
 
-    await updateItemStatus.mutateAsync({
-      id: draggableId,
-      status: newStatus
+    const sourceColumn = columns.find(col => col.id === source.droppableId)
+    const destColumn = columns.find(col => col.id === destination.droppableId)
+
+    if (!sourceColumn || !destColumn) return
+
+    const newColumns = [...columns]
+    const sourceItems = [...sourceColumn.items]
+    const destItems = sourceColumn === destColumn ? sourceItems : [...destColumn.items]
+
+    const [removed] = sourceItems.splice(source.index, 1)
+    const updatedItem = {
+      ...removed,
+      pipelineStatus: destColumn.id as PipelineStatus
+    }
+
+    destItems.splice(destination.index, 0, updatedItem)
+
+    newColumns.forEach(col => {
+      if (col.id === source.droppableId) {
+        col.items = sourceItems
+      }
+      if (col.id === destination.droppableId) {
+        col.items = destItems
+      }
     })
+
+    setColumns(newColumns)
+
+    try {
+      if (isPipelineLead(updatedItem)) {
+        await merchantService.updateLead(updatedItem.id, {
+          pipelineStatus: destColumn.id as PipelineStatus
+        })
+      } else if (isPipelineMerchant(updatedItem)) {
+        await merchantService.updateMerchant(updatedItem.id, {
+          pipelineStatus: destColumn.id as PipelineStatus
+        })
+      }
+      queryClient.invalidateQueries({ queryKey: ['pipeline'] })
+    } catch (error) {
+      console.error('Error updating item status:', error)
+      // Revert the UI state on error
+      if (pipelineData) {
+        setColumns(pipelineData)
+      }
+    }
   }
 
-  const handleCardClick = (item: PipelineItem) => {
+  const handleItemClick = (item: PipelineItem) => {
     setSelectedItem(item)
   }
 
-  const handleStatusChange = async (
-    item: PipelineItem,
-    newStatus: PipelineStatus
-  ) => {
-    try {
-      if (isPipelineMerchant(item)) {
-        // Check if the document exists before updating
-        const merchantDoc = await merchantService.getMerchant(item.id);
-        if (!merchantDoc) {
-          console.error("Merchant document not found:", item.id);
-          // Handle the error appropriately, e.g., show a message to the user
-          return;
-        }
-
-        await merchantService.updateMerchantStatus(item.id, newStatus);
-      } else if (isPipelineLead(item)) {
-        await merchantService.updateLeadStatus(item.id, newStatus);
-      }
-      queryClient.invalidateQueries({ queryKey: ['pipeline'] });
-    } catch (error) {
-      console.error("Error updating merchant status:", error);
-      // Handle the error appropriately, e.g., show a message to the user
-    }
-  };
-
-  const renderCardContent = React.useCallback((item: PipelineItem): React.ReactNode => {
-    if (isPipelineLead(item)) {
-      return (
-        <LeadCard
-          item={item}
-          onMenuOpen={(e) => handleMenuOpen(e, item)}
-        />
-      )
-    }
-
-    if (isPipelineMerchant(item)) {
-      return (
-        <MerchantCard
-          item={item}
-          onMenuOpen={(e) => handleMenuOpen(e, item)}
-        />
-      )
-    }
-
-    return null
-  }, [])
-
   if (isLoading) {
-    return (
-      <Box display="flex" alignItems="center" justifyContent="center" height="100vh">
-        <Typography>Loading pipeline...</Typography>
-      </Box>
-    )
+    return <Box p={4}>Loading...</Box>
   }
 
   return (
     <Root>
-      <Header position="static">
-        <Toolbar>
-          <Typography variant="h6" fontWeight="medium" sx={{ flexGrow: 1 }}>
-            Pipeline
-          </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            color="primary"
-          >
-            Add Merchant
-          </Button>
-        </Toolbar>
-      </Header>
-
-      <Box
-        sx={{
-          display: 'flex',
-          overflowX: 'auto',
-          padding: 2,
-          gap: 2,
-          flexGrow: 1
-        }}
-      >
-        <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Box display="flex" p={2} overflow="auto">
           {columns.map(column => (
-            <ColumnContainer key={column.id} elevation={0}>
-              <ColumnHeader>
-                <Typography variant="subtitle1" fontWeight="medium">
-                  {column.title} ({column.items.length})
-                </Typography>
-              </ColumnHeader>
-
-              <Droppable droppableId={column.id}>
-                {(provided) => (
-                  <Box
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    sx={{ minHeight: 100 }}
-                  >
-                    {column.items.map((item, index) => (
-                      <Draggable
-                        key={item.id}
-                        draggableId={item.id}
-                        index={index}
-                      >
-                        {(provided, snapshot) => (
-                          <CardContainer
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            onClick={() => handleCardClick(item)}
-                            elevation={snapshot.isDragging ? 3 : 1}
-                            sx={{
-                              transform: snapshot.isDragging ? 'rotate(2deg)' : 'none',
-                              transition: 'transform 0.2s ease'
-                            }}
-                          >
-                            {renderCardContent(item)}
-                          </CardContainer>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
+            <Droppable key={column.id} droppableId={column.id}>
+              {(provided) => (
+                <ColumnContainer
+                  ref={provided.innerRef}
+                  {...provided.droppableProps}
+                >
+                  <Box mb={2}>
+                    <Typography variant="h6" color="textSecondary">
+                      {column.title}
+                    </Typography>
+                    <Typography variant="caption" color="textSecondary">
+                      {column.items.length} items
+                    </Typography>
                   </Box>
-                )}
-              </Droppable>
-            </ColumnContainer>
+                  {column.items.map((item, index) => (
+                    <Draggable
+                      key={item.id}
+                      draggableId={item.id}
+                      index={index}
+                    >
+                      {(provided) => (
+                        <CardContainer
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                          onClick={() => handleItemClick(item)}
+                        >
+                          {isPipelineLead(item) ? (
+                            <LeadCard item={item} />
+                          ) : (
+                            <MerchantCard item={item} />
+                          )}
+                        </CardContainer>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                </ColumnContainer>
+              )}
+            </Droppable>
           ))}
-        </DragDropContext>
-      </Box>
-
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleMenuClose}
-      >
-        <MenuItem onClick={() => {
-          if (selectedItemForMenu) {
-            handleCardClick(selectedItemForMenu)
-            handleMenuClose()
-          }
-        }}>
-          Open Details
-        </MenuItem>
-        <Divider />
-        <MenuItem onClick={handleMenuClose}>
-          <MailIcon fontSize="small" sx={{ mr: 1 }} />
-          Send Email
-        </MenuItem>
-        <MenuItem onClick={handleMenuClose}>
-          <MessageIcon fontSize="small" sx={{ mr: 1 }} />
-          Add Note
-        </MenuItem>
-        {selectedItemForMenu && isPipelineMerchant(selectedItemForMenu) && (
-          <MenuItem onClick={handleMenuClose}>
-            <DownloadIcon fontSize="small" sx={{ mr: 1 }} />
-            Download Documents
-          </MenuItem>
-        )}
-      </Menu>
-
+        </Box>
+      </DragDropContext>
       {selectedItem && (
         <CardModal
-          open={!!selectedItem}
+          open={true}
           onClose={() => setSelectedItem(null)}
           item={selectedItem}
-          onStatusChange={handleStatusChange}
         />
       )}
     </Root>
   )
 }
+
+interface CardProps {
+  item: PipelineLead | PipelineMerchant
+}
+
+const LeadCard: React.FC<CardProps> = ({ item }) => {
+  const config = COLUMN_CONFIGS[item.pipelineStatus]
+  const progress = calculateProgress(item)
+
+  return (
+    <Box>
+      <Box display="flex" alignItems="center" mb={1}>
+        <Chip
+          label={item.pipelineStatus}
+          size="small"
+          sx={{ backgroundColor: config.color, color: '#fff' }}
+        />
+        <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
+          {format(new Date(item.createdAt), 'MMM d, yyyy')}
+        </Typography>
+      </Box>
+      <Box display="flex" alignItems="center" mb={1}>
+        <EmailIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
+        <Typography variant="body2">{item.email}</Typography>
+      </Box>
+      {isPipelineLead(item) && item.formData?.businessName && (
+        <Box display="flex" alignItems="center" mb={1}>
+          <BusinessIcon fontSize="small" color="action" sx={{ mr: 1 }} />
+          <Typography variant="body2" color="textSecondary">
+            {item.formData.businessName}
+          </Typography>
+        </Box>
+      )}
+      <ProgressBar variant="determinate" value={progress} />
+    </Box>
+  )
+}
+
+const MerchantCard: React.FC<CardProps> = ({ item }) => {
+  const config = COLUMN_CONFIGS[item.pipelineStatus]
+  const progress = calculateProgress(item)
+
+  return (
+    <Box>
+      <Box display="flex" alignItems="center" mb={1}>
+        <Chip
+          label={item.pipelineStatus}
+          size="small"
+          sx={{ backgroundColor: config.color, color: '#fff' }}
+        />
+        <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
+          {format(new Date(item.createdAt), 'MMM d, yyyy')}
+        </Typography>
+      </Box>
+      <Box display="flex" alignItems="center" mb={1}>
+        <BusinessIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
+        <Typography variant="body2">{item.businessName}</Typography>
+      </Box>
+      <ProgressBar variant="determinate" value={progress} />
+    </Box>
+  )
+}
+
+export default Pipeline

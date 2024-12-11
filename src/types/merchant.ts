@@ -126,6 +126,7 @@ export const merchantSchema = z.object({
     bankStatements: z.array(z.string().url("Invalid bank statement URL")).optional(),
   }).optional(),
   status: z.enum(["pending", "approved", "rejected"]).optional(),
+  pipelineStatus: z.enum(["lead", "phone", "offer", "underwriting", "documents", "approved"]).default("lead"),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 }).refine((data) => {
@@ -173,6 +174,7 @@ export const leadSchema = z.object({
   status: z.enum(["started", "in_progress", "completed"]),
   currentStep: z.number().min(1),
   formData: z.any(),
+  pipelineStatus: z.enum(["lead", "phone", "offer", "underwriting", "documents", "approved"]).default("lead"),
   createdAt: z.string(),
   updatedAt: z.string(),
 })

@@ -79,17 +79,12 @@ export const calculateProgress = (item: ServiceItem | PipelineItem): number => {
 }
 
 export const transformToPipelineItem = (item: ServiceItem): PipelineItem => {
-  if (item.pipelineStatus === 'approved') {
-    return { ...item, pipelineStatus: 'approved' }
-  }
-
   const progress = calculateProgress(item)
-  const status = calculatePipelineStatus(progress)
   
   if (item.kind === 'lead') {
-    return { ...item, pipelineStatus: status } as PipelineLead
+    return { ...item, pipelineStatus: 'lead' } as PipelineLead
   }
-  return { ...item, pipelineStatus: status } as PipelineMerchant
+  return { ...item, pipelineStatus: 'lead' } as PipelineMerchant
 }
 
 export const transformServiceResponse = (items: ServiceResponse[]): PipelineItem[] => {
