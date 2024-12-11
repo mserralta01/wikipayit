@@ -41,9 +41,9 @@ const statusColors = {
 } as const
 
 export default function MerchantList() {
-  const { data: merchants, isLoading } = useQuery({
+  const { data: merchants, isLoading } = useQuery<Merchant[], Error>({
     queryKey: ['merchants'],
-    queryFn: () => merchantService.getAllMerchants()
+    queryFn: () => merchantService.getMerchants()
   })
 
   const formatCurrency = (amount: number) => {
@@ -100,7 +100,7 @@ export default function MerchantList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {merchants?.map((merchant) => (
+            {merchants?.map((merchant: Merchant) => (
               <TableRow key={merchant.id}>
                 <TableCell className="font-medium">
                   {merchant.businessName}
@@ -112,7 +112,7 @@ export default function MerchantList() {
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className={statusColors[merchant.status]}>
+                  <Badge variant="secondary" className={statusColors[merchant.status as keyof typeof statusColors]}>
                     {merchant.status.charAt(0).toUpperCase() + merchant.status.slice(1)}
                   </Badge>
                 </TableCell>
@@ -123,7 +123,7 @@ export default function MerchantList() {
                   }
                 </TableCell>
                 <TableCell>
-                  {new Date(merchant.createdAt).toLocaleDateString()}
+                  {merchant.createdAt ? new Date(merchant.createdAt).toLocaleDateString() : 'N/A'}
                 </TableCell>
                 <TableCell>
                   <DropdownMenu>

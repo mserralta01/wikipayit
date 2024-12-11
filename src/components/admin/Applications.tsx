@@ -28,8 +28,8 @@ import { Merchant } from '@/types/merchant'
 interface Application extends Merchant {
   businessName: string;
   contactName: string;
-  status: string;
-  businessType: string;
+  status: "pending" | "approved" | "rejected" | undefined;
+  businessType: "sole_proprietorship" | "partnership" | "llc" | "corporation" | "non_profit";
   processingVolume?: number;
   phone: string;
   createdAt: string;
@@ -37,9 +37,9 @@ interface Application extends Merchant {
 }
 
 export default function Applications() {
-  const { data: applications, isLoading } = useQuery<Application[]>({
+  const { data: applications, isLoading } = useQuery({
     queryKey: ['applications'],
-    queryFn: () => merchantService.getApplications()
+    queryFn: () => merchantService.getApplications() as Promise<Application[]>,
   })
 
   if (isLoading) {

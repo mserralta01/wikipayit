@@ -108,10 +108,10 @@ const Pipeline: React.FC = () => {
       ])
       
       // Initialize columns with empty arrays
-      const initialColumns = PIPELINE_STATUSES.map(status => ({
+      const initialColumns: Column[] = PIPELINE_STATUSES.map(status => ({
         ...COLUMN_CONFIGS[status],
         id: status,
-        items: []
+        items: [] as PipelineItem[]
       }))
 
       // Transform leads into pipeline items
@@ -289,7 +289,7 @@ const LeadCard: React.FC<CardProps> = ({ item }) => {
           sx={{ backgroundColor: config.color, color: '#fff' }}
         />
         <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
-          {format(new Date(item.createdAt), 'MMM d, yyyy')}
+          {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'N/A'}
         </Typography>
       </Box>
       <Box display="flex" alignItems="center" mb={1}>
@@ -322,12 +322,14 @@ const MerchantCard: React.FC<CardProps> = ({ item }) => {
           sx={{ backgroundColor: config.color, color: '#fff' }}
         />
         <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
-          {format(new Date(item.createdAt), 'MMM d, yyyy')}
+          {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'N/A'}
         </Typography>
       </Box>
       <Box display="flex" alignItems="center" mb={1}>
         <BusinessIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
-        <Typography variant="body2">{item.businessName}</Typography>
+        <Typography variant="body2">
+          {isPipelineMerchant(item) ? item.businessName : 'N/A'}
+        </Typography>
       </Box>
       <ProgressBar variant="determinate" value={progress} />
     </Box>

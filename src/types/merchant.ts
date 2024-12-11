@@ -165,7 +165,11 @@ export const merchantSchema = z.object({
 
 export type BeneficialOwner = z.infer<typeof beneficialOwnerSchema>
 export type BankDetails = z.infer<typeof bankDetailsSchema>
-export type Merchant = z.infer<typeof merchantSchema>
+export type Merchant = z.infer<typeof merchantSchema> & {
+  contactName: string;
+  processingVolume: number;
+  createdAt: string;
+};
 
 // Lead type for tracking application progress
 export const leadSchema = z.object({
@@ -205,4 +209,8 @@ export interface Column {
   id: string;
   title: MerchantStatus;
   merchantIds: string[];
+}
+
+export interface Activity {
+  // ... definition of Activity ...
 }

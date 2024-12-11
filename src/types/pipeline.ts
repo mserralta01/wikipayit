@@ -45,13 +45,10 @@ export type ServiceResponse = (
 )
 
 // Column types
-export interface ColumnConfig {
+export interface Column {
   id: PipelineStatus
   title: string
   color: string
-}
-
-export interface Column extends ColumnConfig {
   items: PipelineItem[]
 }
 
