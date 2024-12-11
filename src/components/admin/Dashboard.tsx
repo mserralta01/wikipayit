@@ -6,7 +6,9 @@ import {
 } from 'lucide-react'
 import { merchantService } from '../../services/merchantService'
 import { useQuery } from '@tanstack/react-query'
-import { Activity } from '../../types/merchant'
+import { Activity, Merchant } from '@/types/crm'
+import { useState, useEffect } from 'react'
+import { formatDistanceToNow } from 'date-fns'
 
 type MetricCardProps = {
   title: string
@@ -59,6 +61,22 @@ export default function Dashboard() {
     queryKey: ['recent-activity'],
     queryFn: () => merchantService.getRecentActivity()
   })
+
+  const [recentActivities, setRecentActivities] = useState<Activity[]>([]);
+
+  useEffect(() => {
+    if (recentActivity) {
+      const activities = recentActivity.flatMap(activity => ({
+        ...activity,
+        merchantName: activity.merchant.businessName,
+        timestamp: new Date(activity.timestamp)
+      }))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .slice(0, 10);
+
+      setRecentActivities(activities);
+    }
+  }, [recentActivity]);
 
   return (
     <div className="p-8">
@@ -113,7 +131,7 @@ export default function Dashboard() {
             <div>Loading...</div>
           ) : (
             <div className="space-y-4">
-              {recentActivity?.map((activity: Activity) => (
+              {recentActivities?.map((activity) => (
                 <div key={activity.id} className="flex items-center space-x-4">
                   <div className="h-8 w-8 rounded-full bg-blue-50 flex items-center justify-center">
                     {getActivityIcon(activity.type)}
@@ -121,7 +139,7 @@ export default function Dashboard() {
                   <div>
                     <p className="text-sm font-medium">{activity.description}</p>
                     <p className="text-xs text-gray-500">
-                      {new Date(activity.timestamp).toLocaleString()}
+                      {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
                     </p>
                   </div>
                 </div>
@@ -134,7 +152,7 @@ export default function Dashboard() {
   )
 }
 
-function getActivityIcon(type: Activity['type']) {
+function getActivityIcon(type: ActivityType): ReactNode {
   switch (type) {
     case 'status_change':
       return <TrendingUp className="h-5 w-5 text-blue-600" />
@@ -142,6 +160,10 @@ function getActivityIcon(type: Activity['type']) {
       return <FileText className="h-5 w-5 text-blue-600" />
     case 'new_application':
       return <Users className="h-5 w-5 text-blue-600" />
+    case 'email_sent':
+      return <Send className="h-5 w-5 text-blue-600" />
+    case 'note':
+      return <FileText className="h-5 w-5 text-blue-600" />
     default:
       return <Bell className="h-5 w-5 text-blue-600" />
   }
