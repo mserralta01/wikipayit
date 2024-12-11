@@ -1,12 +1,12 @@
-import React from 'react'
+import React, { ReactNode } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { 
   Users, Store, DollarSign, TrendingUp,
   Phone, Send, FileText, CheckCircle, Bell
 } from 'lucide-react'
 import { merchantService } from '../../services/merchantService'
-import { Activity } from '../../types/merchant'
 import { useQuery } from '@tanstack/react-query'
+import { Activity } from '../../types/merchant'
 
 type MetricCardProps = {
   title: string
@@ -134,7 +134,7 @@ export default function Dashboard() {
   )
 }
 
-function getActivityIcon(type: string) {
+function getActivityIcon(type: Activity['type']) {
   switch (type) {
     case 'status_change':
       return <TrendingUp className="h-5 w-5 text-blue-600" />

@@ -1,4 +1,5 @@
 import * as z from "zod"
+import { ReactNode } from 'react';
 
 const phoneRegex = /^\+1 \(\d{3}\) \d{3}-\d{4}$/
 const ssnRegex = /^\d{3}-\d{2}-\d{4}$/
@@ -214,5 +215,10 @@ export interface Column {
 }
 
 export interface Activity {
-  // ... definition of Activity ...
+  id: string;
+  title: string;
+  timestamp: Date;
+  description: string;
+  type: 'lead' | 'merchant' | 'document' | 'status' | 'status_change' | 'document_upload' | 'new_application';
+  icon?: ReactNode;
 }
