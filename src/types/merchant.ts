@@ -178,3 +178,29 @@ export const leadSchema = z.object({
 })
 
 export type Lead = z.infer<typeof leadSchema>
+
+export type MerchantStatus = 
+  | 'Lead'
+  | 'Phone Calls'
+  | 'Offer Sent'
+  | 'Underwriting'
+  | 'Documents'
+  | 'Approved';
+
+export interface PipelineMerchant {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  status: MerchantStatus;
+  position: number;
+  columnId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Column {
+  id: string;
+  title: MerchantStatus;
+  merchantIds: string[];
+}

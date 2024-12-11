@@ -320,5 +320,17 @@ export const merchantService = {
       console.error("Error getting pipeline items:", error)
       throw error
     }
+  },
+
+  async getApplications() {
+    const applicationsRef = collection(db, 'merchants')
+    const q = query(applicationsRef, orderBy('createdAt', 'desc'))
+    const snapshot = await getDocs(q)
+    
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate?.().toISOString() || new Date().toISOString()
+    }))
   }
 }

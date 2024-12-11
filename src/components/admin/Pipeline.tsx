@@ -1,130 +1,301 @@
 import React from 'react'
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
-import { Card, CardContent } from '../ui/card'
-import { Progress } from '../ui/progress'
-import { 
-  Users, Phone, Send, FileText, 
-  CheckCircle, MoreVertical, Mail, 
-  MessageSquare, Clock, DollarSign,
-  Building, Download, Plus,
-  User, AtSign, Briefcase
-} from 'lucide-react'
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
+import { styled, Theme } from '@mui/material/styles'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '../ui/dropdown-menu'
-import { Button } from '../ui/button'
-import { Badge } from '../ui/badge'
+  AppBar,
+  Box,
+  Button,
+  Card,
+  Chip,
+  IconButton,
+  LinearProgress,
+  Paper,
+  Toolbar,
+  Typography,
+  Menu,
+  MenuItem,
+  Divider,
+  LinearProgressProps,
+  SxProps
+} from '@mui/material'
+import {
+  Add as AddIcon,
+  MoreVert as MoreVertIcon,
+  Mail as MailIcon,
+  Message as MessageIcon,
+  Download as DownloadIcon,
+  Business as BusinessIcon,
+  AttachMoney as MoneyIcon,
+  Email as EmailIcon,
+  Person as PersonIcon,
+} from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { merchantService } from '../../services/merchantService'
-import { Merchant, Lead } from '../../types/merchant'
-import { useNavigate } from 'react-router-dom'
+import { CardModal } from './CardModal'
+import { format } from 'date-fns'
+import {
+  PipelineStatus,
+  PipelineItem,
+  PipelineLead,
+  PipelineMerchant,
+  Column,
+  PIPELINE_STATUSES,
+  COLUMN_CONFIGS,
+  isPipelineLead,
+  isPipelineMerchant
+} from '../../types/pipeline'
+import {
+  calculateProgress,
+  transformServiceResponse
+} from '../../services/pipelineTransforms'
 
-type PipelineStatus = 'lead' | 'phone' | 'offer' | 'underwriting' | 'documents' | 'approved'
-type PipelineItem = (Merchant | Lead) & { pipelineStatus: PipelineStatus }
-
-type Column = {
-  id: PipelineStatus
-  title: string
-  items: PipelineItem[]
+interface CustomLinearProgressProps extends LinearProgressProps {
+  progresscolor: string;
 }
 
-const statusConfig = {
-  lead: {
-    label: 'Leads',
-    icon: Users,
-    color: 'bg-blue-100 text-blue-800'
-  },
-  phone: {
-    label: 'Phone Calls',
-    icon: Phone,
-    color: 'bg-purple-100 text-purple-800'
-  },
-  offer: {
-    label: 'Offer Sent',
-    icon: Send,
-    color: 'bg-yellow-100 text-yellow-800'
-  },
-  underwriting: {
-    label: 'Underwriting',
-    icon: FileText,
-    color: 'bg-orange-100 text-orange-800'
-  },
-  documents: {
-    label: 'Documents',
-    icon: FileText,
-    color: 'bg-indigo-100 text-indigo-800'
-  },
-  approved: {
-    label: 'Approved',
-    icon: CheckCircle,
-    color: 'bg-green-100 text-green-800'
+const Root = styled('div')(({ theme }: { theme: Theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100vh',
+  backgroundColor: theme.palette.background.default
+}))
+
+const Header = styled(AppBar)(({ theme }: { theme: Theme }) => ({
+  backgroundColor: theme.palette.background.paper,
+  color: theme.palette.text.primary,
+  boxShadow: 'none',
+  borderBottom: `1px solid ${theme.palette.divider}`
+}))
+
+const ColumnHeader = styled(Box)(({ theme }: { theme: Theme }) => ({
+  padding: theme.spacing(2),
+  backgroundColor: 'rgba(0,0,0,0.08)',
+  borderRadius: theme.shape.borderRadius,
+  marginBottom: theme.spacing(2),
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center'
+}))
+
+const ColumnContainer = styled(Paper)(({ theme }: { theme: Theme }) => ({
+  width: 280,
+  backgroundColor: '#f5f5f5',
+  borderRadius: theme.spacing(1),
+  padding: theme.spacing(1),
+  margin: theme.spacing(1),
+  minHeight: 'calc(100vh - 100px)'
+}))
+
+const CardContainer = styled(Card)(({ theme }: { theme: Theme }) => ({
+  backgroundColor: '#fff',
+  borderRadius: 8,
+  margin: 8,
+  padding: 12,
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
+  '&:hover': {
+    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
+    transform: 'translateY(-2px)'
   }
-} as const
+}))
 
-const isLead = (item: PipelineItem): item is Lead & { pipelineStatus: PipelineStatus } => {
-  return 'formData' in item
-}
+const ProgressBarContainer = styled(Box)(({ theme }: { theme: Theme }) => ({
+  marginTop: theme.spacing(1),
+  padding: theme.spacing(1, 0)
+}))
 
-const isMerchant = (item: PipelineItem): item is Merchant & { pipelineStatus: PipelineStatus } => {
-  return 'businessName' in item
-}
-
-// Calculate completion percentage based on filled fields
-const calculateProgress = (item: PipelineItem): number => {
-  if (isLead(item)) {
-    // Handle Lead type
-    const formData = item.formData || {}
-    const totalFields = 20 // Adjust based on your total required fields
-    const filledFields = Object.keys(formData).filter(key => 
-      formData[key] !== undefined && formData[key] !== null && formData[key] !== ''
-    ).length
-    return Math.round((filledFields / totalFields) * 100)
-  } else if (isMerchant(item)) {
-    // Handle Merchant type
-    const requiredFields = [
-      'businessName',
-      'taxId',
-      'businessType',
-      'yearEstablished',
-      'monthlyVolume',
-      'averageTicket',
-      'beneficialOwners',
-      'bankDetails'
-    ] as const
-    
-    const filledFields = requiredFields.filter(field => {
-      const value = item[field]
-      return value !== undefined && value !== null && value !== ''
-    }).length
-    
-    return Math.round((filledFields / requiredFields.length) * 100)
+const CustomLinearProgress = styled(LinearProgress, {
+  shouldForwardProp: (prop) => prop !== 'progresscolor'
+})<CustomLinearProgressProps>(({ theme, progresscolor }) => ({
+  height: 8,
+  borderRadius: 4,
+  backgroundColor: 'rgba(0,0,0,0.08)',
+  '& .MuiLinearProgress-bar': {
+    borderRadius: 4,
+    backgroundColor: progresscolor,
+    backgroundImage: 'linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent)',
+    backgroundSize: '1rem 1rem',
+    animation: 'progress-animation 1s linear infinite'
+  },
+  '@keyframes progress-animation': {
+    '0%': {
+      backgroundPosition: '1rem 0'
+    },
+    '100%': {
+      backgroundPosition: '0 0'
+    }
   }
-  return 0
-}
+}))
 
 const getProgressColor = (progress: number): string => {
-  if (progress < 25) return 'bg-red-400'
-  if (progress < 50) return 'bg-amber-400'
-  if (progress < 75) return 'bg-blue-400'
-  return 'bg-emerald-400'
+  if (progress < 25) return '#ef5350'
+  if (progress < 50) return '#ff9800'
+  if (progress < 75) return '#66bb6a'
+  return '#2196f3'
+}
+
+const formatDate = (date: string | undefined) => {
+  if (!date) return 'N/A'
+  return format(new Date(date), 'MMM d, yyyy')
+}
+
+const ProgressBar: React.FC<{ progress: number }> = ({ progress }) => {
+  const progressColor = getProgressColor(progress)
+  
+  return (
+    <ProgressBarContainer>
+      <Box display="flex" justifyContent="space-between" mb={0.5}>
+        <Typography variant="caption">Progress</Typography>
+        <Typography variant="caption">{progress}%</Typography>
+      </Box>
+      <CustomLinearProgress
+        variant="determinate"
+        value={progress}
+        progresscolor={progressColor}
+      />
+    </ProgressBarContainer>
+  )
+}
+
+const LeadCard: React.FC<{
+  item: PipelineLead
+  onMenuOpen: (event: React.MouseEvent<HTMLElement>) => void
+}> = ({ item, onMenuOpen }) => {
+  const { email, formData, createdAt } = item
+  const progress = calculateProgress(item)
+  const config = COLUMN_CONFIGS[item.pipelineStatus]
+
+  const commonSx: SxProps = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 1
+  }
+
+  return (
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
+        <Box flex={1}>
+          <Box sx={commonSx} mb={1}>
+            <Chip
+              label={item.pipelineStatus}
+              size="small"
+              style={{ backgroundColor: config.color, color: '#fff' }}
+            />
+            <Typography variant="caption" color="textSecondary">
+              {formatDate(createdAt)}
+            </Typography>
+          </Box>
+          <Box sx={commonSx}>
+            <EmailIcon fontSize="small" color="primary" />
+            <Typography variant="body2" noWrap>{email}</Typography>
+          </Box>
+          {formData?.businessName && (
+            <Box sx={{ ...commonSx, mt: 0.5 }}>
+              <BusinessIcon fontSize="small" color="action" />
+              <Typography variant="body2" color="textSecondary" noWrap>
+                {formData.businessName}
+              </Typography>
+            </Box>
+          )}
+          {formData?.firstName && formData?.lastName && (
+            <Box sx={{ ...commonSx, mt: 0.5 }}>
+              <PersonIcon fontSize="small" color="action" />
+              <Typography variant="body2" color="textSecondary" noWrap>
+                {`${formData.firstName} ${formData.lastName}`}
+              </Typography>
+            </Box>
+          )}
+        </Box>
+        <IconButton
+          size="small"
+          onClick={onMenuOpen}
+          sx={{ ml: 1 }}
+        >
+          <MoreVertIcon />
+        </IconButton>
+      </Box>
+      <ProgressBar progress={progress} />
+    </Box>
+  )
+}
+
+const MerchantCard: React.FC<{
+  item: PipelineMerchant
+  onMenuOpen: (event: React.MouseEvent<HTMLElement>) => void
+}> = ({ item, onMenuOpen }) => {
+  const progress = calculateProgress(item)
+  const config = COLUMN_CONFIGS[item.pipelineStatus]
+
+  const commonSx: SxProps = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 1
+  }
+
+  return (
+    <Box>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1.5}>
+        <Box flex={1}>
+          <Box sx={commonSx} mb={1}>
+            <Chip
+              label={item.pipelineStatus}
+              size="small"
+              style={{ backgroundColor: config.color, color: '#fff' }}
+            />
+            <Typography variant="caption" color="textSecondary">
+              {formatDate(item.createdAt)}
+            </Typography>
+          </Box>
+          <Typography variant="subtitle2" noWrap>{item.businessName}</Typography>
+          {item.dba && (
+            <Typography variant="body2" color="textSecondary" noWrap>
+              DBA: {item.dba}
+            </Typography>
+          )}
+          <Box sx={{ ...commonSx, mt: 0.5 }}>
+            <BusinessIcon fontSize="small" color="action" />
+            <Typography variant="body2" color="textSecondary" noWrap>
+              {item.businessType}
+            </Typography>
+          </Box>
+          {item.monthlyVolume && (
+            <Box sx={{ ...commonSx, mt: 0.5 }}>
+              <MoneyIcon fontSize="small" color="action" />
+              <Typography variant="body2" color="textSecondary" noWrap>
+                ${Number(item.monthlyVolume).toLocaleString()}/mo
+              </Typography>
+            </Box>
+          )}
+        </Box>
+        <IconButton
+          size="small"
+          onClick={onMenuOpen}
+          sx={{ ml: 1 }}
+        >
+          <MoreVertIcon />
+        </IconButton>
+      </Box>
+      <ProgressBar progress={progress} />
+    </Box>
+  )
 }
 
 export default function Pipeline() {
   const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const [selectedItem, setSelectedItem] = React.useState<PipelineItem | null>(null)
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
+  const [selectedItemForMenu, setSelectedItemForMenu] = React.useState<PipelineItem | null>(null)
   
-  const { data: items, isLoading } = useQuery({
+  const { data: pipelineItems = [], isLoading } = useQuery({
     queryKey: ['pipeline-items'],
-    queryFn: () => merchantService.getPipelineItems()
+    queryFn: async () => {
+      const items = await merchantService.getPipelineItems()
+      return transformServiceResponse(items)
+    }
   })
 
   const updateItemStatus = useMutation({
     mutationFn: async (variables: { id: string; status: PipelineStatus }) => {
-      // Map pipeline status to merchant status
       const merchantStatus = variables.status === 'approved' ? 'approved' : 'pending'
       await merchantService.updateMerchantStatus(variables.id, merchantStatus)
     },
@@ -133,20 +304,29 @@ export default function Pipeline() {
     }
   })
 
-  const columns: Column[] = [
-    'lead',
-    'phone',
-    'offer',
-    'underwriting',
-    'documents',
-    'approved'
-  ].map(status => ({
-    id: status as PipelineStatus,
-    title: statusConfig[status as PipelineStatus].label,
-    items: items?.filter(item => item.pipelineStatus === status) || []
-  }))
+  const filterByStatus = React.useCallback((status: PipelineStatus) => (item: PipelineItem) => {
+    return item.pipelineStatus === status
+  }, [])
 
-  const onDragEnd = async (result: any) => {
+  const columns: Column[] = React.useMemo(() => 
+    PIPELINE_STATUSES.map(status => ({
+      id: status,
+      ...COLUMN_CONFIGS[status],
+      items: pipelineItems.filter(filterByStatus(status))
+    })), [pipelineItems, filterByStatus])
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>, item: PipelineItem) => {
+    event.stopPropagation()
+    setAnchorEl(event.currentTarget)
+    setSelectedItemForMenu(item)
+  }
+
+  const handleMenuClose = () => {
+    setAnchorEl(null)
+    setSelectedItemForMenu(null)
+  }
+
+  const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return
 
     const { draggableId, destination } = result
@@ -159,204 +339,176 @@ export default function Pipeline() {
   }
 
   const handleCardClick = (item: PipelineItem) => {
-    if (item.id) {
-      navigate(`/admin/merchants/${item.id}`)
-    }
+    setSelectedItem(item)
   }
 
-  const renderCardContent = (item: PipelineItem) => {
-    const progress = calculateProgress(item)
-    const progressColor = getProgressColor(progress)
+  const handleStatusChange = async (
+    item: PipelineItem,
+    newStatus: PipelineStatus
+  ) => {
+    try {
+      if (isPipelineMerchant(item)) {
+        // Check if the document exists before updating
+        const merchantDoc = await merchantService.getMerchant(item.id);
+        if (!merchantDoc) {
+          console.error("Merchant document not found:", item.id);
+          // Handle the error appropriately, e.g., show a message to the user
+          return;
+        }
 
-    if (isLead(item)) {
-      // Lead card
-      const { email, formData } = item
+        await merchantService.updateMerchantStatus(item.id, newStatus);
+      } else if (isPipelineLead(item)) {
+        await merchantService.updateLeadStatus(item.id, newStatus);
+      }
+      queryClient.invalidateQueries({ queryKey: ['pipeline'] });
+    } catch (error) {
+      console.error("Error updating merchant status:", error);
+      // Handle the error appropriately, e.g., show a message to the user
+    }
+  };
+
+  const renderCardContent = React.useCallback((item: PipelineItem): React.ReactNode => {
+    if (isPipelineLead(item)) {
       return (
-        <>
-          <div className="flex items-start justify-between mb-3">
-            <div className="space-y-1">
-              <div className="flex items-center space-x-2">
-                <AtSign className="h-4 w-4 text-blue-500" />
-                <p className="text-sm font-medium">{email}</p>
-              </div>
-              {formData?.businessName && (
-                <div className="flex items-center space-x-2">
-                  <Briefcase className="h-4 w-4 text-gray-500" />
-                  <p className="text-sm text-gray-600">{formData.businessName}</p>
-                </div>
-              )}
-              {formData?.firstName && formData?.lastName && (
-                <div className="flex items-center space-x-2">
-                  <User className="h-4 w-4 text-gray-500" />
-                  <p className="text-sm text-gray-600">
-                    {`${formData.firstName} ${formData.lastName}`}
-                  </p>
-                </div>
-              )}
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Send Email
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Add Note
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Application Progress</span>
-              <span>{progress}%</span>
-            </div>
-            <Progress value={progress} className={progressColor} />
-          </div>
-        </>
-      )
-    } else if (isMerchant(item)) {
-      // Merchant card
-      return (
-        <>
-          <div className="flex items-start justify-between mb-3">
-            <div className="space-y-1">
-              <h3 className="font-medium">{item.businessName}</h3>
-              {item.dba && (
-                <p className="text-sm text-gray-500">DBA: {item.dba}</p>
-              )}
-              <div className="flex items-center space-x-2">
-                <Building className="h-4 w-4 text-gray-500" />
-                <p className="text-sm text-gray-600">{item.businessType}</p>
-              </div>
-              {item.monthlyVolume && (
-                <div className="flex items-center space-x-2">
-                  <DollarSign className="h-4 w-4 text-gray-500" />
-                  <p className="text-sm text-gray-600">
-                    ${Number(item.monthlyVolume).toLocaleString()}/mo
-                  </p>
-                </div>
-              )}
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                <DropdownMenuItem>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Send Email
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Add Note
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download Documents
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Application Progress</span>
-              <span>{progress}%</span>
-            </div>
-            <Progress value={progress} className={progressColor} />
-          </div>
-        </>
+        <LeadCard
+          item={item}
+          onMenuOpen={(e) => handleMenuOpen(e, item)}
+        />
       )
     }
+
+    if (isPipelineMerchant(item)) {
+      return (
+        <MerchantCard
+          item={item}
+          onMenuOpen={(e) => handleMenuOpen(e, item)}
+        />
+      )
+    }
+
     return null
-  }
+  }, [])
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto" />
-          <p className="mt-2">Loading pipeline...</p>
-        </div>
-      </div>
+      <Box display="flex" alignItems="center" justifyContent="center" height="100vh">
+        <Typography>Loading pipeline...</Typography>
+      </Box>
     )
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold">Pipeline</h1>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Merchant
-        </Button>
-      </div>
+    <Root>
+      <Header position="static">
+        <Toolbar>
+          <Typography variant="h6" fontWeight="medium" sx={{ flexGrow: 1 }}>
+            Pipeline
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            color="primary"
+          >
+            Add Merchant
+          </Button>
+        </Toolbar>
+      </Header>
 
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
+      <Box
+        sx={{
+          display: 'flex',
+          overflowX: 'auto',
+          padding: 2,
+          gap: 2,
+          flexGrow: 1
+        }}
+      >
+        <DragDropContext onDragEnd={onDragEnd}>
           {columns.map(column => (
-            <div key={column.id} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  {React.createElement(statusConfig[column.id].icon, {
-                    className: 'h-5 w-5 text-gray-500'
-                  })}
-                  <h2 className="font-semibold">{column.title}</h2>
-                </div>
-                <Badge variant="secondary">{column.items.length}</Badge>
-              </div>
+            <ColumnContainer key={column.id} elevation={0}>
+              <ColumnHeader>
+                <Typography variant="subtitle1" fontWeight="medium">
+                  {column.title} ({column.items.length})
+                </Typography>
+              </ColumnHeader>
 
               <Droppable droppableId={column.id}>
                 {(provided) => (
-                  <div
+                  <Box
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="space-y-4"
+                    sx={{ minHeight: 100 }}
                   >
                     {column.items.map((item, index) => (
                       <Draggable
                         key={item.id}
-                        draggableId={item.id || ''}
+                        draggableId={item.id}
                         index={index}
                       >
                         {(provided, snapshot) => (
-                          <div
+                          <CardContainer
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
                             onClick={() => handleCardClick(item)}
-                            className={`
-                              cursor-pointer transform transition-all duration-200
-                              ${snapshot.isDragging ? 'rotate-2 scale-105' : ''}
-                            `}
+                            elevation={snapshot.isDragging ? 3 : 1}
+                            sx={{
+                              transform: snapshot.isDragging ? 'rotate(2deg)' : 'none',
+                              transition: 'transform 0.2s ease'
+                            }}
                           >
-                            <Card className="bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
-                              <CardContent className="p-4">
-                                {renderCardContent(item)}
-                              </CardContent>
-                            </Card>
-                          </div>
+                            {renderCardContent(item)}
+                          </CardContainer>
                         )}
                       </Draggable>
                     ))}
                     {provided.placeholder}
-                  </div>
+                  </Box>
                 )}
               </Droppable>
-            </div>
+            </ColumnContainer>
           ))}
-        </div>
-      </DragDropContext>
-    </div>
+        </DragDropContext>
+      </Box>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={() => {
+          if (selectedItemForMenu) {
+            handleCardClick(selectedItemForMenu)
+            handleMenuClose()
+          }
+        }}>
+          Open Details
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={handleMenuClose}>
+          <MailIcon fontSize="small" sx={{ mr: 1 }} />
+          Send Email
+        </MenuItem>
+        <MenuItem onClick={handleMenuClose}>
+          <MessageIcon fontSize="small" sx={{ mr: 1 }} />
+          Add Note
+        </MenuItem>
+        {selectedItemForMenu && isPipelineMerchant(selectedItemForMenu) && (
+          <MenuItem onClick={handleMenuClose}>
+            <DownloadIcon fontSize="small" sx={{ mr: 1 }} />
+            Download Documents
+          </MenuItem>
+        )}
+      </Menu>
+
+      {selectedItem && (
+        <CardModal
+          open={!!selectedItem}
+          onClose={() => setSelectedItem(null)}
+          item={selectedItem}
+          onStatusChange={handleStatusChange}
+        />
+      )}
+    </Root>
   )
 }

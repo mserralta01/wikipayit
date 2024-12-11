@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/utils'
 import { 
@@ -47,13 +47,22 @@ type MenuItem = {
 export function AdminLayout({ children }: AdminLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const user = auth.currentUser
+  const [user, setUser] = useState(auth.currentUser)
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null)
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+      setUser(currentUser)
+    })
+    return () => unsubscribe()
+  }, [])
 
   const handleLogout = async () => {
     try {
-      await signOut(auth)
-      navigate('/')
+      if (auth) {
+        await signOut(auth)
+        navigate('/')
+      }
     } catch (error) {
       console.error('Logout error:', error)
     }
@@ -119,7 +128,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {
           title: 'Team',
           icon: <Users className="w-5 h-5" />,
-          href: '/admin/team',
+          href: '/admin/settings/team',
         }
       ]
     },

@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent } from '@components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { 
   FileText, 
   MoreVertical, 
@@ -18,15 +18,26 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@components/ui/dropdown-menu'
-import { Button } from '@components/ui/button'
-import { Badge } from '@components/ui/badge'
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
-import { merchantService } from '@services/merchantService'
+import { merchantService } from '@/services/merchantService'
 import { Merchant } from '@/types/merchant'
 
+interface Application extends Merchant {
+  businessName: string;
+  contactName: string;
+  status: string;
+  businessType: string;
+  processingVolume?: number;
+  phone: string;
+  createdAt: string;
+  id: string;
+}
+
 export default function Applications() {
-  const { data: applications, isLoading } = useQuery({
+  const { data: applications, isLoading } = useQuery<Application[]>({
     queryKey: ['applications'],
     queryFn: () => merchantService.getApplications()
   })
