@@ -24,6 +24,7 @@ export interface PipelineMerchant extends BaseMerchant {
 export interface PipelineLead extends BaseLead {
   pipelineStatus: PipelineStatus;
   companyName: string;
+  id: string;
 }
 
 export type PipelineItem = PipelineMerchant | PipelineLead

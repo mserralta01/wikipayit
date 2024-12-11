@@ -174,7 +174,7 @@ export type Merchant = z.infer<typeof merchantSchema> & {
 
 // Lead type for tracking application progress
 export const leadSchema = z.object({
-  id: z.string().optional(),
+  id: z.string(),
   email: z.string().email("Invalid email address"),
   status: z.enum(["started", "in_progress", "completed"]),
   currentStep: z.number().min(1),
