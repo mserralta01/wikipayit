@@ -10,6 +10,7 @@ import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Card } from "../ui/card"
 import { Progress } from "../ui/progress"
+import { storageService } from "../../services/storageService"
 import {
   Select,
   SelectContent,
@@ -141,7 +142,7 @@ const ownerSchema = z.object({
       "SSN must be in format XXX-XX-XXXX"
     ),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  idDocument: z.any().optional(),
+  idDocumentUrl: z.string().url("Invalid ID document URL").optional(),
 })
 
 const beneficialOwnerSchema = z.object({
@@ -168,6 +169,7 @@ type BeneficialOwnerFormData = z.infer<typeof beneficialOwnerSchema>
 export type BeneficialOwnerStepProps = {
   onSave: (data: BeneficialOwnerFormData) => void
   initialData?: Partial<BeneficialOwnerFormData>
+  leadId: string
 }
 
 type FileWithPreview = File & {
@@ -191,15 +193,18 @@ const defaultOwner = {
   zipCode: "",
   ssn: "",
   dateOfBirth: "",
+  idDocumentUrl: "",
 }
 
 export function BeneficialOwnerStep({
   onSave,
   initialData = {},
+  leadId,
 }: BeneficialOwnerStepProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [ownerFiles, setOwnerFiles] = useState<OwnerFiles>({})
   const [uploadProgress, setUploadProgress] = useState<{ [key: number]: number }>({})
+  const [isUploading, setIsUploading] = useState<{ [key: number]: boolean }>({})
 
   const {
     register,
@@ -221,10 +226,15 @@ export function BeneficialOwnerStep({
   })
 
   const onDrop = useCallback(
-    (acceptedFiles: File[], index: number) => {
+    async (acceptedFiles: File[], index: number) => {
       if (acceptedFiles.length === 0) return
 
       const file = acceptedFiles[0]
+      if (file.size > MAX_FILE_SIZE) {
+        setServerError("File size must be less than 10MB")
+        return
+      }
+
       const fileWithPreview = Object.assign(file, {
         preview: URL.createObjectURL(file),
       }) as FileWithPreview
@@ -234,21 +244,33 @@ export function BeneficialOwnerStep({
         [index]: fileWithPreview,
       }))
 
-      // Simulate upload progress
-      let progress = 0
-      const interval = setInterval(() => {
-        progress += 10
-        setUploadProgress((prev) => ({
-          ...prev,
-          [index]: progress,
-        }))
+      try {
+        setIsUploading((prev) => ({ ...prev, [index]: true }))
+        setUploadProgress((prev) => ({ ...prev, [index]: 0 }))
+        setServerError(null)
 
-        if (progress >= 100) {
-          clearInterval(interval)
-        }
-      }, 200)
+        // Upload to Firebase Storage
+        const downloadURL = await storageService.uploadBeneficialOwnerID(
+          file,
+          leadId,
+          index,
+          (progress) => {
+            setUploadProgress((prev) => ({ ...prev, [index]: progress }))
+          }
+        )
+
+        // Update form with download URL
+        setValue(`owners.${index}.idDocumentUrl`, downloadURL)
+        setUploadProgress((prev) => ({ ...prev, [index]: 100 }))
+      } catch (error) {
+        console.error("Error uploading file:", error)
+        setServerError(error instanceof Error ? error.message : "Failed to upload ID document")
+        removeFile(index)
+      } finally {
+        setIsUploading((prev) => ({ ...prev, [index]: false }))
+      }
     },
-    []
+    [leadId, setValue]
   )
 
   const removeFile = (index: number) => {
@@ -265,6 +287,12 @@ export function BeneficialOwnerStep({
       delete newProgress[index]
       return newProgress
     })
+    setIsUploading((prev) => {
+      const newUploading = { ...prev }
+      delete newUploading[index]
+      return newUploading
+    })
+    setValue(`owners.${index}.idDocumentUrl`, "")
   }
 
   const handlePercentageChange = (index: number, value: string) => {
@@ -290,16 +318,14 @@ export function BeneficialOwnerStep({
 
   const onSubmit = async (data: BeneficialOwnerFormData) => {
     try {
-      setServerError(null)
-      // Add the ID documents to the form data
-      const dataWithFiles = {
-        ...data,
-        owners: data.owners.map((owner, index) => ({
-          ...owner,
-          idDocument: ownerFiles[index] || undefined,
-        })),
+      // Check if any files are still uploading
+      if (Object.values(isUploading).some(Boolean)) {
+        setServerError("Please wait for all files to finish uploading")
+        return
       }
-      onSave(dataWithFiles)
+
+      setServerError(null)
+      onSave(data)
     } catch (error) {
       setServerError("An error occurred while saving your information")
     }
@@ -574,8 +600,11 @@ export function BeneficialOwnerStep({
                       },
                       maxSize: MAX_FILE_SIZE,
                       maxFiles: 1,
+                      disabled: isUploading[index],
                     }).getRootProps()}
-                    className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary"
+                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
+                      isUploading[index] ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
                   >
                     <input {...useDropzone({
                       onDrop: (files) => onDrop(files, index),
@@ -585,6 +614,7 @@ export function BeneficialOwnerStep({
                       },
                       maxSize: MAX_FILE_SIZE,
                       maxFiles: 1,
+                      disabled: isUploading[index],
                     }).getInputProps()} />
                     
                     {ownerFiles[index] ? (
@@ -602,12 +632,13 @@ export function BeneficialOwnerStep({
                               e.stopPropagation()
                               removeFile(index)
                             }}
+                            disabled={isUploading[index]}
                           >
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
                         
-                        {uploadProgress[index] && uploadProgress[index] < 100 ? (
+                        {uploadProgress[index] !== undefined && uploadProgress[index] < 100 ? (
                           <Progress value={uploadProgress[index]} className="h-2" />
                         ) : (
                           <div className="flex items-center justify-center text-green-600">
@@ -641,6 +672,10 @@ export function BeneficialOwnerStep({
           ))}
         </div>
       </div>
+
+      <Button type="submit" className="w-full" disabled={Object.values(isUploading).some(Boolean)}>
+        {Object.values(isUploading).some(Boolean) ? "Uploading..." : "Save and Continue"}
+      </Button>
     </form>
   )
 }

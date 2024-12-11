@@ -178,12 +178,22 @@ export function MerchantApplicationPage() {
     )
   }
 
+  // Ensure we have a leadId before rendering the form
+  if (!applicationState.leadId && applicationState.currentStep > STEPS.AUTHENTICATION) {
+    return (
+      <div className="min-h-screen bg-background py-8 px-4 flex items-center justify-center">
+        <div className="text-center">Error: No lead ID found. Please start over.</div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="container mx-auto">
         <MerchantApplicationForm
           initialData={applicationState.formData}
           currentStep={applicationState.currentStep}
+          leadId={applicationState.leadId || ""}
           onStepComplete={handleStepComplete}
           onStepChange={handleStepChange}
         />

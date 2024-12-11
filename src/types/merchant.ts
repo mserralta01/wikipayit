@@ -4,6 +4,8 @@ const phoneRegex = /^\+1 \(\d{3}\) \d{3}-\d{4}$/
 const ssnRegex = /^\d{3}-\d{2}-\d{4}$/
 const percentageRegex = /^\d+$/
 const taxIdRegex = /^\d{2}-\d{7}$/
+const routingNumberRegex = /^\d{9}$/
+const accountNumberRegex = /^\d{4,17}$/
 
 export const beneficialOwnerSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -23,7 +25,20 @@ export const beneficialOwnerSchema = z.object({
   zipCode: z.string().min(5, "ZIP code must be at least 5 digits"),
   ssn: z.string().regex(ssnRegex, "SSN must be in format XXX-XX-XXXX"),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  idDocument: z.any().optional(),
+  idDocumentUrl: z.string().url("Invalid ID document URL").optional(),
+})
+
+export const bankDetailsSchema = z.object({
+  bankName: z.string().min(1, "Bank name is required"),
+  routingNumber: z.string()
+    .regex(routingNumberRegex, "Routing number must be 9 digits"),
+  accountNumber: z.string()
+    .regex(accountNumberRegex, "Account number must be between 4 and 17 digits"),
+  confirmAccountNumber: z.string()
+    .regex(accountNumberRegex, "Account number must be between 4 and 17 digits"),
+}).refine((data) => data.accountNumber === data.confirmAccountNumber, {
+  message: "Account numbers must match",
+  path: ["confirmAccountNumber"],
 })
 
 export const merchantSchema = z.object({
@@ -103,10 +118,11 @@ export const merchantSchema = z.object({
     }, {
       message: "Total ownership percentage cannot exceed 100%",
     }),
+  bankDetails: bankDetailsSchema,
   documents: z.object({
-    voidedCheck: z.array(z.any()).min(1, "Voided check is required"),
-    bankStatements: z.array(z.any()).min(3, "At least 3 months of bank statements are required"),
-  }),
+    voidedCheck: z.array(z.string().url("Invalid voided check URL")).optional(),
+    bankStatements: z.array(z.string().url("Invalid bank statement URL")).optional(),
+  }).optional(),
   status: z.enum(["pending", "approved", "rejected"]).optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
@@ -145,6 +161,7 @@ export const merchantSchema = z.object({
 })
 
 export type BeneficialOwner = z.infer<typeof beneficialOwnerSchema>
+export type BankDetails = z.infer<typeof bankDetailsSchema>
 export type Merchant = z.infer<typeof merchantSchema>
 
 // Lead type for tracking application progress

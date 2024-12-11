@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Progress } from "../ui/progress"
@@ -7,6 +7,7 @@ import { BusinessInformationStep } from "./BusinessInformationStep"
 import { ProcessingHistoryStep } from "./ProcessingHistoryStep"
 import { BeneficialOwnerStep } from "./BeneficialOwnerStep"
 import { DocumentationStep } from "./DocumentationStep"
+import { BankDetailsStep } from "./BankDetailsStep"
 import { useAuth } from "../../contexts/AuthContext"
 
 type Step = {
@@ -38,19 +39,20 @@ const steps: Step[] = [
   },
   {
     id: 5,
-    title: "Documentation",
-    description: "Required business documents",
+    title: "Bank Details",
+    description: "Your settlement account information",
   },
   {
     id: 6,
-    title: "Bank Details",
-    description: "Your settlement account information",
+    title: "Documentation",
+    description: "Required business documents",
   },
 ]
 
 export type MerchantApplicationFormProps = {
   initialData: any
   currentStep: number
+  leadId: string
   onStepComplete: (stepData: any, step: number) => void
   onStepChange: (step: number) => void
 }
@@ -58,6 +60,7 @@ export type MerchantApplicationFormProps = {
 export function MerchantApplicationForm({
   initialData,
   currentStep,
+  leadId,
   onStepComplete,
   onStepChange,
 }: MerchantApplicationFormProps) {
@@ -105,9 +108,11 @@ export function MerchantApplicationForm({
       case 3:
         return <ProcessingHistoryStep {...stepProps} />
       case 4:
-        return <BeneficialOwnerStep {...stepProps} />
+        return <BeneficialOwnerStep {...stepProps} leadId={leadId} />
       case 5:
-        return <DocumentationStep {...stepProps} />
+        return <BankDetailsStep {...stepProps} />
+      case 6:
+        return <DocumentationStep {...stepProps} leadId={leadId} />
       default:
         return (
           <div className="h-[400px] flex items-center justify-center border-2 border-dashed rounded-lg">

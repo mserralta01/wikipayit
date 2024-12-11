@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from "../../components/ui/alert"
 import { AlertCircle, Upload, X, FileText, Check } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import { Progress } from "../../components/ui/progress"
+import { storageService } from "../../services/storageService"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ACCEPTED_FILE_TYPES = [
@@ -19,41 +20,8 @@ const ACCEPTED_FILE_TYPES = [
 type FileFields = "voided_check" | "bank_statements"
 
 const documentSchema = z.object({
-  voided_check: z
-    .custom<FileList>()
-    .refine((files) => files?.length > 0, "Voided check is required")
-    .refine(
-      (files) => files?.[0]?.size <= MAX_FILE_SIZE,
-      "Max file size is 10MB"
-    )
-    .refine(
-      (files) => ACCEPTED_FILE_TYPES.includes(files?.[0]?.type as any),
-      "Only .pdf, .jpg, .jpeg, and .png files are accepted"
-    ),
-  bank_statements: z
-    .custom<FileList>()
-    .refine(
-      (files) => files?.length >= 3,
-      "At least 3 months of bank statements are required"
-    )
-    .refine(
-      (files) => {
-        for (let i = 0; i < files.length; i++) {
-          if (files[i].size > MAX_FILE_SIZE) return false
-        }
-        return true
-      },
-      "Max file size is 10MB per file"
-    )
-    .refine(
-      (files) => {
-        for (let i = 0; i < files.length; i++) {
-          if (!ACCEPTED_FILE_TYPES.includes(files[i].type as any)) return false
-        }
-        return true
-      },
-      "Only .pdf, .jpg, .jpeg, and .png files are accepted"
-    ),
+  voided_check: z.array(z.string().url("Invalid voided check URL")).optional(),
+  bank_statements: z.array(z.string().url("Invalid bank statement URL")).optional(),
 })
 
 type DocumentFormData = z.infer<typeof documentSchema>
@@ -61,6 +29,7 @@ type DocumentFormData = z.infer<typeof documentSchema>
 export type DocumentationStepProps = {
   onSave: (data: DocumentFormData) => void
   initialData?: Partial<DocumentFormData>
+  leadId: string
 }
 
 type FileWithPreview = File & {
@@ -72,15 +41,21 @@ type FileState = {
 }
 
 type UploadProgress = {
-  [K in FileFields]?: number
+  [K in FileFields]?: { [key: number]: number }
+}
+
+type UploadingState = {
+  [K in FileFields]?: { [key: number]: boolean }
 }
 
 export function DocumentationStep({
   onSave,
   initialData = {},
+  leadId,
 }: DocumentationStepProps) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({})
+  const [isUploading, setIsUploading] = useState<UploadingState>({})
   const [files, setFiles] = useState<FileState>({
     voided_check: [],
     bank_statements: [],
@@ -96,39 +71,81 @@ export function DocumentationStep({
   })
 
   const onDrop = useCallback(
-    (acceptedFiles: File[], fieldName: FileFields) => {
-      // Create preview URLs for images
-      const filesWithPreview = acceptedFiles.map((file) =>
-        Object.assign(file, {
-          preview: URL.createObjectURL(file),
-        })
-      ) as FileWithPreview[]
+    async (acceptedFiles: File[], fieldName: FileFields) => {
+      try {
+        // Create preview URLs for images
+        const filesWithPreview = acceptedFiles.map((file) =>
+          Object.assign(file, {
+            preview: URL.createObjectURL(file),
+          })
+        ) as FileWithPreview[]
 
-      setFiles((prev) => ({
-        ...prev,
-        [fieldName]: filesWithPreview,
-      }))
-
-      // Create a FileList-like object
-      const dataTransfer = new DataTransfer()
-      acceptedFiles.forEach((file) => dataTransfer.items.add(file))
-      setValue(fieldName, dataTransfer.files)
-
-      // Simulate upload progress
-      let progress = 0
-      const interval = setInterval(() => {
-        progress += 10
-        setUploadProgress((prev) => ({
+        setFiles((prev) => ({
           ...prev,
-          [fieldName]: progress,
+          [fieldName]: [...prev[fieldName], ...filesWithPreview],
         }))
 
-        if (progress >= 100) {
-          clearInterval(interval)
-        }
-      }, 200)
+        // Upload each file
+        const uploadPromises = filesWithPreview.map(async (file, index) => {
+          const currentIndex = files[fieldName].length + index
+          
+          setIsUploading((prev) => ({
+            ...prev,
+            [fieldName]: { ...prev[fieldName], [currentIndex]: true },
+          }))
+
+          try {
+            const downloadURL = fieldName === "voided_check"
+              ? await storageService.uploadVoidedCheck(
+                  file,
+                  leadId,
+                  (progress) => {
+                    setUploadProgress((prev) => ({
+                      ...prev,
+                      [fieldName]: { 
+                        ...prev[fieldName],
+                        [currentIndex]: progress 
+                      },
+                    }))
+                  }
+                )
+              : await storageService.uploadBankStatement(
+                  file,
+                  leadId,
+                  currentIndex,
+                  (progress) => {
+                    setUploadProgress((prev) => ({
+                      ...prev,
+                      [fieldName]: { 
+                        ...prev[fieldName],
+                        [currentIndex]: progress 
+                      },
+                    }))
+                  }
+                )
+
+            return downloadURL
+          } finally {
+            setIsUploading((prev) => ({
+              ...prev,
+              [fieldName]: { 
+                ...prev[fieldName],
+                [currentIndex]: false 
+              },
+            }))
+          }
+        })
+
+        const urls = await Promise.all(uploadPromises)
+        const existingUrls = initialData[fieldName] || []
+        setValue(fieldName, [...existingUrls, ...urls])
+
+      } catch (error) {
+        console.error("Error uploading files:", error)
+        setServerError(error instanceof Error ? error.message : "Failed to upload files")
+      }
     },
-    [setValue]
+    [leadId, setValue, files, initialData]
   )
 
   const { getRootProps: getCheckProps, getInputProps: getCheckInputProps } =
@@ -164,20 +181,39 @@ export function DocumentationStep({
     }))
 
     // Update form value
-    const remainingFiles = files[fieldName].filter((_, i) => i !== index)
-    const dataTransfer = new DataTransfer()
-    remainingFiles.forEach((file) => dataTransfer.items.add(file))
-    setValue(fieldName, dataTransfer.files)
+    const currentUrls = initialData[fieldName] || []
+    const updatedUrls = [...currentUrls]
+    updatedUrls.splice(index, 1)
+    setValue(fieldName, updatedUrls)
+
+    // Clean up preview URL
+    if (files[fieldName][index]?.preview) {
+      URL.revokeObjectURL(files[fieldName][index].preview)
+    }
   }
 
   const onSubmit = async (data: DocumentFormData) => {
     try {
+      // Check if any files are still uploading
+      const isStillUploading = Object.values(isUploading).some((field) =>
+        Object.values(field || {}).some(Boolean)
+      )
+
+      if (isStillUploading) {
+        setServerError("Please wait for all files to finish uploading")
+        return
+      }
+
       setServerError(null)
       onSave(data)
     } catch (error) {
       setServerError("An error occurred while saving your information")
     }
   }
+
+  const isAnyFileUploading = Object.values(isUploading).some((field) =>
+    Object.values(field || {}).some(Boolean)
+  )
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
@@ -194,11 +230,11 @@ export function DocumentationStep({
           <h3 className="text-lg font-medium mb-2">Voided Check</h3>
           <div
             {...getCheckProps()}
-            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-              errors.voided_check ? "border-destructive" : "hover:border-primary"
+            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
+              isAnyFileUploading ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
-            <input {...getCheckInputProps()} />
+            <input {...getCheckInputProps()} disabled={isAnyFileUploading} />
             {files.voided_check?.length ? (
               <div className="space-y-2">
                 {files.voided_check.map((file, index) => (
@@ -215,19 +251,27 @@ export function DocumentationStep({
                       variant="ghost"
                       size="sm"
                       onClick={() => removeFile("voided_check", index)}
+                      disabled={isUploading.voided_check?.[index]}
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
-                {uploadProgress.voided_check && uploadProgress.voided_check < 100 ? (
-                  <Progress value={uploadProgress.voided_check} className="h-2" />
-                ) : (
-                  <div className="flex items-center justify-center text-green-600">
-                    <Check className="h-4 w-4 mr-2" />
-                    <span>Upload complete</span>
-                  </div>
-                )}
+                {files.voided_check.map((_, index) => (
+                  uploadProgress.voided_check?.[index] !== undefined && 
+                  uploadProgress.voided_check[index] < 100 ? (
+                    <Progress 
+                      key={`progress-${index}`}
+                      value={uploadProgress.voided_check[index]} 
+                      className="h-2" 
+                    />
+                  ) : (
+                    <div key={`complete-${index}`} className="flex items-center justify-center text-green-600">
+                      <Check className="h-4 w-4 mr-2" />
+                      <span>Upload complete</span>
+                    </div>
+                  )
+                ))}
               </div>
             ) : (
               <div className="space-y-2">
@@ -239,28 +283,21 @@ export function DocumentationStep({
               </div>
             )}
           </div>
-          {errors.voided_check && (
-            <p className="text-sm text-destructive mt-2">
-              {errors.voided_check.message?.toString()}
-            </p>
-          )}
         </div>
 
         {/* Bank Statements Upload */}
         <div>
           <h3 className="text-lg font-medium mb-2">Bank Statements</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Please provide your last 3 months of bank statements
+            You may provide up to 3 months of bank statements
           </p>
           <div
             {...getStatementsProps()}
-            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-              errors.bank_statements
-                ? "border-destructive"
-                : "hover:border-primary"
+            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
+              isAnyFileUploading ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
-            <input {...getStatementsInputProps()} />
+            <input {...getStatementsInputProps()} disabled={isAnyFileUploading} />
             {files.bank_statements?.length ? (
               <div className="space-y-2">
                 {files.bank_statements.map((file, index) => (
@@ -277,22 +314,27 @@ export function DocumentationStep({
                       variant="ghost"
                       size="sm"
                       onClick={() => removeFile("bank_statements", index)}
+                      disabled={isUploading.bank_statements?.[index]}
                     >
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
-                {uploadProgress.bank_statements && uploadProgress.bank_statements < 100 ? (
-                  <Progress
-                    value={uploadProgress.bank_statements}
-                    className="h-2"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center text-green-600">
-                    <Check className="h-4 w-4 mr-2" />
-                    <span>Upload complete</span>
-                  </div>
-                )}
+                {files.bank_statements.map((_, index) => (
+                  uploadProgress.bank_statements?.[index] !== undefined && 
+                  uploadProgress.bank_statements[index] < 100 ? (
+                    <Progress 
+                      key={`progress-${index}`}
+                      value={uploadProgress.bank_statements[index]} 
+                      className="h-2" 
+                    />
+                  ) : (
+                    <div key={`complete-${index}`} className="flex items-center justify-center text-green-600">
+                      <Check className="h-4 w-4 mr-2" />
+                      <span>Upload complete</span>
+                    </div>
+                  )
+                ))}
               </div>
             ) : (
               <div className="space-y-2">
@@ -306,13 +348,12 @@ export function DocumentationStep({
               </div>
             )}
           </div>
-          {errors.bank_statements && (
-            <p className="text-sm text-destructive mt-2">
-              {errors.bank_statements.message?.toString()}
-            </p>
-          )}
         </div>
       </div>
+
+      <Button type="submit" className="w-full" disabled={isAnyFileUploading}>
+        {isAnyFileUploading ? "Uploading..." : "Save and Continue"}
+      </Button>
     </form>
   )
 }
