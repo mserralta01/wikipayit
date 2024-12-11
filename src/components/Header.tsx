@@ -20,6 +20,8 @@ import {
 } from './ui/dropdown-menu'
 import { Button } from './ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { auth } from '../lib/firebase'
+import { signOut } from 'firebase/auth'
 
 export default function Header() {
   const { user, isAdmin } = useAuth()
@@ -29,6 +31,15 @@ export default function Header() {
 
   const handleAdminDashboard = () => {
     navigate('/admin')
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth)
+      navigate('/')
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
   }
 
   const toggleMenu = () => {
@@ -104,7 +115,7 @@ export default function Header() {
                     Profile
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/login')}>
+                  <DropdownMenuItem onClick={handleSignOut}>
                     <LogOut className="mr-2 h-4 w-4" />
                     Sign Out
                   </DropdownMenuItem>

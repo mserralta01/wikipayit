@@ -26,6 +26,12 @@ const formatTaxId = (value: string) => {
   return numbers
 }
 
+const formatWebsite = (value: string) => {
+  if (!value) return value
+  if (value.startsWith('http://') || value.startsWith('https://')) return value
+  return `https://${value}`
+}
+
 const businessSchema = z.object({
   legalName: z
     .string()
@@ -67,7 +73,18 @@ const businessSchema = z.object({
       },
       { message: "Please enter a valid year between 1900 and current year" }
     ),
-  website: z.string().url("Please enter a valid URL").optional(),
+  website: z.string()
+    .optional()
+    .transform((val) => val ? formatWebsite(val) : val)
+    .refine((val) => {
+      if (!val) return true
+      try {
+        new URL(val)
+        return true
+      } catch {
+        return false
+      }
+    }, "Please enter a valid URL"),
 })
 
 type BusinessFormData = z.infer<typeof businessSchema>
@@ -129,6 +146,21 @@ export function BusinessInformationStep({
   const handleTaxIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatTaxId(e.target.value)
     setValue("taxId", formatted, { shouldValidate: true })
+  }
+
+  const handleWebsiteFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
+      setValue("website", `https://${value}`, { shouldValidate: true })
+    }
+  }
+
+  const handleWebsiteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value
+    if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
+      value = `https://${value}`
+    }
+    setValue("website", value, { shouldValidate: true })
   }
 
   return (
@@ -250,7 +282,9 @@ export function BusinessInformationStep({
             <Input
               id="website"
               {...register("website")}
-              placeholder="https://example.com"
+              onFocus={handleWebsiteFocus}
+              onChange={handleWebsiteChange}
+              placeholder="example.com"
               className={errors.website ? "border-destructive" : ""}
             />
             {errors.website && (

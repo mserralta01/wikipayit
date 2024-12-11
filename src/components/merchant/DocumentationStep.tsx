@@ -16,20 +16,9 @@ const ACCEPTED_FILE_TYPES = [
   "image/jpg",
 ] as const
 
-type FileFields = "businessLicense" | "voided_check" | "bank_statements"
+type FileFields = "voided_check" | "bank_statements"
 
 const documentSchema = z.object({
-  businessLicense: z
-    .custom<FileList>()
-    .refine((files) => files?.length > 0, "Business license is required")
-    .refine(
-      (files) => files?.[0]?.size <= MAX_FILE_SIZE,
-      "Max file size is 10MB"
-    )
-    .refine(
-      (files) => ACCEPTED_FILE_TYPES.includes(files?.[0]?.type as any),
-      "Only .pdf, .jpg, .jpeg, and .png files are accepted"
-    ),
   voided_check: z
     .custom<FileList>()
     .refine((files) => files?.length > 0, "Voided check is required")
@@ -93,7 +82,6 @@ export function DocumentationStep({
   const [serverError, setServerError] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({})
   const [files, setFiles] = useState<FileState>({
-    businessLicense: [],
     voided_check: [],
     bank_statements: [],
   })
@@ -142,18 +130,6 @@ export function DocumentationStep({
     },
     [setValue]
   )
-
-  const { getRootProps: getLicenseProps, getInputProps: getLicenseInputProps } =
-    useDropzone({
-      onDrop: (files) => onDrop(files, "businessLicense"),
-      accept: {
-        "application/pdf": [".pdf"],
-        "image/jpeg": [".jpg", ".jpeg"],
-        "image/png": [".png"],
-      },
-      maxSize: MAX_FILE_SIZE,
-      maxFiles: 1,
-    })
 
   const { getRootProps: getCheckProps, getInputProps: getCheckInputProps } =
     useDropzone({
@@ -213,65 +189,6 @@ export function DocumentationStep({
       )}
 
       <div className="space-y-6">
-        {/* Business License Upload */}
-        <div>
-          <h3 className="text-lg font-medium mb-2">Business License</h3>
-          <div
-            {...getLicenseProps()}
-            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-              errors.businessLicense
-                ? "border-destructive"
-                : "hover:border-primary"
-            }`}
-          >
-            <input {...getLicenseInputProps()} />
-            {files.businessLicense?.length ? (
-              <div className="space-y-2">
-                {files.businessLicense.map((file, index) => (
-                  <div
-                    key={file.name}
-                    className="flex items-center justify-between bg-secondary/50 p-2 rounded"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4" />
-                      <span className="text-sm">{file.name}</span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFile("businessLicense", index)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                {uploadProgress.businessLicense && uploadProgress.businessLicense < 100 ? (
-                  <Progress value={uploadProgress.businessLicense} className="h-2" />
-                ) : (
-                  <div className="flex items-center justify-center text-green-600">
-                    <Check className="h-4 w-4 mr-2" />
-                    <span>Upload complete</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                <p>Drag and drop your business license here or click to browse</p>
-                <p className="text-sm text-muted-foreground">
-                  PDF, JPG, JPEG, or PNG (max 10MB)
-                </p>
-              </div>
-            )}
-          </div>
-          {errors.businessLicense && (
-            <p className="text-sm text-destructive mt-2">
-              {errors.businessLicense.message?.toString()}
-            </p>
-          )}
-        </div>
-
         {/* Voided Check Upload */}
         <div>
           <h3 className="text-lg font-medium mb-2">Voided Check</h3>

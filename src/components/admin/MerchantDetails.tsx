@@ -225,7 +225,7 @@ export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
       <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Beneficial Owners</h3>
         <div className="space-y-4">
-          {merchant.beneficialOwners?.map((owner, index) => (
+          {merchant.beneficialOwners?.map((owner: BeneficialOwner, index: number) => (
             <div key={index} className="space-y-2">
               <h4 className="font-medium">Beneficial Owner {index + 1}</h4>
               {renderOwnerCard(owner)}

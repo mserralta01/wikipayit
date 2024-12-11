@@ -14,6 +14,61 @@ import {
 import { Merchant, BeneficialOwner } from "../types/merchant"
 
 export const merchantService = {
+  async createLead(email: string): Promise<string> {
+    try {
+      const leadsRef = collection(db, "leads")
+      const docRef = await addDoc(leadsRef, {
+        email,
+        status: "started",
+        currentStep: 1, // Changed from "authentication" to 1
+        formData: { email }, // Added to ensure email is in formData
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      })
+      return docRef.id
+    } catch (error) {
+      console.error("Error creating lead:", error)
+      throw error
+    }
+  },
+
+  async updateLead(leadId: string, data: any): Promise<void> {
+    try {
+      const leadRef = doc(db, "leads", leadId)
+      await updateDoc(leadRef, {
+        ...data,
+        updatedAt: Timestamp.now(),
+      })
+    } catch (error) {
+      console.error("Error updating lead:", error)
+      throw error
+    }
+  },
+
+  async getLeadByEmail(email: string): Promise<any | null> {
+    try {
+      const leadsRef = collection(db, "leads")
+      const q = query(leadsRef, where("email", "==", email), orderBy("updatedAt", "desc"))
+      const querySnapshot = await getDocs(q)
+      
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0]
+        const data = doc.data()
+        // Ensure currentStep is a number
+        return { 
+          id: doc.id, 
+          ...data,
+          currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
+          formData: data.formData || { email }
+        }
+      }
+      return null
+    } catch (error) {
+      console.error("Error getting lead:", error)
+      throw error
+    }
+  },
+
   async createMerchant(merchantData: Merchant): Promise<string> {
     try {
       const merchantsRef = collection(db, "merchants")

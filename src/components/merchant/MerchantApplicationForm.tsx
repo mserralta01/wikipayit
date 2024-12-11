@@ -1,11 +1,13 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Progress } from "../ui/progress"
+import { AuthenticationStep } from "./AuthenticationStep"
 import { BusinessInformationStep } from "./BusinessInformationStep"
 import { ProcessingHistoryStep } from "./ProcessingHistoryStep"
 import { BeneficialOwnerStep } from "./BeneficialOwnerStep"
 import { DocumentationStep } from "./DocumentationStep"
+import { useAuth } from "../../contexts/AuthContext"
 
 type Step = {
   id: number
@@ -16,57 +18,59 @@ type Step = {
 const steps: Step[] = [
   {
     id: 1,
+    title: "Authentication",
+    description: "Sign in to continue your application",
+  },
+  {
+    id: 2,
     title: "Business Information",
     description: "Basic details about your business",
   },
   {
-    id: 2,
+    id: 3,
     title: "Processing History",
     description: "Your payment processing experience",
   },
   {
-    id: 3,
+    id: 4,
     title: "Beneficial Owners",
     description: "Information about owners with 25% or greater ownership",
   },
   {
-    id: 4,
+    id: 5,
     title: "Documentation",
     description: "Required business documents",
   },
   {
-    id: 5,
+    id: 6,
     title: "Bank Details",
     description: "Your settlement account information",
   },
 ]
 
 export type MerchantApplicationFormProps = {
-  onSubmit: (data: any) => void
-  className?: string
+  initialData: any
+  currentStep: number
+  onStepComplete: (stepData: any, step: number) => void
+  onStepChange: (step: number) => void
 }
 
 export function MerchantApplicationForm({
-  onSubmit,
-  className = "",
+  initialData,
+  currentStep,
+  onStepComplete,
+  onStepChange,
 }: MerchantApplicationFormProps) {
-  const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<any>({})
+  const { user } = useAuth()
   const progress = (currentStep / steps.length) * 100
 
   const handleStepSubmit = (stepData: any) => {
-    const updatedFormData = { ...formData, ...stepData }
-    setFormData(updatedFormData)
-
-    if (currentStep === steps.length) {
-      onSubmit(updatedFormData)
-    } else {
-      setCurrentStep((prev) => Math.min(prev + 1, steps.length))
-    }
+    onStepComplete(stepData, currentStep)
   }
 
   const handlePrevious = () => {
-    setCurrentStep((prev) => Math.max(prev - 1, 1))
+    const prevStep = Math.max(currentStep - 1, 1)
+    onStepChange(prevStep)
   }
 
   const handleNext = () => {
@@ -80,20 +84,29 @@ export function MerchantApplicationForm({
     }
   }
 
+  const handleStepClick = (stepId: number) => {
+    // Allow navigation to any step if user is authenticated and has completed authentication step
+    if (user && initialData.email) {
+      onStepChange(stepId)
+    }
+  }
+
   const renderStep = () => {
     const stepProps = {
       onSave: handleStepSubmit,
-      initialData: formData,
+      initialData,
     }
 
     switch (currentStep) {
       case 1:
-        return <BusinessInformationStep {...stepProps} />
+        return <AuthenticationStep {...stepProps} />
       case 2:
-        return <ProcessingHistoryStep {...stepProps} />
+        return <BusinessInformationStep {...stepProps} />
       case 3:
-        return <BeneficialOwnerStep {...stepProps} />
+        return <ProcessingHistoryStep {...stepProps} />
       case 4:
+        return <BeneficialOwnerStep {...stepProps} />
+      case 5:
         return <DocumentationStep {...stepProps} />
       default:
         return (
@@ -106,8 +119,14 @@ export function MerchantApplicationForm({
     }
   }
 
+  // Check if step is accessible
+  const isStepAccessible = (stepId: number) => {
+    if (stepId === 1) return true // Authentication step is always accessible
+    return user && initialData.email // Other steps require authentication
+  }
+
   return (
-    <div className={`w-full max-w-4xl mx-auto space-y-8 ${className}`}>
+    <div className="w-full max-w-4xl mx-auto space-y-8">
       <div className="space-y-4">
         <h2 className="text-3xl font-bold tracking-tight">Merchant Application</h2>
         <p className="text-muted-foreground">
@@ -128,31 +147,39 @@ export function MerchantApplicationForm({
       <div className="flex gap-8">
         <div className="hidden md:block w-64 shrink-0">
           <nav className="space-y-2">
-            {steps.map((step) => (
-              <button
-                key={step.id}
-                type="button"
-                onClick={() => setCurrentStep(step.id)}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                  currentStep === step.id
-                    ? "bg-primary text-primary-foreground"
-                    : currentStep > step.id
-                    ? "bg-secondary text-secondary-foreground"
-                    : "hover:bg-secondary/50"
-                }`}
-              >
-                <div className="font-medium">{step.title}</div>
-                <div
-                  className={`text-sm ${
+            {steps.map((step) => {
+              const isAccessible = isStepAccessible(step.id)
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  onClick={() => isAccessible && handleStepClick(step.id)}
+                  disabled={!isAccessible}
+                  className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
                     currentStep === step.id
-                      ? "text-primary-foreground/80"
-                      : "text-muted-foreground"
+                      ? "bg-primary text-primary-foreground"
+                      : currentStep > step.id
+                      ? "bg-secondary text-secondary-foreground"
+                      : "hover:bg-secondary/50"
+                  } ${
+                    !isAccessible
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
                   }`}
                 >
-                  {step.description}
-                </div>
-              </button>
-            ))}
+                  <div className="font-medium">{step.title}</div>
+                  <div
+                    className={`text-sm ${
+                      currentStep === step.id
+                        ? "text-primary-foreground/80"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {step.description}
+                  </div>
+                </button>
+              )
+            })}
           </nav>
         </div>
 
@@ -174,9 +201,11 @@ export function MerchantApplicationForm({
             >
               Previous
             </Button>
-            <Button onClick={handleNext}>
-              {currentStep === steps.length ? "Submit Application" : "Next Step"}
-            </Button>
+            {currentStep > 1 && (
+              <Button onClick={handleNext}>
+                {currentStep === steps.length ? "Submit Application" : "Next Step"}
+              </Button>
+            )}
           </div>
         </Card>
       </div>
