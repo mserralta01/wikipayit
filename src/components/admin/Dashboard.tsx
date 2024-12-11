@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import { merchantService } from '../../services/merchantService'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, Merchant } from '@/types/crm'
+import { Activity, ActivityType } from '@/types/crm'
 import { useState, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -66,15 +66,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (recentActivity) {
-      const activities = recentActivity.flatMap(activity => ({
+      const activities = recentActivity.map(activity => ({
         ...activity,
-        merchantName: activity.merchant.businessName,
         timestamp: new Date(activity.timestamp)
-      }))
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-      .slice(0, 10);
+      })) as Activity[];
 
-      setRecentActivities(activities);
+      const sortedActivities = activities
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .slice(0, 10);
+
+      setRecentActivities(sortedActivities);
     }
   }, [recentActivity]);
 
@@ -139,6 +140,7 @@ export default function Dashboard() {
                   <div>
                     <p className="text-sm font-medium">{activity.description}</p>
                     <p className="text-xs text-gray-500">
+                      {activity.merchant && <span className="font-medium">{activity.merchant.businessName} - </span>}
                       {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
                     </p>
                   </div>
