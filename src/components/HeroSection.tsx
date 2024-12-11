@@ -8,24 +8,42 @@ import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { useTypewriter, Cursor } from "react-simple-typewriter";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Material, Mesh } from 'three';
+import { Group, Vector3, Mesh } from 'three';
 
-const CreditCard = ({ position }: { position: THREE.Vector3 }) => {
+const CreditCard = ({ position }: { position: Vector3 }) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useEffect(() => {
     if (!groupRef.current) return;
 
     const mtlLoader = new MTLLoader();
-    mtlLoader.load(creditCardMtl, (materials: Material) => {
+    mtlLoader.load(creditCardMtl, (materials) => {
       materials.preload();
       const objLoader = new OBJLoader();
       objLoader.setMaterials(materials);
-      objLoader.load(creditCardObj, (object: Mesh) => {
-        object.scale.set(0.5, 0.5, 0.5);
-        object.position.copy(position);
-        groupRef.current?.add(object);
-      });
+      
+      objLoader.load(
+        creditCardObj, 
+        (group: Group) => {
+          if (group instanceof Group) {
+            group.scale.set(0.5, 0.5, 0.5);
+            group.position.copy(position);
+            groupRef.current?.add(group);
+
+            // Handle mesh if needed
+            const firstChild = group.children[0];
+            if (firstChild instanceof Mesh) {
+              // Mesh-specific operations here
+            }
+          }
+        },
+        (xhr) => {
+          console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+        },
+        (error) => {
+          console.error('Error loading model:', error);
+        }
+      );
     });
   }, [position]);
 
@@ -90,6 +108,29 @@ const HeroSection: React.FC = () => {
     deleteSpeed: 25,
     delaySpeed: 2000,
   });
+
+  useEffect(() => {
+    const mtlLoader = new MTLLoader();
+    const objLoader = new OBJLoader();
+
+    mtlLoader.load(creditCardMtl, (materialCreator) => {
+      materialCreator.preload();
+      objLoader.setMaterials(materialCreator);
+
+      objLoader.load(creditCardObj, (group: Group) => {
+        const mesh = group.children[0] as Mesh;
+        if (mesh) {
+          // Your mesh handling code here
+        }
+      }, 
+      (xhr) => {
+        console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+      },
+      (error) => {
+        console.error('An error occurred loading the 3D model:', error);
+      });
+    });
+  }, []);
 
   return (
     <section className="relative pt-16 min-h-[calc(100vh-5rem)] bg-gradient-to-b from-blue-50 to-white">

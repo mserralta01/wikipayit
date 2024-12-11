@@ -118,8 +118,9 @@ export const teamService = {
             email: data.email,
             role: data.role,
             invitedBy: data.invitedBy,
-            invitedAt: data.invitedAt,
+            invitedAt: data.invitedAt.toDate(),
             status: data.status,
+            expiresAt: data.expiresAt.toDate(),
         } as TeamInvitation;
     },
 
