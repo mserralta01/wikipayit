@@ -43,6 +43,8 @@ export const bankDetailsSchema = z.object({
 
 export const merchantSchema = z.object({
   id: z.string().optional(),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().regex(phoneRegex, "Phone must be in format: +1 (XXX) XXX-XXXX").optional(),
   businessName: z.string()
     .min(2, "Business name must be at least 2 characters")
     .max(100, "Business name must be less than 100 characters"),

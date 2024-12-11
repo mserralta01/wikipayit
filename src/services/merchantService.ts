@@ -11,7 +11,7 @@ import {
   orderBy,
   Timestamp,
 } from "firebase/firestore"
-import { Merchant, BeneficialOwner } from "../types/merchant"
+import { Merchant, BeneficialOwner, Lead } from "../types/merchant"
 
 export const merchantService = {
   async createLead(email: string): Promise<string> {
@@ -20,8 +20,8 @@ export const merchantService = {
       const docRef = await addDoc(leadsRef, {
         email,
         status: "started",
-        currentStep: 1, // Changed from "authentication" to 1
-        formData: { email }, // Added to ensure email is in formData
+        currentStep: 1,
+        formData: { email },
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       })
@@ -32,7 +32,7 @@ export const merchantService = {
     }
   },
 
-  async updateLead(leadId: string, data: any): Promise<void> {
+  async updateLead(leadId: string, data: Partial<Lead>): Promise<void> {
     try {
       const leadRef = doc(db, "leads", leadId)
       await updateDoc(leadRef, {
@@ -45,7 +45,7 @@ export const merchantService = {
     }
   },
 
-  async getLeadByEmail(email: string): Promise<any | null> {
+  async getLeadByEmail(email: string): Promise<Lead | null> {
     try {
       const leadsRef = collection(db, "leads")
       const q = query(leadsRef, where("email", "==", email), orderBy("updatedAt", "desc"))
@@ -54,17 +54,43 @@ export const merchantService = {
       if (!querySnapshot.empty) {
         const doc = querySnapshot.docs[0]
         const data = doc.data()
-        // Ensure currentStep is a number
         return { 
           id: doc.id, 
           ...data,
           currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
-          formData: data.formData || { email }
-        }
+          formData: data.formData || { email },
+          status: data.status || "started",
+          createdAt: data.createdAt.toDate().toISOString(),
+          updatedAt: data.updatedAt.toDate().toISOString(),
+        } as Lead
       }
       return null
     } catch (error) {
       console.error("Error getting lead:", error)
+      throw error
+    }
+  },
+
+  async getLeads(): Promise<Lead[]> {
+    try {
+      const leadsRef = collection(db, "leads")
+      const q = query(leadsRef, orderBy("updatedAt", "desc"))
+      const querySnapshot = await getDocs(q)
+      
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          ...data,
+          currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
+          formData: data.formData || {},
+          status: data.status || "started",
+          createdAt: data.createdAt.toDate().toISOString(),
+          updatedAt: data.updatedAt.toDate().toISOString(),
+        } as Lead
+      })
+    } catch (error) {
+      console.error("Error getting leads:", error)
       throw error
     }
   },
@@ -106,7 +132,13 @@ export const merchantService = {
       const merchantRef = doc(db, "merchants", merchantId)
       const merchantDoc = await getDoc(merchantRef)
       if (merchantDoc.exists()) {
-        return { id: merchantDoc.id, ...merchantDoc.data() } as Merchant
+        const data = merchantDoc.data()
+        return { 
+          id: merchantDoc.id, 
+          ...data,
+          createdAt: data.createdAt.toDate().toISOString(),
+          updatedAt: data.updatedAt.toDate().toISOString(),
+        } as Merchant
       }
       return null
     } catch (error) {
@@ -115,19 +147,21 @@ export const merchantService = {
     }
   },
 
-  async getMerchants(status?: string): Promise<Merchant[]> {
+  async getMerchants(): Promise<Merchant[]> {
     try {
       const merchantsRef = collection(db, "merchants")
-      let q = query(merchantsRef, orderBy("createdAt", "desc"))
-      
-      if (status) {
-        q = query(merchantsRef, where("status", "==", status), orderBy("createdAt", "desc"))
-      }
-
+      const q = query(merchantsRef, orderBy("createdAt", "desc"))
       const querySnapshot = await getDocs(q)
-      return querySnapshot.docs.map(
-        (doc) => ({ id: doc.id, ...doc.data() } as Merchant)
-      )
+      
+      return querySnapshot.docs.map(doc => {
+        const data = doc.data()
+        return { 
+          id: doc.id, 
+          ...data,
+          createdAt: data.createdAt.toDate().toISOString(),
+          updatedAt: data.updatedAt.toDate().toISOString(),
+        } as Merchant
+      })
     } catch (error) {
       console.error("Error getting merchants:", error)
       throw error
@@ -164,12 +198,10 @@ export const merchantService = {
 
       const currentOwners = merchantDoc.data()?.beneficialOwners || []
       
-      // Ensure we don't exceed 4 owners
       if (currentOwners.length >= 4) {
         throw new Error("Maximum number of beneficial owners reached")
       }
 
-      // Calculate total ownership percentage
       const totalPercentage = currentOwners.reduce(
         (sum: number, owner: BeneficialOwner) =>
           sum + parseFloat(owner.ownershipPercentage),
@@ -209,7 +241,6 @@ export const merchantService = {
         throw new Error("Invalid owner index")
       }
 
-      // Calculate total ownership percentage excluding the owner being updated
       const totalPercentage = currentOwners.reduce(
         (sum: number, owner: BeneficialOwner, index: number) =>
           index === ownerIndex
@@ -266,4 +297,28 @@ export const merchantService = {
       throw error
     }
   },
+
+  async getPipelineItems() {
+    try {
+      const [merchants, leads] = await Promise.all([
+        this.getMerchants(),
+        this.getLeads()
+      ])
+
+      const merchantItems = merchants.map(merchant => ({
+        ...merchant,
+        pipelineStatus: merchant.status === 'approved' ? 'approved' as const : 'lead' as const
+      }))
+
+      const leadItems = leads.map(lead => ({
+        ...lead,
+        pipelineStatus: 'lead' as const
+      }))
+
+      return [...merchantItems, ...leadItems]
+    } catch (error) {
+      console.error("Error getting pipeline items:", error)
+      throw error
+    }
+  }
 }
