@@ -113,7 +113,7 @@ export default function MerchantList() {
                 </TableCell>
                 <TableCell>
                   <Badge variant="secondary" className={statusColors[merchant.status as keyof typeof statusColors]}>
-                    {merchant.status.charAt(0).toUpperCase() + merchant.status.slice(1)}
+                    {merchant.status?.charAt(0).toUpperCase() + (merchant.status?.slice(1) || '')}
                   </Badge>
                 </TableCell>
                 <TableCell>

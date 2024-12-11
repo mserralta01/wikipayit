@@ -30,7 +30,7 @@ interface Application extends Merchant {
   contactName: string;
   status: "pending" | "approved" | "rejected" | undefined;
   businessType: "sole_proprietorship" | "partnership" | "llc" | "corporation" | "non_profit";
-  processingVolume?: number;
+  processingVolume: number;
   phone: string;
   createdAt: string;
   id: string;

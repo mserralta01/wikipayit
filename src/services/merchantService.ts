@@ -12,6 +12,23 @@ import {
   Timestamp,
 } from "firebase/firestore"
 import { Merchant, BeneficialOwner, Lead } from "../types/merchant"
+import { Activity } from '../types/activity'
+
+const getDashboardMetrics = async (): Promise<any> => {
+  // Implement logic to fetch dashboard metrics
+};
+
+const getRecentActivity = async (): Promise<Activity[]> => {
+  // Implement logic to fetch recent activity
+  const activitiesRef = collection(db, "activities");
+  const q = query(activitiesRef, orderBy("timestamp", "desc"));
+  const querySnapshot = await getDocs(q);
+
+  return querySnapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+  } as Activity));
+};
 
 export const merchantService = {
   async createLead(email: string): Promise<string> {
@@ -334,5 +351,8 @@ export const merchantService = {
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate?.().toISOString() || new Date().toISOString()
     }))
-  }
+  },
+
+  getDashboardMetrics,
+  getRecentActivity,
 }

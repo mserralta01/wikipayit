@@ -1,5 +1,11 @@
 import { Input } from '../ui/input'
-import { Select } from '../ui/select'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@radix-ui/react-select";
 import { DateRangePicker } from '../ui/date-range-picker'
 import { Button } from '../ui/button'
 

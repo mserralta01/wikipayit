@@ -119,7 +119,8 @@ const Pipeline: React.FC = () => {
         ...lead,
         kind: 'lead' as const,
         type: 'lead' as const,
-        pipelineStatus: lead.pipelineStatus || 'lead'
+        pipelineStatus: lead.pipelineStatus || 'lead',
+        companyName: lead.companyName,
       }))
 
       // Transform merchants into pipeline items
@@ -127,7 +128,8 @@ const Pipeline: React.FC = () => {
         ...merchant,
         kind: 'merchant' as const,
         type: 'merchant' as const,
-        pipelineStatus: merchant.pipelineStatus || 'lead'
+        pipelineStatus: merchant.pipelineStatus || 'lead',
+        companyName: merchant.businessName,
       }))
 
       // Distribute items to columns

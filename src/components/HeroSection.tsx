@@ -3,11 +3,12 @@ import * as THREE from "three";
 import gradientTexture from "../assets/textures/gradient.png";
 import creditCardObj from "../assets/models/credit-card.obj?url";
 import creditCardMtl from "../assets/models/credit-card.mtl?url";
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
-import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
+import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
 import { useTypewriter, Cursor } from "react-simple-typewriter";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import { Material, Mesh } from 'three';
 
 const CreditCard = ({ position }: { position: THREE.Vector3 }) => {
   const groupRef = useRef<THREE.Group>(null);
@@ -16,11 +17,11 @@ const CreditCard = ({ position }: { position: THREE.Vector3 }) => {
     if (!groupRef.current) return;
 
     const mtlLoader = new MTLLoader();
-    mtlLoader.load(creditCardMtl, (materials) => {
+    mtlLoader.load(creditCardMtl, (materials: Material) => {
       materials.preload();
       const objLoader = new OBJLoader();
       objLoader.setMaterials(materials);
-      objLoader.load(creditCardObj, (object) => {
+      objLoader.load(creditCardObj, (object: Mesh) => {
         object.scale.set(0.5, 0.5, 0.5);
         object.position.copy(position);
         groupRef.current?.add(object);

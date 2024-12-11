@@ -22,7 +22,8 @@ export interface PipelineMerchant extends BaseMerchant {
 }
 
 export interface PipelineLead extends BaseLead {
-  pipelineStatus: PipelineStatus
+  pipelineStatus: PipelineStatus;
+  companyName: string;
 }
 
 export type PipelineItem = PipelineMerchant | PipelineLead
@@ -50,6 +51,12 @@ export interface Column {
   title: string
   color: string
   items: PipelineItem[]
+}
+
+export interface ColumnConfig {
+  id: PipelineStatus;
+  title: string;
+  color: string;
 }
 
 // Constants

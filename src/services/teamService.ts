@@ -112,9 +112,31 @@ export const teamService = {
         }
 
         const doc = querySnapshot.docs[0];
+        const data = doc.data();
         return {
             id: doc.id,
-            ...doc.data()
+            email: data.email,
+            role: data.role,
+            invitedBy: data.invitedBy,
+            invitedAt: data.invitedAt,
+            status: data.status,
         } as TeamInvitation;
+    },
+
+    /**
+     * Get team invitations
+     */
+    async getTeamInvitations(): Promise<TeamInvitation[]> {
+        const q = collection(db, 'teamInvitations')
+        const querySnapshot = await getDocs(q)
+        return querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            email: doc.data().email,
+            role: doc.data().role,
+            invitedBy: doc.data().invitedBy,
+            invitedAt: doc.data().invitedAt,
+            status: doc.data().status,
+        })) as unknown as TeamInvitation[]
     }
 }; 

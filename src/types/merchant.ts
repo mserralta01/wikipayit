@@ -183,7 +183,9 @@ export const leadSchema = z.object({
   updatedAt: z.string(),
 })
 
-export type Lead = z.infer<typeof leadSchema>
+export type Lead = z.infer<typeof leadSchema> & {
+  companyName: string;
+};
 
 export type MerchantStatus = 
   | 'Lead'
