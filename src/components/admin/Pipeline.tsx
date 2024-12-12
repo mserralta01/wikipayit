@@ -1,20 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { styled } from '@mui/material/styles'
-import {
-  Box,
-  Chip,
-  Typography,
-  LinearProgress,
-} from '@mui/material'
-import {
-  Business as BusinessIcon,
-  Email as EmailIcon,
-} from '@mui/icons-material'
+import { format } from 'date-fns'
+import { Mail, Building2 } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { merchantService } from '../../services/merchantService'
 import { CardModal } from './CardModal'
-import { format } from 'date-fns'
 import {
   PipelineStatus,
   PipelineItem,
@@ -27,45 +17,9 @@ import {
   isPipelineMerchant
 } from '../../types/pipeline'
 import { Lead, Merchant } from '../../types/merchant'
-
-const Root = styled('div')({
-  display: 'flex',
-  flexDirection: 'column',
-  height: '100vh',
-  backgroundColor: '#f5f5f5'
-})
-
-const ColumnContainer = styled(Box)({
-  width: 280,
-  backgroundColor: '#fff',
-  borderRadius: 8,
-  padding: 16,
-  margin: 8,
-  minHeight: 'calc(100vh - 200px)',
-  boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-})
-
-const CardContainer = styled(Box)({
-  backgroundColor: '#fff',
-  borderRadius: 8,
-  margin: '8px 0',
-  padding: 16,
-  cursor: 'pointer',
-  transition: 'all 0.2s ease',
-  '&:hover': {
-    boxShadow: '0 4px 8px rgba(0,0,0,0.1)',
-    transform: 'translateY(-2px)'
-  }
-})
-
-const ProgressBar = styled(LinearProgress)({
-  height: 8,
-  borderRadius: 4,
-  backgroundColor: 'rgba(0,0,0,0.08)',
-  '& .MuiLinearProgress-bar': {
-    borderRadius: 4
-  }
-})
+import { Badge } from '@/components/ui/badge'
+import { Progress } from '@/components/ui/progress'
+import { cn } from '@/lib/utils'
 
 const calculateProgress = (item: PipelineItem): number => {
   if (isPipelineLead(item)) {
@@ -87,7 +41,7 @@ const calculateProgress = (item: PipelineItem): number => {
       'bankDetails'
     ]
     const filledFields = requiredFields.filter(field => {
-      const value = item[field as keyof Merchant]
+      const value = item[field as keyof PipelineMerchant]
       return value !== undefined && value !== null && value !== ''
     }).length
     return Math.round((filledFields / requiredFields.length) * 100)
@@ -115,21 +69,22 @@ const Pipeline: React.FC = () => {
       }))
 
       // Transform leads into pipeline items
-      const pipelineLeads = leads.map((lead: Lead) => ({
+      const pipelineLeads = leads.map((lead: Lead): PipelineLead => ({
         ...lead,
         kind: 'lead' as const,
         type: 'lead' as const,
         pipelineStatus: lead.pipelineStatus || 'lead',
         companyName: lead.companyName,
+        id: lead.id || crypto.randomUUID(), // Ensure id is always defined
       }))
 
       // Transform merchants into pipeline items
-      const pipelineMerchants = merchants.map((merchant: Merchant) => ({
+      const pipelineMerchants = merchants.map((merchant: Merchant): PipelineMerchant => ({
         ...merchant,
         kind: 'merchant' as const,
         type: 'merchant' as const,
         pipelineStatus: merchant.pipelineStatus || 'lead',
-        companyName: merchant.businessName,
+        id: merchant.id || crypto.randomUUID(), // Ensure id is always defined
       }))
 
       // Distribute items to columns
@@ -212,28 +167,29 @@ const Pipeline: React.FC = () => {
   }
 
   if (isLoading) {
-    return <Box p={4}>Loading...</Box>
+    return <div className="p-4">Loading...</div>
   }
 
   return (
-    <Root>
+    <div className="flex flex-col min-h-screen bg-gray-50">
       <DragDropContext onDragEnd={onDragEnd}>
-        <Box display="flex" p={2} overflow="auto">
+        <div className="flex p-2 overflow-auto">
           {columns.map(column => (
             <Droppable key={column.id} droppableId={column.id}>
               {(provided) => (
-                <ColumnContainer
+                <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
+                  className="w-80 bg-white rounded-lg p-4 m-2 min-h-[calc(100vh-200px)] shadow-sm"
                 >
-                  <Box mb={2}>
-                    <Typography variant="h6" color="textSecondary">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-700">
                       {column.title}
-                    </Typography>
-                    <Typography variant="caption" color="textSecondary">
+                    </h3>
+                    <p className="text-sm text-gray-500">
                       {column.items.length} items
-                    </Typography>
-                  </Box>
+                    </p>
+                  </div>
                   {column.items.map((item, index) => (
                     <Draggable
                       key={item.id}
@@ -241,27 +197,28 @@ const Pipeline: React.FC = () => {
                       index={index}
                     >
                       {(provided) => (
-                        <CardContainer
+                        <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
                           onClick={() => handleItemClick(item)}
+                          className="bg-white rounded-lg p-4 mb-2 cursor-move shadow-sm hover:shadow-md transition-shadow"
                         >
                           {isPipelineLead(item) ? (
                             <LeadCard item={item} />
                           ) : (
                             <MerchantCard item={item} />
                           )}
-                        </CardContainer>
+                        </div>
                       )}
                     </Draggable>
                   ))}
                   {provided.placeholder}
-                </ColumnContainer>
+                </div>
               )}
             </Droppable>
           ))}
-        </Box>
+        </div>
       </DragDropContext>
       {selectedItem && (
         <CardModal
@@ -270,7 +227,7 @@ const Pipeline: React.FC = () => {
           item={selectedItem}
         />
       )}
-    </Root>
+    </div>
   )
 }
 
@@ -283,31 +240,32 @@ const LeadCard: React.FC<CardProps> = ({ item }) => {
   const progress = calculateProgress(item)
 
   return (
-    <Box>
-      <Box display="flex" alignItems="center" mb={1}>
-        <Chip
-          label={item.pipelineStatus}
-          size="small"
-          sx={{ backgroundColor: config.color, color: '#fff' }}
-        />
-        <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Badge 
+          variant="secondary"
+          style={{ backgroundColor: config.color, color: 'white' }}
+        >
+          {item.pipelineStatus}
+        </Badge>
+        <span className="text-sm text-gray-500">
           {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'N/A'}
-        </Typography>
-      </Box>
-      <Box display="flex" alignItems="center" mb={1}>
-        <EmailIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
-        <Typography variant="body2">{item.email}</Typography>
-      </Box>
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Mail className="h-4 w-4 text-blue-500" />
+        <span className="text-sm">{item.email}</span>
+      </div>
       {isPipelineLead(item) && item.formData?.businessName && (
-        <Box display="flex" alignItems="center" mb={1}>
-          <BusinessIcon fontSize="small" color="action" sx={{ mr: 1 }} />
-          <Typography variant="body2" color="textSecondary">
+        <div className="flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-gray-500" />
+          <span className="text-sm text-gray-600">
             {item.formData.businessName}
-          </Typography>
-        </Box>
+          </span>
+        </div>
       )}
-      <ProgressBar variant="determinate" value={progress} />
-    </Box>
+      <Progress value={progress} className="h-2" />
+    </div>
   )
 }
 
@@ -316,25 +274,26 @@ const MerchantCard: React.FC<CardProps> = ({ item }) => {
   const progress = calculateProgress(item)
 
   return (
-    <Box>
-      <Box display="flex" alignItems="center" mb={1}>
-        <Chip
-          label={item.pipelineStatus}
-          size="small"
-          sx={{ backgroundColor: config.color, color: '#fff' }}
-        />
-        <Typography variant="caption" color="textSecondary" sx={{ ml: 1 }}>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <Badge 
+          variant="secondary"
+          style={{ backgroundColor: config.color, color: 'white' }}
+        >
+          {item.pipelineStatus}
+        </Badge>
+        <span className="text-sm text-gray-500">
           {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'N/A'}
-        </Typography>
-      </Box>
-      <Box display="flex" alignItems="center" mb={1}>
-        <BusinessIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
-        <Typography variant="body2">
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <Building2 className="h-4 w-4 text-blue-500" />
+        <span className="text-sm">
           {isPipelineMerchant(item) ? item.businessName : 'N/A'}
-        </Typography>
-      </Box>
-      <ProgressBar variant="determinate" value={progress} />
-    </Box>
+        </span>
+      </div>
+      <Progress value={progress} className="h-2" />
+    </div>
   )
 }
 

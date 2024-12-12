@@ -5,16 +5,17 @@ import {
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@radix-ui/react-select";
+} from "@/components/ui/select"
 import { DateRangePicker } from '../ui/date-range-picker'
 import { Button } from '../ui/button'
+import { DateRange } from 'react-day-picker'
 
 type PipelineFiltersProps = {
   filters: {
     priority?: 'high' | 'medium' | 'low'
     assignedTo?: string
     search: string
-    dateRange?: { from: Date; to: Date }
+    dateRange?: DateRange
   }
   onFilterChange: (filters: PipelineFiltersProps['filters']) => void
 }
@@ -31,7 +32,7 @@ export function PipelineFilters({ filters, onFilterChange }: PipelineFiltersProp
       
       <Select
         value={filters.priority}
-        onValueChange={(value) => onFilterChange({ ...filters, priority: value as any })}
+        onValueChange={(value) => onFilterChange({ ...filters, priority: value as 'high' | 'medium' | 'low' })}
       >
         <SelectTrigger className="w-32">
           <SelectValue placeholder="Priority" />
@@ -43,7 +44,11 @@ export function PipelineFilters({ filters, onFilterChange }: PipelineFiltersProp
         </SelectContent>
       </Select>
 
-      {/* Add more filters */}
+      <DateRangePicker
+        date={filters.dateRange}
+        onDateChange={(date) => onFilterChange({ ...filters, dateRange: date })}
+        className="w-[300px]"
+      />
     </div>
   )
 } 
