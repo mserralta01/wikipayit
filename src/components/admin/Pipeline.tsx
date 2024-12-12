@@ -245,8 +245,9 @@ const LeadCard: React.FC<CardProps> = ({ item }) => {
         <Badge 
           variant="secondary"
           style={{ backgroundColor: config.color, color: 'white' }}
+          className="truncate max-w-[200px]"
         >
-          {item.pipelineStatus}
+          {isPipelineLead(item) && item.formData?.dba ? item.formData.dba : 'Unnamed Lead'}
         </Badge>
         <span className="text-sm text-gray-500">
           {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'N/A'}
@@ -279,8 +280,9 @@ const MerchantCard: React.FC<CardProps> = ({ item }) => {
         <Badge 
           variant="secondary"
           style={{ backgroundColor: config.color, color: 'white' }}
+          className="truncate max-w-[200px]"
         >
-          {item.pipelineStatus}
+          {isPipelineMerchant(item) && item.dba ? item.dba : 'Unnamed Merchant'}
         </Badge>
         <span className="text-sm text-gray-500">
           {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'N/A'}
