@@ -6,9 +6,8 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
-import { DateRangePicker } from '../ui/date-range-picker'
+import { DateRangePicker, DateRange } from '../ui/date-range-picker'
 import { Button } from '../ui/button'
-import { DateRange } from 'react-day-picker'
 
 type PipelineFiltersProps = {
   filters: {
