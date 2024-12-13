@@ -1,20 +1,36 @@
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Input } from "../ui/input"
-import { Label } from "../ui/label"
+import { Input } from "../../components/ui/input"
+import { Label } from "../../components/ui/label"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select"
-import { Alert, AlertDescription } from "../ui/alert"
+} from "../../components/ui/select"
+import { Alert, AlertDescription } from "../../components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import { usePhoneNumberFormat } from '@/hooks/usePhoneNumberFormat'
-import { BusinessInformation } from '@/types/merchant'
+
+const formatTaxId = (value: string) => {
+  // Remove any non-digits
+  const numbers = value.replace(/\D/g, '')
+  
+  // If we have at least 2 digits, add the dash
+  if (numbers.length >= 2) {
+    return `${numbers.slice(0, 2)}-${numbers.slice(2, 9)}`
+  }
+  
+  return numbers
+}
+
+const formatWebsite = (value: string) => {
+  if (!value) return value
+  if (value.startsWith('http://') || value.startsWith('https://')) return value
+  return `https://${value}`
+}
 
 const businessSchema = z.object({
   legalName: z
@@ -27,8 +43,10 @@ const businessSchema = z.object({
     .min(9, "Tax ID must be 9 digits")
     .max(10, "Tax ID must be 9 digits")
     .transform((val) => {
+      // Remove any non-digits for validation
       const numbers = val.replace(/\D/g, '')
       if (numbers.length === 9) {
+        // Format with dash
         return `${numbers.slice(0, 2)}-${numbers.slice(2)}`
       }
       return val
@@ -67,124 +85,63 @@ const businessSchema = z.object({
         return false
       }
     }, "Please enter a valid URL"),
-  businessDescription: z.string().min(10, {
-    message: "Business description must be at least 10 characters.",
-  }),
-  customerServicePhone: z.string().min(10, {
-    message: "Please enter a valid phone number.",
-  }),
-  customerServiceEmail: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
 })
 
 type BusinessFormData = z.infer<typeof businessSchema>
+type BusinessType = z.infer<typeof businessSchema.shape.businessType>
 
-interface BusinessInformationStepProps {
-  onSave: (data: BusinessInformation) => Promise<void>
-  initialData?: Partial<BusinessInformation>
-  leadId: string
-}
-
-const formatTaxId = (value: string) => {
-  const numbers = value.replace(/\D/g, '')
-  if (numbers.length >= 2) {
-    return `${numbers.slice(0, 2)}-${numbers.slice(2, 9)}`
-  }
-  return numbers
-}
-
-const formatWebsite = (value: string) => {
-  if (!value) return value
-  if (value.startsWith('http://') || value.startsWith('https://')) return value
-  return `https://${value}`
+export type BusinessInformationStepProps = {
+  onSave: (data: BusinessFormData) => void
+  initialData?: Partial<BusinessFormData>
 }
 
 export function BusinessInformationStep({
   onSave,
   initialData = {},
-  leadId,
 }: BusinessInformationStepProps) {
   const [serverError, setServerError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const formRef = useRef<HTMLFormElement>(null)
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting, touchedFields },
     setValue,
     trigger,
     watch,
   } = useForm<BusinessFormData>({
     resolver: zodResolver(businessSchema),
     defaultValues: initialData,
-    mode: "onChange"
+    mode: "all",
   })
 
-  const {
-    handlePhoneChange: handleCustomerServicePhoneChange,
-    handlePhoneFocus: handleCustomerServicePhoneFocus,
-    handlePhoneBlur: handleCustomerServicePhoneBlur,
-  } = usePhoneNumberFormat('customerServicePhone', setValue)
-
-  const onSubmit = useCallback(async (data: BusinessFormData) => {
-    if (isSubmitting) return
-    
-    try {
-      setIsSubmitting(true)
-      setServerError(null)
-      
-      if (!leadId) {
-        throw new Error('No lead ID available')
-      }
-
-      const businessInfo: BusinessInformation = {
-        legalName: data.legalName.trim(),
-        dba: data.dba?.trim(),
-        taxId: data.taxId.trim(),
-        businessType: data.businessType,
-        yearEstablished: data.yearEstablished,
-        website: data.website?.trim(),
-        businessDescription: data.businessDescription.trim(),
-        customerServicePhone: data.customerServicePhone.trim(),
-        customerServiceEmail: data.customerServiceEmail.trim().toLowerCase()
-      }
-
-      await onSave(businessInfo)
-      return true
-    } catch (error) {
-      console.error('Error updating business information:', error)
-      setServerError(error instanceof Error ? error.message : "An error occurred while saving your information. Please try again.")
-      return false
-    } finally {
-      setIsSubmitting(false)
-    }
-  }, [isSubmitting, leadId, onSave])
-
+  // Listen for form submit events from parent
   useEffect(() => {
-    const form = formRef.current
-    if (!form) return
-
     const handleFormSubmit = async (e: Event) => {
       e.preventDefault()
       e.stopPropagation()
-      
-      try {
-        const isValid = await trigger()
-        if (isValid) {
-          const formData = watch()
-          await onSubmit(formData)
-        }
-      } catch (error) {
-        console.error('Form submission error:', error)
-        setServerError("An error occurred while saving your information. Please try again.")
+
+      // Trigger validation for all fields
+      const isValid = await trigger(undefined, { shouldFocus: true })
+      if (isValid) {
+        handleSubmit(onSubmit)()
       }
     }
 
-    form.addEventListener("submit", handleFormSubmit)
-    return () => form.removeEventListener("submit", handleFormSubmit)
-  }, [watch, trigger, onSubmit])
+    const form = document.querySelector("form")
+    if (form) {
+      form.addEventListener("submit", handleFormSubmit)
+      return () => form.removeEventListener("submit", handleFormSubmit)
+    }
+  }, [handleSubmit, trigger])
+
+  const onSubmit = async (data: BusinessFormData) => {
+    try {
+      setServerError(null)
+      onSave(data)
+    } catch (error) {
+      setServerError("An error occurred while saving your information")
+    }
+  }
 
   const handleTaxIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatTaxId(e.target.value)
@@ -207,25 +164,27 @@ export function BusinessInformationStep({
   }
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-6" id="business-info-form">
+    <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
       {serverError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{serverError}</AlertDescription>
         </Alert>
       )}
-      
+
       <div className="space-y-4">
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="legalName">
+            <Label htmlFor="legalName" className="flex items-center">
               Legal Business Name
               <span className="text-destructive ml-1">*</span>
             </Label>
             <Input
               id="legalName"
               {...register("legalName")}
+              placeholder="Enter your legal business name"
               className={errors.legalName ? "border-destructive" : ""}
+              aria-invalid={errors.legalName ? "true" : "false"}
             />
             {errors.legalName && (
               <p className="text-sm text-destructive">{errors.legalName.message}</p>
@@ -233,12 +192,11 @@ export function BusinessInformationStep({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="dba">
-              DBA (Doing Business As)
-            </Label>
+            <Label htmlFor="dba">DBA (Optional)</Label>
             <Input
               id="dba"
               {...register("dba")}
+              placeholder="Doing Business As"
               className={errors.dba ? "border-destructive" : ""}
             />
             {errors.dba && (
@@ -249,7 +207,7 @@ export function BusinessInformationStep({
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="taxId">
+            <Label htmlFor="taxId" className="flex items-center">
               Tax ID (EIN)
               <span className="text-destructive ml-1">*</span>
             </Label>
@@ -259,6 +217,8 @@ export function BusinessInformationStep({
               onChange={handleTaxIdChange}
               placeholder="XX-XXXXXXX"
               className={errors.taxId ? "border-destructive" : ""}
+              aria-invalid={errors.taxId ? "true" : "false"}
+              maxLength={10}
             />
             {errors.taxId && (
               <p className="text-sm text-destructive">{errors.taxId.message}</p>
@@ -266,15 +226,21 @@ export function BusinessInformationStep({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="businessType">
+            <Label htmlFor="businessType" className="flex items-center">
               Business Type
               <span className="text-destructive ml-1">*</span>
             </Label>
             <Select
-              onValueChange={(value) => setValue("businessType", value as any)}
+              onValueChange={(value: BusinessType) => {
+                setValue("businessType", value)
+                trigger("businessType")
+              }}
               defaultValue={watch("businessType")}
             >
-              <SelectTrigger className={errors.businessType ? "border-destructive" : ""}>
+              <SelectTrigger 
+                className={errors.businessType ? "border-destructive" : ""}
+                aria-invalid={errors.businessType ? "true" : "false"}
+              >
                 <SelectValue placeholder="Select business type" />
               </SelectTrigger>
               <SelectContent>
@@ -293,7 +259,7 @@ export function BusinessInformationStep({
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="yearEstablished">
+            <Label htmlFor="yearEstablished" className="flex items-center">
               Year Established
               <span className="text-destructive ml-1">*</span>
             </Label>
@@ -302,79 +268,27 @@ export function BusinessInformationStep({
               {...register("yearEstablished")}
               placeholder="YYYY"
               className={errors.yearEstablished ? "border-destructive" : ""}
+              aria-invalid={errors.yearEstablished ? "true" : "false"}
             />
             {errors.yearEstablished && (
-              <p className="text-sm text-destructive">{errors.yearEstablished.message}</p>
+              <p className="text-sm text-destructive">
+                {errors.yearEstablished.message}
+              </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="website">Website</Label>
+            <Label htmlFor="website">Website (Optional)</Label>
             <Input
               id="website"
               {...register("website")}
-              placeholder="https://example.com"
               onFocus={handleWebsiteFocus}
               onChange={handleWebsiteChange}
+              placeholder="example.com"
               className={errors.website ? "border-destructive" : ""}
             />
             {errors.website && (
               <p className="text-sm text-destructive">{errors.website.message}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="businessDescription">
-            Business Description
-            <span className="text-destructive ml-1">*</span>
-          </Label>
-          <textarea
-            id="businessDescription"
-            {...register("businessDescription")}
-            className={`min-h-[100px] w-full rounded-md border p-3 ${
-              errors.businessDescription ? "border-destructive" : "border-input"
-            }`}
-            placeholder="Describe your business operations..."
-          />
-          {errors.businessDescription && (
-            <p className="text-sm text-destructive">{errors.businessDescription.message}</p>
-          )}
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="customerServicePhone">
-              Customer Service Phone
-              <span className="text-destructive ml-1">*</span>
-            </Label>
-            <Input
-              id="customerServicePhone"
-              {...register("customerServicePhone")}
-              onChange={handleCustomerServicePhoneChange}
-              onFocus={handleCustomerServicePhoneFocus}
-              onBlur={handleCustomerServicePhoneBlur}
-              placeholder="(XXX) XXX-XXXX"
-              className={errors.customerServicePhone ? "border-destructive" : ""}
-            />
-            {errors.customerServicePhone && (
-              <p className="text-sm text-destructive">{errors.customerServicePhone.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="customerServiceEmail">
-              Customer Service Email
-              <span className="text-destructive ml-1">*</span>
-            </Label>
-            <Input
-              id="customerServiceEmail"
-              type="email"
-              {...register("customerServiceEmail")}
-              className={errors.customerServiceEmail ? "border-destructive" : ""}
-            />
-            {errors.customerServiceEmail && (
-              <p className="text-sm text-destructive">{errors.customerServiceEmail.message}</p>
             )}
           </div>
         </div>

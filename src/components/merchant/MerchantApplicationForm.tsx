@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Progress } from "../ui/progress"
@@ -9,8 +9,6 @@ import { BeneficialOwnerStep } from "./BeneficialOwnerStep"
 import { DocumentationStep } from "./DocumentationStep"
 import { BankDetailsStep } from "./BankDetailsStep"
 import { useAuth } from "../../contexts/AuthContext"
-import { merchantService } from "../../services/merchantService"
-import { Lead, BusinessInformation, ProcessingHistory, BeneficialOwner, BankDetails } from "@/types/merchant"
 
 type Step = {
   id: number
@@ -51,194 +49,89 @@ const steps: Step[] = [
   },
 ]
 
-export interface MerchantApplicationFormProps {
-  applicationId: string
+export type MerchantApplicationFormProps = {
+  initialData: any
+  currentStep: number
+  leadId: string
+  onStepComplete: (stepData: any, step: number) => void
+  onStepChange: (step: number) => void
 }
 
-export function MerchantApplicationForm({ applicationId }: MerchantApplicationFormProps) {
-  const [currentStep, setCurrentStep] = useState(1)
-  const [formData, setFormData] = useState<Partial<Lead>>({})
-  const [leadId, setLeadId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
+export function MerchantApplicationForm({
+  initialData,
+  currentStep,
+  leadId,
+  onStepComplete,
+  onStepChange,
+}: MerchantApplicationFormProps) {
   const { user } = useAuth()
-
   const progress = (currentStep / steps.length) * 100
 
-  useEffect(() => {
-    const loadInitialData = async () => {
-      if (applicationId) {
-        try {
-          setLoading(true)
-          const lead = await merchantService.getLeadByApplicationId(applicationId)
-          if (lead?.id) {
-            setLeadId(lead.id)
-            setFormData({
-              ...lead,
-              status: lead.status || 'new',
-              createdAt: lead.createdAt || new Date().toISOString(),
-              updatedAt: lead.updatedAt || new Date().toISOString()
-            })
-            // Set initial step based on lead status
-            if (lead.status === 'new') {
-              setCurrentStep(1)
-            } else if (lead.status === 'in_progress') {
-              // Find the last completed step
-              if (lead.businessInfo) setCurrentStep(3)
-              if (lead.processingHistory) setCurrentStep(4)
-              if (lead.beneficialOwners?.length) setCurrentStep(5)
-              if (lead.bankDetails) setCurrentStep(6)
-            }
-          } else {
-            console.error('No lead found for application:', applicationId)
-          }
-        } catch (error) {
-          console.error('Error loading application data:', error)
-        } finally {
-          setLoading(false)
-        }
-      }
-    }
-
-    loadInitialData()
-  }, [applicationId])
-
-  const handleStepSubmit = async (stepData: any) => {
-    try {
-      if (!leadId) {
-        console.error('No lead ID available')
-        return
-      }
-
-      // Update form data based on current step
-      const updatedData: Partial<Lead> = { ...formData }
-      switch (currentStep) {
-        case 2:
-          updatedData.businessInfo = stepData as BusinessInformation
-          break
-        case 3:
-          updatedData.processingHistory = stepData as ProcessingHistory
-          break
-        case 4:
-          updatedData.beneficialOwners = [stepData as BeneficialOwner]
-          break
-        case 5:
-          updatedData.bankDetails = stepData as BankDetails
-          break
-        case 6:
-          updatedData.documents = stepData
-          break
-      }
-
-      setFormData(updatedData)
-
-      // Save step data to lead
-      await merchantService.updateLead(leadId, {
-        ...updatedData,
-        status: currentStep === steps.length ? 'completed' : 'in_progress',
-        updatedAt: new Date().toISOString()
-      })
-
-      // Move to next step
-      if (currentStep < steps.length) {
-        setCurrentStep(prev => prev + 1)
-      }
-    } catch (error) {
-      console.error('Error saving step data:', error)
-      throw error
-    }
+  const handleStepSubmit = (stepData: any) => {
+    onStepComplete(stepData, currentStep)
   }
 
   const handlePrevious = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1))
+    const prevStep = Math.max(currentStep - 1, 1)
+    onStepChange(prevStep)
   }
 
-  const handleNext = async () => {
-    try {
-      let formId = ''
-      switch (currentStep) {
-        case 1:
-          formId = 'auth-form'
-          break
-        case 2:
-          formId = 'business-info-form'
-          break
-        case 3:
-          formId = 'processing-history-form'
-          break
-        case 4:
-          formId = 'beneficial-owner-form'
-          break
-        case 5:
-          formId = 'bank-details-form'
-          break
-        case 6:
-          formId = 'documentation-form'
-          break
-      }
-
-      const form = document.getElementById(formId)
-      if (!form) {
-        console.error(`No form found with id: ${formId}`)
-        return
-      }
-
-      // Create and dispatch submit event
-      const submitEvent = new SubmitEvent("submit", {
+  const handleNext = () => {
+    const form = document.querySelector("form")
+    if (form) {
+      const submitEvent = new Event("submit", {
         bubbles: true,
-        cancelable: true
+        cancelable: true,
       })
-      
       form.dispatchEvent(submitEvent)
-    } catch (error) {
-      console.error('Error handling next step:', error)
     }
   }
 
   const handleStepClick = (stepId: number) => {
-    if (stepId <= currentStep) {
-      setCurrentStep(stepId)
+    // Allow navigation to any step if user is authenticated and has completed authentication step
+    if (user && initialData.email) {
+      onStepChange(stepId)
     }
   }
 
-  const isStepAccessible = (stepId: number) => {
-    return stepId <= currentStep
-  }
-
-  const handleSignInSuccess = async ({ leadId, applicationId }: { leadId: string; applicationId: string }) => {
-    setLeadId(leadId)
-    setCurrentStep(2)
-  }
-
   const renderStep = () => {
-    const baseProps = {
+    const stepProps = {
       onSave: handleStepSubmit,
-      leadId: leadId || ''
+      initialData,
     }
 
     switch (currentStep) {
       case 1:
-        return <AuthenticationStep {...baseProps} onSignInSuccess={handleSignInSuccess} />
+        return <AuthenticationStep {...stepProps} />
       case 2:
-        return <BusinessInformationStep {...baseProps} initialData={formData.businessInfo} />
+        return <BusinessInformationStep {...stepProps} />
       case 3:
-        return <ProcessingHistoryStep {...baseProps} initialData={formData.processingHistory} />
+        return <ProcessingHistoryStep {...stepProps} />
       case 4:
-        return <BeneficialOwnerStep {...baseProps} initialData={formData.beneficialOwners?.[0]} />
+        return <BeneficialOwnerStep {...stepProps} leadId={leadId} />
       case 5:
-        return <BankDetailsStep {...baseProps} initialData={formData.bankDetails} />
+        return <BankDetailsStep {...stepProps} />
       case 6:
-        return <DocumentationStep {...baseProps} initialData={formData.documents} />
+        return <DocumentationStep {...stepProps} leadId={leadId} />
       default:
-        return null
+        return (
+          <div className="h-[400px] flex items-center justify-center border-2 border-dashed rounded-lg">
+            <span className="text-muted-foreground">
+              Step {currentStep} content coming soon
+            </span>
+          </div>
+        )
     }
   }
 
-  if (loading) {
-    return <div className="h-[400px] flex items-center justify-center">Loading...</div>
+  // Check if step is accessible
+  const isStepAccessible = (stepId: number) => {
+    if (stepId === 1) return true // Authentication step is always accessible
+    return user && initialData.email // Other steps require authentication
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="w-full max-w-4xl mx-auto space-y-8">
       <div className="space-y-4">
         <h2 className="text-3xl font-bold tracking-tight">Merchant Application</h2>
         <p className="text-muted-foreground">
@@ -260,31 +153,33 @@ export function MerchantApplicationForm({ applicationId }: MerchantApplicationFo
         <div className="hidden md:block w-64 shrink-0">
           <nav className="space-y-2">
             {steps.map((step) => {
-              const accessible = isStepAccessible(step.id)
-              const isCurrent = currentStep === step.id
-              const isCompleted = step.id < currentStep
+              const isAccessible = isStepAccessible(step.id)
               return (
                 <button
                   key={step.id}
                   type="button"
-                  onClick={() => accessible && handleStepClick(step.id)}
-                  disabled={!accessible}
+                  onClick={() => isAccessible && handleStepClick(step.id)}
+                  disabled={!isAccessible}
                   className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                    isCurrent
+                    currentStep === step.id
                       ? "bg-primary text-primary-foreground"
-                      : isCompleted
+                      : currentStep > step.id
                       ? "bg-secondary text-secondary-foreground"
-                      : accessible
-                      ? "hover:bg-secondary/50"
-                      : "opacity-50 cursor-not-allowed"
+                      : "hover:bg-secondary/50"
+                  } ${
+                    !isAccessible
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
                   }`}
                 >
                   <div className="font-medium">{step.title}</div>
-                  <div className={`text-sm ${
-                    isCurrent
-                      ? "text-primary-foreground/80"
-                      : "text-muted-foreground"
-                  }`}>
+                  <div
+                    className={`text-sm ${
+                      currentStep === step.id
+                        ? "text-primary-foreground/80"
+                        : "text-muted-foreground"
+                    }`}
+                  >
                     {step.description}
                   </div>
                 </button>
@@ -311,14 +206,9 @@ export function MerchantApplicationForm({ applicationId }: MerchantApplicationFo
             >
               Previous
             </Button>
-            {currentStep < steps.length && (
+            {currentStep > 1 && (
               <Button onClick={handleNext}>
-                Next Step
-              </Button>
-            )}
-            {currentStep === steps.length && (
-              <Button onClick={handleNext} className="bg-green-600 hover:bg-green-700">
-                Submit Application
+                {currentStep === steps.length ? "Submit Application" : "Next Step"}
               </Button>
             )}
           </div>

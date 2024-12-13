@@ -1,35 +1,41 @@
-import { createContext, useContext, useState, useEffect, startTransition } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
+import { User, onAuthStateChanged } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
-import { User } from 'firebase/auth'
 
-interface AuthContextType {
-  user: User | null
-  loading: boolean
-}
+export type AuthContextType = {
+  user: User | null;
+  isAdmin: boolean;
+  loading: boolean;
+  signInWithGoogle: () => Promise<void>;
+  signOut: () => Promise<void>;
+};
 
-export const AuthContext = createContext<AuthContextType>({
+const AuthContext = createContext<AuthContextType>({
   user: null,
-  loading: true
+  isAdmin: false,
+  loading: true,
+  signInWithGoogle: async () => {},
+  signOut: async () => {}
 })
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      startTransition(() => {
-        setUser(user)
-        setLoading(false)
-      })
+    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
+      setUser(user)
+      setLoading(false)
+      setIsAdmin(user?.email === 'mserralta@gmail.com' || user?.email === 'Mpilotg6@gmail.com')
     })
 
     return unsubscribe
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
-      {children}
+    <AuthContext.Provider value={{ user, isAdmin, loading, signInWithGoogle: async () => {}, signOut: async () => {} }}>
+      {!loading && children}
     </AuthContext.Provider>
   )
 }

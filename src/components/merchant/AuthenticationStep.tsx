@@ -5,25 +5,17 @@ import { Label } from "../ui/label"
 import { auth } from "../../lib/firebase"
 import { GoogleAuthProvider, signInWithPopup, signInWithEmailLink, sendSignInLinkToEmail } from "firebase/auth"
 import { useAuth } from "../../contexts/AuthContext"
-import { merchantService } from "../../services/merchantService"
 
 type AuthenticationStepProps = {
   onSave: (data: { email: string }) => void
   initialData?: { email?: string }
-  onSignInSuccess: ({ leadId, applicationId }: { leadId: string; applicationId: string }) => Promise<void>
 }
 
-// Define EmailFormData
-type EmailFormData = {
-  email: string
-}
-
-export function AuthenticationStep({ onSave, initialData, onSignInSuccess }: AuthenticationStepProps) {
+export function AuthenticationStep({ onSave, initialData }: AuthenticationStepProps) {
   const { user } = useAuth()
   const [email, setEmail] = useState(initialData?.email || "")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const [serverError, setServerError] = useState("")
 
   // If user is already authenticated, proceed with their email
   useEffect(() => {
@@ -36,96 +28,65 @@ export function AuthenticationStep({ onSave, initialData, onSignInSuccess }: Aut
     }
   }, [user, initialData, onSave])
 
-  // Helper function for Google sign-in
-  const signInWithGoogle = async () => {
-    const provider = new GoogleAuthProvider()
-    provider.setCustomParameters({
-      prompt: 'select_account'
-    })
-    return await signInWithPopup(auth, provider)
-  }
-
   const handleGoogleSignIn = async () => {
     try {
-      const result = await signInWithGoogle()
-      if (!result) return
+      setLoading(true)
+      setError("")
+      const provider = new GoogleAuthProvider()
+      
+      // Configure custom parameters for Google sign-in
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      })
 
-      const user = result.user
-      const email = user.email!
-      const firstName = user.displayName?.split(' ')[0] || ''
-      const lastName = user.displayName?.split(' ').slice(1).join(' ') || ''
-
-      // Check if a lead already exists for this user
-      let lead = await merchantService.getLeadByEmail(email)
-      let leadId: string
-
-      if (lead) {
-        leadId = lead.id!
-        // Update the existing lead with name information
-        await merchantService.updateLead(leadId, { firstName, lastName })
-      } else {
-        // Create a new lead with email, first name, and last name
-        leadId = await merchantService.createLead(email, firstName, lastName)
+      const result = await signInWithPopup(auth, provider)
+      
+      // Wait a bit for auth state to update
+      setTimeout(() => {
+        if (result.user?.email) {
+          onSave({ email: result.user.email })
+        }
+      }, 500)
+      
+    } catch (err: any) {
+      // Ignore the COOP warning as it doesn't affect functionality
+      if (err.message?.includes('Cross-Origin-Opener-Policy')) {
+        if (auth.currentUser?.email) {
+          onSave({ email: auth.currentUser.email })
+          return
+        }
       }
-
-      // Check if the lead has an associated application
-      if (lead?.applicationId) {
-        // Resume the existing application
-        await onSignInSuccess({ leadId, applicationId: lead.applicationId })
-      } else {
-        // Create a new application and link it to the lead
-        const applicationId = await merchantService.createApplication({
-          businessInfo: {} as any, // Provide initial values
-          processingHistory: {} as any, // Provide initial values
-          beneficialOwners: [],
-          bankDetails: {} as any,
-          documents: {} as any,
-          status: 'draft'
-        })
-        await merchantService.linkLeadToApplication(leadId, applicationId)
-        await onSignInSuccess({ leadId, applicationId })
-      }
-    } catch (error) {
-      console.error('Error during Google sign-in:', error)
-      setServerError('Failed to sign in with Google.')
+      setError("Failed to sign in with Google. Please try again.")
+      console.error(err)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const handleEmailSubmit = async (data: EmailFormData) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!email) {
+      setError("Please enter an email address")
+      return
+    }
+
     try {
-      const email = data.email.toLowerCase()
-
-      // Check if a lead already exists for this user
-      let lead = await merchantService.getLeadByEmail(email)
-      let leadId: string
-
-      if (lead) {
-        leadId = lead.id!
-      } else {
-        // Create a new lead
-        leadId = await merchantService.createLead(email)
+      setLoading(true)
+      setError("")
+      
+      const actionCodeSettings = {
+        url: window.location.href,
+        handleCodeInApp: true,
       }
 
-      // Check if the lead has an associated application
-      if (lead?.applicationId) {
-        // Resume the existing application
-        await onSignInSuccess({ leadId, applicationId: lead.applicationId })
-      } else {
-        // Create a new application and link it to the lead
-        const applicationId = await merchantService.createApplication({
-          businessInfo: {} as any, // Provide initial values
-          processingHistory: {} as any, // Provide initial values
-          beneficialOwners: [],
-          bankDetails: {} as any,
-          documents: {} as any,
-          status: 'draft'
-        })
-        await merchantService.linkLeadToApplication(leadId, applicationId)
-        await onSignInSuccess({ leadId, applicationId })
-      }
-    } catch (error) {
-      console.error('Error during email sign-in:', error)
-      setServerError('Failed to sign in with email.')
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings)
+      window.localStorage.setItem("emailForSignIn", email)
+      onSave({ email })
+    } catch (err) {
+      setError("Failed to send email link. Please try again.")
+      console.error(err)
+    } finally {
+      setLoading(false)
     }
   }
 
