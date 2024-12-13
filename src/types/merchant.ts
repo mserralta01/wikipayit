@@ -1,6 +1,5 @@
 import * as z from "zod"
 import { ReactNode } from 'react';
-import type { BankDetailsStorageData } from '@/types/forms';
 
 const phoneRegex = /^\+1 \(\d{3}\) \d{3}-\d{4}$/
 const ssnRegex = /^\d{3}-\d{2}-\d{4}$/
@@ -185,27 +184,43 @@ export const leadSchema = z.object({
   updatedAt: z.string(),
 })
 
-export type LeadStatus = "new" | "started" | "in_progress" | "completed";
-export type PipelineStatus = "phone" | "approved" | "lead" | "offer" | "underwriting" | "documents";
+export type Lead = z.infer<typeof leadSchema> & {
+  companyName: string;
+};
 
-export interface Lead {
+export type MerchantStatus = 
+  | 'Lead'
+  | 'Phone Calls'
+  | 'Offer Sent'
+  | 'Underwriting'
+  | 'Documents'
+  | 'Approved';
+
+export interface PipelineMerchant {
   id: string;
+  name: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
-  phone?: string;
-  status: LeadStatus;
-  applicationId?: string;
-  businessInfo?: any;
-  processingHistory?: any;
-  beneficialOwners?: BeneficialOwner[];
-  bankDetails?: BankDetailsStorageData;
-  documents?: DocumentFormData;
-  createdAt: string;
-  updatedAt: string;
-  pipelineStatus: PipelineStatus;
-  currentStep?: number;
-  formData?: any;
+  phone: string;
+  status: MerchantStatus;
+  position: number;
+  columnId: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface Column {
+  id: string;
+  title: MerchantStatus;
+  merchantIds: string[];
+}
+
+export interface Activity {
+  id: string;
+  title: string;
+  timestamp: Date;
+  description: string;
+  type: 'lead' | 'merchant' | 'document' | 'status' | 'status_change' | 'document_upload' | 'new_application';
+  icon?: ReactNode;
 }
 
 export type DocumentFormData = {
@@ -238,6 +253,52 @@ export interface ProcessingHistory {
   terminationExplanation?: string
 }
 
+export interface BeneficialOwner {
+  firstName: string
+  lastName: string
+  title: string
+  ownership: number
+  ssn: string
+  dateOfBirth: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+}
+
+export interface BankDetails {
+  accountType: 'checking' | 'savings'
+  routingNumber: string
+  accountNumber: string
+  bankName: string
+  accountHolderName: string
+  voidedCheck?: string[]
+  bankStatements?: string[]
+}
+
+export interface Lead {
+  id: string
+  email: string
+  firstName?: string
+  lastName?: string
+  phone?: string
+  status: 'new' | 'started' | 'in_progress' | 'completed'
+  applicationId: string
+  businessInfo?: BusinessInformation
+  processingHistory?: ProcessingHistory
+  beneficialOwners?: BeneficialOwner[]
+  bankDetails?: BankDetails
+  documents?: {
+    voided_check?: string[]
+    bank_statements?: string[]
+  }
+  createdAt: string
+  updatedAt: string
+  pipelineStatus?: 'lead' | 'phone' | 'offer' | 'underwriting' | 'documents' | 'approved'
+}
+
 export interface MerchantApplication {
   id: string
   leadId: string
@@ -249,8 +310,4 @@ export interface MerchantApplication {
   documents?: any[]
   createdAt: Date
   updatedAt: Date
-}
-
-export interface FileWithPreview extends File {
-  preview: string
 }

@@ -4,7 +4,7 @@ import {
   DocumentData,
   QueryDocumentSnapshot
 } from 'firebase/firestore'
-import { BeneficialOwner, DocumentFormData, LeadStatus, PipelineStatus, Lead } from '@/types/merchant'
+import { BeneficialOwner, DocumentFormData } from '@/types/merchant'
 import { BankDetails } from '@/types/merchant'
 
 export interface ProcessingMix {
@@ -55,28 +55,21 @@ export interface MerchantApplication {
   updatedAt: Date
 }
 
-const mapFirestoreDataToLead = (doc: QueryDocumentSnapshot<DocumentData>): Lead => {
-  const data = doc.data();
-  return {
-    id: doc.id,
-    email: data.email,
-    firstName: data.firstName,
-    lastName: data.lastName,
-    phone: data.phone,
-    status: (data.status || 'new') as LeadStatus,
-    applicationId: data.applicationId,
-    businessInfo: data.businessInfo,
-    processingHistory: data.processingHistory,
-    beneficialOwners: data.beneficialOwners,
-    bankDetails: data.bankDetails,
-    documents: data.documents,
-    createdAt: data.createdAt,
-    updatedAt: data.updatedAt,
-    pipelineStatus: (data.pipelineStatus || 'lead') as PipelineStatus,
-    currentStep: data.currentStep || 0,
-    formData: data.formData
-  };
-};
+export interface Lead {
+  id?: string
+  email: string
+  firstName?: string
+  lastName?: string
+  applicationId?: string
+  status: 'new' | 'in_progress' | 'completed'
+  createdAt: Date
+  updatedAt: Date
+  businessInfo?: Partial<BusinessInformation>
+  processingHistory?: Partial<ProcessingHistory>
+  beneficialOwners?: Partial<BeneficialOwner>[]
+  bankDetails?: Partial<BankDetails>
+  documents?: Partial<DocumentFormData>
+}
 
 class MerchantService {
   private readonly COLLECTION = firestoreCollections.merchantApplications
@@ -134,6 +127,50 @@ class MerchantService {
     }
   }
 
+  async updateBusinessInformation(id: string, data: BusinessInformation): Promise<void> {
+    try {
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        'businessInfo': {
+          ...data,
+          customerService: {
+            phone: data.customerService.phone.trim(),
+            email: data.customerService.email.trim().toLowerCase()
+          }
+        },
+        updatedAt: new Date()
+      })
+    } catch (error) {
+      console.error('Error updating business information:', error)
+      throw new Error('Failed to update business information')
+    }
+  }
+
+  async getApplication(id: string): Promise<MerchantApplication | null> {
+    try {
+      const docRef = doc(db, 'merchantApplications', id)
+      const docSnap = await getDoc(docRef)
+      if (!docSnap.exists()) return null
+      return { id: docSnap.id, ...docSnap.data() } as MerchantApplication
+    } catch (error) {
+      console.error('Error fetching merchant application:', error)
+      throw new Error('Failed to fetch merchant application')
+    }
+  }
+
+  async submitApplication(id: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        status: 'submitted',
+        updatedAt: new Date()
+      })
+    } catch (error) {
+      console.error('Error submitting merchant application:', error)
+      throw new Error('Failed to submit merchant application')
+    }
+  }
+
   async getLeadByEmail(email: string): Promise<Lead | null> {
     try {
       const q = query(
@@ -141,33 +178,48 @@ class MerchantService {
         where('email', '==', email.toLowerCase()),
         orderBy('createdAt', 'desc'),
         limit(1)
-      );
+      )
 
-      const querySnapshot = await getDocs(q);
-      if (querySnapshot.empty) return null;
+      try {
+        const querySnapshot = await getDocs(q)
+        if (querySnapshot.empty) return null
 
-      const doc = querySnapshot.docs[0] as QueryDocumentSnapshot<DocumentData>;
-      return mapFirestoreDataToLead(doc);
-    } catch (error: any) {
-      if (error.code === 'failed-precondition' && error.message.includes('index')) {
-        try {
+        const doc = querySnapshot.docs[0] as QueryDocumentSnapshot<DocumentData>
+        const data = doc.data()
+        return {
+          id: doc.id,
+          email: data.email,
+          applicationId: data.applicationId,
+          status: data.status,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        } as Lead
+      } catch (error: any) {
+        if (error.code === 'failed-precondition' && error.message.includes('index')) {
           const simpleQuery = query(
             this.LEADS_COLLECTION,
             where('email', '==', email.toLowerCase()),
             limit(1)
-          );
-          const snapshot = await getDocs(simpleQuery);
-          if (snapshot.empty) return null;
+          )
+          const snapshot = await getDocs(simpleQuery)
+          if (snapshot.empty) return null
 
-          const doc = snapshot.docs[0] as QueryDocumentSnapshot<DocumentData>;
-          return mapFirestoreDataToLead(doc);
-        } catch (innerError) {
-          console.error('Error with simple query:', innerError);
-          throw new Error('Failed to fetch lead with simple query');
+          const doc = snapshot.docs[0] as QueryDocumentSnapshot<DocumentData>
+          const data = doc.data()
+          return {
+            id: doc.id,
+            email: data.email,
+            applicationId: data.applicationId,
+            status: data.status,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt
+          } as Lead
         }
+        throw error
       }
-      console.error('Error fetching lead by email:', error);
-      throw new Error('Failed to fetch lead');
+    } catch (error) {
+      console.error('Error fetching lead by email:', error)
+      throw new Error('Failed to fetch lead')
     }
   }
 
@@ -178,38 +230,28 @@ class MerchantService {
         firstName,
         lastName,
         status: 'new',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        pipelineStatus: 'lead'
-      };
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
 
-      const docRef = await addDoc(this.LEADS_COLLECTION, lead);
-      return docRef.id;
+      const docRef = await addDoc(this.LEADS_COLLECTION, lead)
+      return docRef.id
     } catch (error) {
-      console.error('Error creating lead:', error);
-      throw new Error('Failed to create lead');
+      console.error('Error creating lead:', error)
+      throw new Error('Failed to create lead')
     }
   }
 
   async updateLead(id: string, data: Partial<Lead>): Promise<void> {
     try {
-      const docRef = doc(db, 'leads', id);
-      
-      // Remove undefined values and add timestamp
-      const cleanData = {
-        ...Object.entries(data).reduce((acc, [key, value]) => {
-          if (value !== undefined) {
-            acc[key] = value;
-          }
-          return acc;
-        }, {} as Record<string, any>),
-        updatedAt: new Date().toISOString()
-      };
-
-      await updateDoc(docRef, cleanData);
+      const docRef = doc(db, 'leads', id)
+      await updateDoc(docRef, {
+        ...data,
+        updatedAt: new Date()
+      })
     } catch (error) {
-      console.error('Error updating lead:', error);
-      throw new Error('Failed to update lead');
+      console.error('Error updating lead:', error)
+      throw new Error('Failed to update lead')
     }
   }
 
@@ -218,7 +260,7 @@ class MerchantService {
       const docRef = doc(db, 'leads', id)
       await updateDoc(docRef, {
         status,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       })
     } catch (error) {
       console.error('Error updating lead status:', error)
@@ -232,7 +274,7 @@ class MerchantService {
       await updateDoc(docRef, {
         applicationId,
         status: 'in_progress',
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date()
       })
     } catch (error) {
       console.error('Error linking lead to application:', error)
@@ -251,7 +293,10 @@ class MerchantService {
       }
 
       const doc = querySnapshot.docs[0]
-      return mapFirestoreDataToLead(doc)
+      return {
+        id: doc.id,
+        ...doc.data()
+      }
     } catch (error) {
       console.error('Error getting lead by application ID:', error)
       throw error
@@ -271,24 +316,29 @@ class MerchantService {
     }
   }
 
-  async submitApplication(applicationData: any): Promise<any> {
+  async updateBankDetails(id: string, data: BankDetails): Promise<void> {
     try {
-      const response = await fetch('/api/merchant/apply', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(applicationData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Application submission failed');
-      }
-
-      return await response.json();
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        'bankDetails': data,
+        updatedAt: new Date()
+      })
     } catch (error) {
-      console.error('Error submitting application:', error);
-      throw error;
+      console.error('Error updating bank details:', error)
+      throw new Error('Failed to update bank details')
+    }
+  }
+
+  async updateDocuments(id: string, data: DocumentFormData): Promise<void> {
+    try {
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        'documents': data,
+        updatedAt: new Date()
+      })
+    } catch (error) {
+      console.error('Error updating documents:', error)
+      throw new Error('Failed to update documents')
     }
   }
 }
