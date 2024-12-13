@@ -6,35 +6,78 @@ import { Label } from "../ui/label"
 import { Alert } from "../ui/alert"
 import { useState } from "react"
 
-type BankDetailsStepProps = {
-  initialData: Partial<BankDetails>
-  onSave: (data: BankDetails) => void
+interface BankDetailsStepProps {
+  onSave: (data: BankFormData) => Promise<void>
+  initialData?: Partial<BankFormData>
+  leadId: string
 }
 
-export function BankDetailsStep({ initialData, onSave }: BankDetailsStepProps) {
-  const [isValidating, setIsValidating] = useState(false)
-  const [validationMessage, setValidationMessage] = useState("")
+export function BankDetailsStep({
+  onSave,
+  initialData = {},
+  leadId,
+}: BankDetailsStepProps) {
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {
     register,
     handleSubmit,
-    watch,
     formState: { errors },
-  } = useForm<BankDetails>({
+    setValue,
+    watch,
+  } = useForm<BankFormData>({
     resolver: zodResolver(bankDetailsSchema),
-    defaultValues: {
-      bankName: initialData.bankName || "",
-      routingNumber: initialData.routingNumber || "",
-      accountNumber: initialData.accountNumber || "",
-      confirmAccountNumber: initialData.accountNumber || "",
-    },
+    defaultValues: initialData,
+    mode: "onChange"
   })
 
-  const accountNumber = watch("accountNumber")
+  const onSubmit = async (data: BankFormData) => {
+    if (isSubmitting) return
+    
+    try {
+      setIsSubmitting(true)
+      setServerError(null)
 
-  const onSubmit = (data: BankDetails) => {
-    onSave(data)
+      if (!leadId) {
+        throw new Error('No lead ID available')
+      }
+
+      const bankDetails: BankDetails = {
+        accountType: data.accountType,
+        routingNumber: data.routingNumber.trim(),
+        accountNumber: data.accountNumber.trim(),
+        bankName: data.bankName.trim(),
+        accountHolderName: data.accountHolderName.trim()
+      }
+
+      // First verify the lead exists
+      const existingLead = await merchantService.getLead(leadId)
+      if (!existingLead) {
+        throw new Error('Lead not found')
+      }
+
+      // Update the lead record with bank details
+      await merchantService.updateLead(leadId, {
+        bankDetails,
+        status: 'in_progress',
+        updatedAt: new Date()
+      })
+
+      await onSave(data)
+    } catch (error) {
+      console.error('Error updating bank details:', error)
+      setServerError(error instanceof Error ? error.message : "An error occurred while saving your information")
+      throw error
+    } finally {
+      setIsSubmitting(false)
+    }
   }
+
+  const [isValidating, setIsValidating] = useState(false)
+  const [validationMessage, setValidationMessage] = useState("")
+
+  const accountNumber = watch("accountNumber")
 
   const handleAccountBlur = async () => {
     if (accountNumber) {

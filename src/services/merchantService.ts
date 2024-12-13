@@ -1,358 +1,346 @@
-import { db } from "../lib/firebase"
+import { db, firestoreCollections } from '@/lib/firebase'
+import { doc, getDoc, setDoc, updateDoc, addDoc, query, getDocs, where, orderBy, limit, collection } from 'firebase/firestore'
 import {
-  collection,
-  addDoc,
-  updateDoc,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  Timestamp,
-} from "firebase/firestore"
-import { Merchant, BeneficialOwner, Lead } from "../types/merchant"
-import { Activity } from '../types/activity'
+  DocumentData,
+  QueryDocumentSnapshot
+} from 'firebase/firestore'
+import { BeneficialOwner, DocumentFormData } from '@/types/merchant'
+import { BankDetails } from '@/types/merchant'
 
-const getDashboardMetrics = async (): Promise<any> => {
-  // Implement logic to fetch dashboard metrics
-};
+export interface ProcessingMix {
+  cardPresentPercentage: number
+  ecommercePercentage: number
+}
 
-const getRecentActivity = async (): Promise<Activity[]> => {
-  // Implement logic to fetch recent activity
-  const activitiesRef = collection(db, "activities");
-  const q = query(activitiesRef, orderBy("timestamp", "desc"));
-  const querySnapshot = await getDocs(q);
+export interface ProcessingVolumes {
+  monthlyVolume: number
+  averageTicket: number
+  highTicket: number
+}
 
-  return querySnapshot.docs.map(doc => ({
-    id: doc.id,
-    ...doc.data(),
-  } as Activity));
-};
+export interface CustomerServiceInfo {
+  phone: string
+  email: string
+}
 
-export const merchantService = {
-  async createLead(email: string): Promise<string> {
+export interface BusinessInformation {
+  legalName: string
+  dba?: string
+  taxId: string
+  businessType: string
+  yearEstablished: string
+  website?: string
+  businessDescription: string
+  customerService: CustomerServiceInfo
+}
+
+export interface ProcessingHistory {
+  isCurrentlyProcessing: string
+  currentProcessor?: string | null
+  hasBeenTerminated: string
+  terminationExplanation?: string | null
+  volumes: ProcessingVolumes
+  processingMix: ProcessingMix
+}
+
+export interface MerchantApplication {
+  id?: string
+  businessInfo: BusinessInformation
+  processingHistory: ProcessingHistory
+  beneficialOwners: BeneficialOwner[]
+  bankDetails: BankDetails
+  documents: DocumentFormData
+  status: 'draft' | 'submitted' | 'under_review' | 'approved' | 'rejected'
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface Lead {
+  id?: string
+  email: string
+  firstName?: string
+  lastName?: string
+  applicationId?: string
+  status: 'new' | 'in_progress' | 'completed'
+  createdAt: Date
+  updatedAt: Date
+  businessInfo?: Partial<BusinessInformation>
+  processingHistory?: Partial<ProcessingHistory>
+  beneficialOwners?: Partial<BeneficialOwner>[]
+  bankDetails?: Partial<BankDetails>
+  documents?: Partial<DocumentFormData>
+}
+
+class MerchantService {
+  private readonly COLLECTION = firestoreCollections.merchantApplications
+  private readonly LEADS_COLLECTION = firestoreCollections.leads
+
+  async createApplication(data: Omit<MerchantApplication, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     try {
-      const leadsRef = collection(db, "leads")
-      const docRef = await addDoc(leadsRef, {
-        email,
-        status: "started",
-        pipelineStatus: "lead",
-        currentStep: 1,
-        formData: { email },
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
+      const docRef = await addDoc(this.COLLECTION, {
+        ...data,
+        status: 'draft',
+        createdAt: new Date(),
+        updatedAt: new Date()
       })
       return docRef.id
     } catch (error) {
-      console.error("Error creating lead:", error)
-      throw error
+      console.error('Error creating merchant application:', error)
+      throw new Error('Failed to create merchant application')
     }
-  },
+  }
 
-  async updateLead(leadId: string, data: Partial<Lead>): Promise<void> {
+  async updateApplication(id: string, data: Partial<MerchantApplication>): Promise<void> {
     try {
-      const leadRef = doc(db, "leads", leadId)
-      await updateDoc(leadRef, {
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
         ...data,
-        updatedAt: Timestamp.now(),
+        updatedAt: new Date()
       })
     } catch (error) {
-      console.error("Error updating lead:", error)
-      throw error
+      console.error('Error updating merchant application:', error)
+      throw new Error('Failed to update merchant application')
     }
-  },
+  }
+
+  async updateProcessingHistory(id: string, data: ProcessingHistory): Promise<void> {
+    try {
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        'processingHistory': {
+          ...data,
+          volumes: {
+            monthlyVolume: Number(data.volumes.monthlyVolume),
+            averageTicket: Number(data.volumes.averageTicket),
+            highTicket: Number(data.volumes.highTicket)
+          },
+          processingMix: {
+            cardPresentPercentage: Number(data.processingMix.cardPresentPercentage),
+            ecommercePercentage: Number(data.processingMix.ecommercePercentage)
+          }
+        },
+        updatedAt: new Date()
+      })
+    } catch (error) {
+      console.error('Error updating processing history:', error)
+      throw new Error('Failed to update processing history')
+    }
+  }
+
+  async updateBusinessInformation(id: string, data: BusinessInformation): Promise<void> {
+    try {
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        'businessInfo': {
+          ...data,
+          customerService: {
+            phone: data.customerService.phone.trim(),
+            email: data.customerService.email.trim().toLowerCase()
+          }
+        },
+        updatedAt: new Date()
+      })
+    } catch (error) {
+      console.error('Error updating business information:', error)
+      throw new Error('Failed to update business information')
+    }
+  }
+
+  async getApplication(id: string): Promise<MerchantApplication | null> {
+    try {
+      const docRef = doc(db, 'merchantApplications', id)
+      const docSnap = await getDoc(docRef)
+      if (!docSnap.exists()) return null
+      return { id: docSnap.id, ...docSnap.data() } as MerchantApplication
+    } catch (error) {
+      console.error('Error fetching merchant application:', error)
+      throw new Error('Failed to fetch merchant application')
+    }
+  }
+
+  async submitApplication(id: string): Promise<void> {
+    try {
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        status: 'submitted',
+        updatedAt: new Date()
+      })
+    } catch (error) {
+      console.error('Error submitting merchant application:', error)
+      throw new Error('Failed to submit merchant application')
+    }
+  }
 
   async getLeadByEmail(email: string): Promise<Lead | null> {
     try {
-      const leadsRef = collection(db, "leads")
-      const q = query(leadsRef, where("email", "==", email), orderBy("updatedAt", "desc"))
-      const querySnapshot = await getDocs(q)
-      
-      if (!querySnapshot.empty) {
-        const doc = querySnapshot.docs[0]
-        const data = doc.data()
-        return { 
-          id: doc.id, 
-          ...data,
-          currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
-          formData: data.formData || { email },
-          status: data.status || "started",
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
-        } as Lead
-      }
-      return null
-    } catch (error) {
-      console.error("Error getting lead:", error)
-      throw error
-    }
-  },
+      const q = query(
+        this.LEADS_COLLECTION,
+        where('email', '==', email.toLowerCase()),
+        orderBy('createdAt', 'desc'),
+        limit(1)
+      )
 
-  async getLeads(): Promise<Lead[]> {
-    try {
-      const leadsRef = collection(db, "leads")
-      const q = query(leadsRef, orderBy("updatedAt", "desc"))
-      const querySnapshot = await getDocs(q)
-      
-      return querySnapshot.docs.map(doc => {
+      try {
+        const querySnapshot = await getDocs(q)
+        if (querySnapshot.empty) return null
+
+        const doc = querySnapshot.docs[0] as QueryDocumentSnapshot<DocumentData>
         const data = doc.data()
         return {
           id: doc.id,
-          ...data,
-          currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
-          formData: data.formData || {},
-          status: data.status || "started",
-          pipelineStatus: data.pipelineStatus || "lead",
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
+          email: data.email,
+          applicationId: data.applicationId,
+          status: data.status,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
         } as Lead
-      })
-    } catch (error) {
-      console.error("Error getting leads:", error)
-      throw error
-    }
-  },
+      } catch (error: any) {
+        if (error.code === 'failed-precondition' && error.message.includes('index')) {
+          const simpleQuery = query(
+            this.LEADS_COLLECTION,
+            where('email', '==', email.toLowerCase()),
+            limit(1)
+          )
+          const snapshot = await getDocs(simpleQuery)
+          if (snapshot.empty) return null
 
-  async createMerchant(merchantData: Merchant): Promise<string> {
+          const doc = snapshot.docs[0] as QueryDocumentSnapshot<DocumentData>
+          const data = doc.data()
+          return {
+            id: doc.id,
+            email: data.email,
+            applicationId: data.applicationId,
+            status: data.status,
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt
+          } as Lead
+        }
+        throw error
+      }
+    } catch (error) {
+      console.error('Error fetching lead by email:', error)
+      throw new Error('Failed to fetch lead')
+    }
+  }
+
+  async createLead(email: string, firstName?: string, lastName?: string): Promise<string> {
     try {
-      const merchantsRef = collection(db, "merchants")
-      const docRef = await addDoc(merchantsRef, {
-        ...merchantData,
-        status: "pending",
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      })
+      const lead: Omit<Lead, 'id'> = {
+        email: email.toLowerCase(),
+        firstName,
+        lastName,
+        status: 'new',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+
+      const docRef = await addDoc(this.LEADS_COLLECTION, lead)
       return docRef.id
     } catch (error) {
-      console.error("Error creating merchant:", error)
-      throw error
+      console.error('Error creating lead:', error)
+      throw new Error('Failed to create lead')
     }
-  },
+  }
 
-  async updateMerchant(
-    merchantId: string,
-    merchantData: Partial<Merchant>
-  ): Promise<void> {
+  async updateLead(id: string, data: Partial<Lead>): Promise<void> {
     try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      await updateDoc(merchantRef, {
-        ...merchantData,
-        updatedAt: Timestamp.now(),
+      const docRef = doc(db, 'leads', id)
+      await updateDoc(docRef, {
+        ...data,
+        updatedAt: new Date()
       })
     } catch (error) {
-      console.error("Error updating merchant:", error)
-      throw error
+      console.error('Error updating lead:', error)
+      throw new Error('Failed to update lead')
     }
-  },
+  }
 
-  async getMerchant(merchantId: string): Promise<Merchant | null> {
+  async updateLeadStatus(id: string, status: Lead['status']): Promise<void> {
     try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      const merchantDoc = await getDoc(merchantRef)
-      if (merchantDoc.exists()) {
-        const data = merchantDoc.data()
-        return { 
-          id: merchantDoc.id, 
-          ...data,
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
-        } as Merchant
-      }
-      return null
+      const docRef = doc(db, 'leads', id)
+      await updateDoc(docRef, {
+        status,
+        updatedAt: new Date()
+      })
     } catch (error) {
-      console.error("Error getting merchant:", error)
-      throw error
+      console.error('Error updating lead status:', error)
+      throw new Error('Failed to update lead status')
     }
-  },
+  }
 
-  async getMerchants(): Promise<Merchant[]> {
+  async linkLeadToApplication(leadId: string, applicationId: string): Promise<void> {
     try {
-      const merchantsRef = collection(db, "merchants")
-      const q = query(merchantsRef, orderBy("createdAt", "desc"))
+      const docRef = doc(db, 'leads', leadId)
+      await updateDoc(docRef, {
+        applicationId,
+        status: 'in_progress',
+        updatedAt: new Date()
+      })
+    } catch (error) {
+      console.error('Error linking lead to application:', error)
+      throw new Error('Failed to link lead to application')
+    }
+  }
+
+  async getLeadByApplicationId(applicationId: string): Promise<Lead | null> {
+    try {
+      const leadsRef = collection(db, 'leads')
+      const q = query(leadsRef, where('applicationId', '==', applicationId))
       const querySnapshot = await getDocs(q)
       
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data()
-        return { 
-          id: doc.id, 
-          ...data,
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
-        } as Merchant
+      if (querySnapshot.empty) {
+        return null
+      }
+
+      const doc = querySnapshot.docs[0]
+      return {
+        id: doc.id,
+        ...doc.data()
+      }
+    } catch (error) {
+      console.error('Error getting lead by application ID:', error)
+      throw error
+    }
+  }
+
+  async updateBeneficialOwners(id: string, data: BeneficialOwner[]): Promise<void> {
+    try {
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        'beneficialOwners': data,
+        updatedAt: new Date()
       })
     } catch (error) {
-      console.error("Error getting merchants:", error)
-      throw error
+      console.error('Error updating beneficial owners:', error)
+      throw new Error('Failed to update beneficial owners')
     }
-  },
+  }
 
-  async updateMerchantStatus(
-    merchantId: string,
-    status: "pending" | "approved" | "rejected"
-  ): Promise<void> {
+  async updateBankDetails(id: string, data: BankDetails): Promise<void> {
     try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      await updateDoc(merchantRef, {
-        status,
-        updatedAt: Timestamp.now(),
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        'bankDetails': data,
+        updatedAt: new Date()
       })
     } catch (error) {
-      console.error("Error updating merchant status:", error)
-      throw error
+      console.error('Error updating bank details:', error)
+      throw new Error('Failed to update bank details')
     }
-  },
+  }
 
-  async addBeneficialOwner(
-    merchantId: string,
-    ownerData: BeneficialOwner
-  ): Promise<void> {
+  async updateDocuments(id: string, data: DocumentFormData): Promise<void> {
     try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      const merchantDoc = await getDoc(merchantRef)
-      
-      if (!merchantDoc.exists()) {
-        throw new Error("Merchant not found")
-      }
-
-      const currentOwners = merchantDoc.data()?.beneficialOwners || []
-      
-      if (currentOwners.length >= 4) {
-        throw new Error("Maximum number of beneficial owners reached")
-      }
-
-      const totalPercentage = currentOwners.reduce(
-        (sum: number, owner: BeneficialOwner) =>
-          sum + parseFloat(owner.ownershipPercentage),
-        parseFloat(ownerData.ownershipPercentage)
-      )
-
-      if (totalPercentage > 100) {
-        throw new Error("Total ownership percentage cannot exceed 100%")
-      }
-
-      await updateDoc(merchantRef, {
-        beneficialOwners: [...currentOwners, ownerData],
-        updatedAt: Timestamp.now(),
+      const docRef = doc(db, 'merchantApplications', id)
+      await updateDoc(docRef, {
+        'documents': data,
+        updatedAt: new Date()
       })
     } catch (error) {
-      console.error("Error adding beneficial owner:", error)
-      throw error
+      console.error('Error updating documents:', error)
+      throw new Error('Failed to update documents')
     }
-  },
-
-  async updateBeneficialOwner(
-    merchantId: string,
-    ownerIndex: number,
-    ownerData: BeneficialOwner
-  ): Promise<void> {
-    try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      const merchantDoc = await getDoc(merchantRef)
-      
-      if (!merchantDoc.exists()) {
-        throw new Error("Merchant not found")
-      }
-
-      const currentOwners = merchantDoc.data()?.beneficialOwners || []
-      
-      if (ownerIndex < 0 || ownerIndex >= currentOwners.length) {
-        throw new Error("Invalid owner index")
-      }
-
-      const totalPercentage = currentOwners.reduce(
-        (sum: number, owner: BeneficialOwner, index: number) =>
-          index === ownerIndex
-            ? sum
-            : sum + parseFloat(owner.ownershipPercentage),
-        parseFloat(ownerData.ownershipPercentage)
-      )
-
-      if (totalPercentage > 100) {
-        throw new Error("Total ownership percentage cannot exceed 100%")
-      }
-
-      const updatedOwners = [...currentOwners]
-      updatedOwners[ownerIndex] = ownerData
-
-      await updateDoc(merchantRef, {
-        beneficialOwners: updatedOwners,
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error("Error updating beneficial owner:", error)
-      throw error
-    }
-  },
-
-  async removeBeneficialOwner(
-    merchantId: string,
-    ownerIndex: number
-  ): Promise<void> {
-    try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      const merchantDoc = await getDoc(merchantRef)
-      
-      if (!merchantDoc.exists()) {
-        throw new Error("Merchant not found")
-      }
-
-      const currentOwners = merchantDoc.data()?.beneficialOwners || []
-      
-      if (ownerIndex < 0 || ownerIndex >= currentOwners.length) {
-        throw new Error("Invalid owner index")
-      }
-
-      const updatedOwners = currentOwners.filter(
-        (_: BeneficialOwner, index: number) => index !== ownerIndex
-      )
-
-      await updateDoc(merchantRef, {
-        beneficialOwners: updatedOwners,
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error("Error removing beneficial owner:", error)
-      throw error
-    }
-  },
-
-  async getPipelineItems() {
-    try {
-      const [merchants, leads] = await Promise.all([
-        this.getMerchants(),
-        this.getLeads()
-      ])
-
-      const merchantItems = merchants.map(merchant => ({
-        ...merchant,
-        pipelineStatus: merchant.status === 'approved' ? 'approved' as const : 'lead' as const
-      }))
-
-      const leadItems = leads.map(lead => ({
-        ...lead,
-        pipelineStatus: 'lead' as const
-      }))
-
-      return [...merchantItems, ...leadItems]
-    } catch (error) {
-      console.error("Error getting pipeline items:", error)
-      throw error
-    }
-  },
-
-  async getApplications() {
-    const applicationsRef = collection(db, 'merchants')
-    const q = query(applicationsRef, orderBy('createdAt', 'desc'))
-    const snapshot = await getDocs(q)
-    
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.().toISOString() || new Date().toISOString()
-    }))
-  },
-
-  getDashboardMetrics,
-  getRecentActivity,
+  }
 }
+
+export const merchantService = new MerchantService()

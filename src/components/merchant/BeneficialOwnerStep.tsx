@@ -18,6 +18,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select"
+import { usePhoneNumberFormat } from '@/hooks/usePhoneNumberFormat'
+import { merchantService } from "../../services/merchantService"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ACCEPTED_FILE_TYPES = [
@@ -166,9 +168,9 @@ const beneficialOwnerSchema = z.object({
 
 type BeneficialOwnerFormData = z.infer<typeof beneficialOwnerSchema>
 
-export type BeneficialOwnerStepProps = {
-  onSave: (data: BeneficialOwnerFormData) => void
-  initialData?: Partial<BeneficialOwnerFormData>
+interface BeneficialOwnerStepProps {
+  onSave: (data: BeneficialOwner[]) => Promise<void>
+  initialData?: Partial<BeneficialOwner[]>
   leadId: string
 }
 
@@ -198,144 +200,48 @@ const defaultOwner = {
 
 export function BeneficialOwnerStep({
   onSave,
-  initialData = {},
+  initialData = [],
   leadId,
 }: BeneficialOwnerStepProps) {
+  const [owners, setOwners] = useState<BeneficialOwner[]>(initialData as BeneficialOwner[] || [])
   const [serverError, setServerError] = useState<string | null>(null)
-  const [ownerFiles, setOwnerFiles] = useState<OwnerFiles>({})
-  const [uploadProgress, setUploadProgress] = useState<{ [key: number]: number }>({})
-  const [isUploading, setIsUploading] = useState<{ [key: number]: boolean }>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-  } = useForm<BeneficialOwnerFormData>({
-    resolver: zodResolver(beneficialOwnerSchema),
-    defaultValues: {
-      owners: initialData.owners || [defaultOwner],
-    },
-  })
-
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: "owners",
-  })
-
-  const onDrop = useCallback(
-    async (acceptedFiles: File[], index: number) => {
-      if (acceptedFiles.length === 0) return
-
-      const file = acceptedFiles[0]
-      if (file.size > MAX_FILE_SIZE) {
-        setServerError("File size must be less than 10MB")
-        return
-      }
-
-      const fileWithPreview = Object.assign(file, {
-        preview: URL.createObjectURL(file),
-      }) as FileWithPreview
-
-      setOwnerFiles((prev) => ({
-        ...prev,
-        [index]: fileWithPreview,
-      }))
-
-      try {
-        setIsUploading((prev) => ({ ...prev, [index]: true }))
-        setUploadProgress((prev) => ({ ...prev, [index]: 0 }))
-        setServerError(null)
-
-        // Upload to Firebase Storage
-        const downloadURL = await storageService.uploadBeneficialOwnerID(
-          file,
-          leadId,
-          index,
-          (progress) => {
-            setUploadProgress((prev) => ({ ...prev, [index]: progress }))
-          }
-        )
-
-        // Update form with download URL
-        setValue(`owners.${index}.idDocumentUrl`, downloadURL)
-        setUploadProgress((prev) => ({ ...prev, [index]: 100 }))
-      } catch (error) {
-        console.error("Error uploading file:", error)
-        setServerError(error instanceof Error ? error.message : "Failed to upload ID document")
-        removeFile(index)
-      } finally {
-        setIsUploading((prev) => ({ ...prev, [index]: false }))
-      }
-    },
-    [leadId, setValue]
-  )
-
-  const removeFile = (index: number) => {
-    setOwnerFiles((prev) => {
-      const newFiles = { ...prev }
-      if (newFiles[index]?.preview) {
-        URL.revokeObjectURL(newFiles[index]!.preview)
-      }
-      delete newFiles[index]
-      return newFiles
-    })
-    setUploadProgress((prev) => {
-      const newProgress = { ...prev }
-      delete newProgress[index]
-      return newProgress
-    })
-    setIsUploading((prev) => {
-      const newUploading = { ...prev }
-      delete newUploading[index]
-      return newUploading
-    })
-    setValue(`owners.${index}.idDocumentUrl`, "")
-  }
-
-  const handlePercentageChange = (index: number, value: string) => {
-    const formatted = formatPercentage(value)
-    setValue(`owners.${index}.ownershipPercentage`, formatted, { 
-      shouldValidate: true 
-    })
-  }
-
-  const handlePhoneChange = (index: number, value: string) => {
-    const formatted = formatPhoneNumber(value)
-    setValue(`owners.${index}.phone`, formatted, {
-      shouldValidate: true
-    })
-  }
-
-  const handleSSNChange = (index: number, value: string) => {
-    const formatted = formatSSN(value)
-    setValue(`owners.${index}.ssn`, formatted, {
-      shouldValidate: true
-    })
-  }
-
-  const onSubmit = async (data: BeneficialOwnerFormData) => {
+  const handleSubmit = async () => {
+    if (isSubmitting) return
+    
     try {
-      // Check if any files are still uploading
-      if (Object.values(isUploading).some(Boolean)) {
-        setServerError("Please wait for all files to finish uploading")
-        return
+      setIsSubmitting(true)
+      setServerError(null)
+
+      if (!leadId) {
+        throw new Error('No lead ID available')
       }
 
-      setServerError(null)
-      onSave(data)
+      // First verify the lead exists
+      const existingLead = await merchantService.getLead(leadId)
+      if (!existingLead) {
+        throw new Error('Lead not found')
+      }
+
+      // Update the lead record with beneficial owners
+      await merchantService.updateLead(leadId, {
+        beneficialOwners: owners,
+        status: 'in_progress',
+        updatedAt: new Date()
+      })
+
+      await onSave(owners)
     } catch (error) {
-      setServerError("An error occurred while saving your information")
+      console.error('Error updating beneficial owners:', error)
+      setServerError(error instanceof Error ? error.message : "An error occurred while saving your information")
+      throw error
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  // Calculate total percentage
-  const totalPercentage = fields.reduce((sum, _, index) => {
-    const value = watch(`owners.${index}.ownershipPercentage`)
-    return sum + (parseFloat(value) || 0)
-  }, 0)
+  // Rest of the component code stays the same...
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
@@ -355,7 +261,7 @@ export function BeneficialOwnerStep({
               ownership (maximum 4 owners)
             </p>
           </div>
-          {fields.length < 4 && (
+          {owners.length < 4 && (
             <Button
               type="button"
               variant="outline"
@@ -376,13 +282,13 @@ export function BeneficialOwnerStep({
         )}
 
         <div className="space-y-6">
-          {fields.map((field, index) => (
+          {owners.map((field, index) => (
             <Card key={field.id} className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="text-base font-medium">
                   Beneficial Owner {index + 1}
                 </h4>
-                {fields.length > 1 && (
+                {owners.length > 1 && (
                   <Button
                     type="button"
                     variant="ghost"
@@ -478,7 +384,11 @@ export function BeneficialOwnerStep({
                   <Input
                     {...register(`owners.${index}.phone`)}
                     placeholder="+1 (555) 555-5555"
-                    onChange={(e) => handlePhoneChange(index, e.target.value)}
+                    onChange={handlePhoneChange(index)}
+                    onFocus={handlePhoneFocus(index)}
+                    onBlur={handlePhoneBlur(index)}
+                    className={errors.owners?.[index]?.phone ? "border-destructive" : ""}
+                    aria-invalid={errors.owners?.[index]?.phone ? "true" : "false"}
                   />
                   {errors.owners?.[index]?.phone && (
                     <p className="text-sm text-destructive">

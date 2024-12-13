@@ -222,3 +222,92 @@ export interface Activity {
   type: 'lead' | 'merchant' | 'document' | 'status' | 'status_change' | 'document_upload' | 'new_application';
   icon?: ReactNode;
 }
+
+export type DocumentFormData = {
+  voidedCheck?: FileWithPreview[]
+  bankStatements?: FileWithPreview[]
+}
+
+export interface BusinessInformation {
+  legalName: string
+  dba?: string
+  taxId: string
+  businessType: 'sole_proprietorship' | 'partnership' | 'llc' | 'corporation' | 'non_profit'
+  yearEstablished: string
+  website?: string
+  businessDescription: string
+  customerServicePhone: string
+  customerServiceEmail: string
+}
+
+export interface ProcessingHistory {
+  isCurrentlyProcessing: string
+  hasBeenTerminated: string
+  monthlyVolume: number
+  averageTicket: number
+  highTicket: number
+  cardPresentPercentage: string
+  ecommercePercentage: string
+  motoPercentage: number
+  currentProcessor?: string
+  terminationExplanation?: string
+}
+
+export interface BeneficialOwner {
+  firstName: string
+  lastName: string
+  title: string
+  ownership: number
+  ssn: string
+  dateOfBirth: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+}
+
+export interface BankDetails {
+  accountType: 'checking' | 'savings'
+  routingNumber: string
+  accountNumber: string
+  bankName: string
+  accountHolderName: string
+  voidedCheck?: string[]
+  bankStatements?: string[]
+}
+
+export interface Lead {
+  id: string
+  email: string
+  firstName?: string
+  lastName?: string
+  phone?: string
+  status: 'new' | 'started' | 'in_progress' | 'completed'
+  applicationId: string
+  businessInfo?: BusinessInformation
+  processingHistory?: ProcessingHistory
+  beneficialOwners?: BeneficialOwner[]
+  bankDetails?: BankDetails
+  documents?: {
+    voided_check?: string[]
+    bank_statements?: string[]
+  }
+  createdAt: string
+  updatedAt: string
+  pipelineStatus?: 'lead' | 'phone' | 'offer' | 'underwriting' | 'documents' | 'approved'
+}
+
+export interface MerchantApplication {
+  id: string
+  leadId: string
+  status: 'draft' | 'submitted' | 'in_review' | 'approved' | 'rejected'
+  businessInfo?: BusinessInformation
+  processingHistory?: any
+  beneficialOwners?: any[]
+  bankDetails?: any
+  documents?: any[]
+  createdAt: Date
+  updatedAt: Date
+}

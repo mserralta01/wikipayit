@@ -6,6 +6,7 @@ import { Input } from "../../components/ui/input"
 import { Label } from "../../components/ui/label"
 import { Alert, AlertDescription } from "../../components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { merchantService, ProcessingHistory } from '@/services/merchantService'
 
 const processingSchema = z
   .object({
@@ -30,14 +31,28 @@ const processingSchema = z
       .refine((n) => n >= 0, "High ticket must be positive"),
     cardPresentPercentage: z
       .string()
-      .regex(/^\d+$/, "Percentage must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0 && n <= 100, "Percentage must be between 0 and 100"),
+      .transform((val) => val.replace(/[^\d.]/g, ''))
+      .refine(
+        (val) => {
+          const num = parseFloat(val)
+          return !isNaN(num) && num >= 0 && num <= 100
+        },
+        {
+          message: "Percentage must be between 0 and 100",
+        }
+      ),
     ecommercePercentage: z
       .string()
-      .regex(/^\d+$/, "Percentage must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0 && n <= 100, "Percentage must be between 0 and 100"),
+      .transform((val) => val.replace(/[^\d.]/g, ''))
+      .refine(
+        (val) => {
+          const num = parseFloat(val)
+          return !isNaN(num) && num >= 0 && num <= 100
+        },
+        {
+          message: "Percentage must be between 0 and 100",
+        }
+      ),
     motoPercentage: z
       .string()
       .regex(/^\d+$/, "Percentage must be a number")
@@ -83,14 +98,16 @@ const processingSchema = z
 
 type ProcessingFormData = z.infer<typeof processingSchema>
 
-export type ProcessingHistoryStepProps = {
-  onSave: (data: ProcessingFormData) => void
+interface ProcessingHistoryStepProps {
+  onSave: (data: ProcessingFormData) => Promise<void>
   initialData?: Partial<ProcessingFormData>
+  leadId: string
 }
 
 export function ProcessingHistoryStep({
   onSave,
   initialData = {},
+  leadId,
 }: ProcessingHistoryStepProps) {
   const [serverError, setServerError] = useState<string | null>(null)
 
@@ -99,6 +116,7 @@ export function ProcessingHistoryStep({
     handleSubmit,
     formState: { errors },
     watch,
+    setValue,
   } = useForm<ProcessingFormData>({
     resolver: zodResolver(processingSchema),
     defaultValues: {
@@ -120,10 +138,79 @@ export function ProcessingHistoryStep({
   const onSubmit = async (data: ProcessingFormData) => {
     try {
       setServerError(null)
+      
+      if (!leadId) {
+        throw new Error('No lead ID available')
+      }
+
+      const processingHistory: ProcessingHistory = {
+        isCurrentlyProcessing: data.isCurrentlyProcessing,
+        currentProcessor: data.currentProcessor || undefined,
+        hasBeenTerminated: data.hasBeenTerminated,
+        terminationExplanation: data.terminationExplanation || undefined,
+        volumes: {
+          monthlyVolume: Number(data.monthlyVolume),
+          averageTicket: Number(data.averageTicket),
+          highTicket: Number(data.highTicket)
+        },
+        processingMix: {
+          cardPresentPercentage: Number(data.cardPresentPercentage),
+          ecommercePercentage: Number(data.ecommercePercentage)
+        }
+      }
+
+      // First verify the lead exists
+      const existingLead = await merchantService.getLead(leadId)
+      if (!existingLead) {
+        throw new Error('Lead not found')
+      }
+
+      await merchantService.updateLead(leadId, {
+        processingHistory,
+        status: 'in_progress',
+        updatedAt: new Date()
+      })
+
       onSave(data)
     } catch (error) {
-      setServerError("An error occurred while saving your information")
+      console.error('Error updating processing history:', error)
+      setServerError(error instanceof Error ? error.message : "An error occurred while saving your information")
+      throw error
     }
+  }
+
+  const handleCardPresentChange = (value: string) => {
+    const formatted = formatPercentage(value)
+    setValue("cardPresentPercentage", formatted, { shouldValidate: true })
+    
+    // Calculate and set e-commerce percentage
+    const cardPresentNum = parseFloat(formatted) || 0
+    const ecommerceNum = Math.max(0, Math.min(100 - cardPresentNum, 100))
+    setValue("ecommercePercentage", ecommerceNum.toString(), { shouldValidate: true })
+  }
+
+  const handleEcommerceChange = (value: string) => {
+    const formatted = formatPercentage(value)
+    setValue("ecommercePercentage", formatted, { shouldValidate: true })
+    
+    // Calculate and set card present percentage
+    const ecommerceNum = parseFloat(formatted) || 0
+    const cardPresentNum = Math.max(0, Math.min(100 - ecommerceNum, 100))
+    setValue("cardPresentPercentage", cardPresentNum.toString(), { shouldValidate: true })
+  }
+
+  const formatPercentage = (value: string): string => {
+    // Remove any non-digits and dots
+    const numbers = value.replace(/[^\d.]/g, '')
+    
+    // Handle decimal points
+    const parts = numbers.split('.')
+    if (parts.length > 2) return parts[0] + '.' + parts.slice(1).join('')
+    if (parts[1]?.length > 2) {
+      return parts[0] + '.' + parts[1].slice(0, 2)
+    }
+    
+    return numbers
   }
 
   return (
@@ -289,63 +376,62 @@ export function ProcessingHistoryStep({
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Label className="flex items-center">
-            Processing Method Breakdown
-            <span className="text-destructive ml-1">*</span>
-          </Label>
-          <p className="text-sm text-muted-foreground mb-4">
-            Enter the percentage breakdown of your processing methods (must total 100%)
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium">Processing Mix</h3>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="cardPresentPercentage" className="flex items-center">
+                Card Present
+                <span className="text-destructive ml-1">*</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="cardPresentPercentage"
+                  {...register("cardPresentPercentage")}
+                  placeholder="0"
+                  onChange={(e) => handleCardPresentChange(e.target.value)}
+                  className={errors.cardPresentPercentage ? "border-destructive" : ""}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                  %
+                </span>
+              </div>
+              {errors.cardPresentPercentage && (
+                <p className="text-sm text-destructive">
+                  {errors.cardPresentPercentage.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ecommercePercentage" className="flex items-center">
+                E-commerce
+                <span className="text-destructive ml-1">*</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="ecommercePercentage"
+                  {...register("ecommercePercentage")}
+                  placeholder="0"
+                  onChange={(e) => handleEcommerceChange(e.target.value)}
+                  className={errors.ecommercePercentage ? "border-destructive" : ""}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                  %
+                </span>
+              </div>
+              {errors.ecommercePercentage && (
+                <p className="text-sm text-destructive">
+                  {errors.ecommercePercentage.message}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          <p className="text-sm text-muted-foreground">
+            Total: {(parseFloat(watch("cardPresentPercentage") || "0") + 
+                    parseFloat(watch("ecommercePercentage") || "0")).toFixed(2)}%
           </p>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label htmlFor="cardPresentPercentage">Card Present %</Label>
-              <Input
-                id="cardPresentPercentage"
-                {...register("cardPresentPercentage")}
-                placeholder="0"
-                className={errors.cardPresentPercentage ? "border-destructive" : ""}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ecommercePercentage">E-commerce %</Label>
-              <Input
-                id="ecommercePercentage"
-                {...register("ecommercePercentage")}
-                placeholder="0"
-                className={errors.ecommercePercentage ? "border-destructive" : ""}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="motoPercentage">MOTO %</Label>
-              <Input
-                id="motoPercentage"
-                {...register("motoPercentage")}
-                placeholder="0"
-                className={errors.motoPercentage ? "border-destructive" : ""}
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center mt-2">
-            <span className="text-sm">Total:</span>
-            <span
-              className={`text-sm font-medium ${
-                total === 100 ? "text-green-600" : "text-destructive"
-              }`}
-            >
-              {total}%
-            </span>
-          </div>
-
-          {errors.cardPresentPercentage && (
-            <p className="text-sm text-destructive mt-2">
-              {errors.cardPresentPercentage.message || "Invalid input"}
-            </p>
-          )}
         </div>
       </div>
     </form>
