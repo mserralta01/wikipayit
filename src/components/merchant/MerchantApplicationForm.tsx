@@ -11,6 +11,7 @@ import { BankDetailsStep } from "./BankDetailsStep"
 import { useAuth } from "../../contexts/AuthContext"
 import { merchantService } from "../../services/merchantService"
 import { Lead, BusinessInformation, ProcessingHistory, BeneficialOwner, BankDetails } from "@/types/merchant"
+import { useToast } from "@/hooks/useToast"
 
 type Step = {
   id: number
@@ -61,6 +62,7 @@ export function MerchantApplicationForm({ applicationId }: MerchantApplicationFo
   const [leadId, setLeadId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const { user } = useAuth()
+  const { toast } = useToast()
 
   const progress = (currentStep / steps.length) * 100
 
@@ -93,6 +95,11 @@ export function MerchantApplicationForm({ applicationId }: MerchantApplicationFo
           }
         } catch (error) {
           console.error('Error loading application data:', error)
+          toast({
+            title: "Error",
+            description: "Failed to load application data. Please try again.",
+            variant: "destructive",
+          })
         } finally {
           setLoading(false)
         }
@@ -100,7 +107,7 @@ export function MerchantApplicationForm({ applicationId }: MerchantApplicationFo
     }
 
     loadInitialData()
-  }, [applicationId])
+  }, [applicationId, toast])
 
   const handleStepSubmit = async (stepData: any) => {
     try {
@@ -125,15 +132,26 @@ export function MerchantApplicationForm({ applicationId }: MerchantApplicationFo
           updatedData.bankDetails = stepData as BankDetails
           break
         case 6:
-          updatedData.documents = stepData
+          updatedData.documents = {
+            voided_check: stepData.voidedCheck?.map((file: FileWithPreview) => file.preview),
+            bank_statements: stepData.bankStatements?.map((file: FileWithPreview) => file.preview)
+          }
           break
       }
 
-      setFormData(updatedData)
+      // Remove undefined values
+      const cleanData = Object.entries(updatedData).reduce((acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = value
+        }
+        return acc
+      }, {} as Record<string, any>)
+
+      setFormData(cleanData)
 
       // Save step data to lead
       await merchantService.updateLead(leadId, {
-        ...updatedData,
+        ...cleanData,
         status: currentStep === steps.length ? 'completed' : 'in_progress',
         updatedAt: new Date().toISOString()
       })
@@ -142,8 +160,18 @@ export function MerchantApplicationForm({ applicationId }: MerchantApplicationFo
       if (currentStep < steps.length) {
         setCurrentStep(prev => prev + 1)
       }
+
+      toast({
+        title: "Success",
+        description: "Your information has been saved.",
+      })
     } catch (error) {
       console.error('Error saving step data:', error)
+      toast({
+        title: "Error",
+        description: "Failed to save your information. Please try again.",
+        variant: "destructive",
+      })
       throw error
     }
   }
@@ -183,7 +211,7 @@ export function MerchantApplicationForm({ applicationId }: MerchantApplicationFo
       }
 
       // Create and dispatch submit event
-      const submitEvent = new SubmitEvent("submit", {
+      const submitEvent = new Event("submit", {
         bubbles: true,
         cancelable: true
       })
@@ -191,6 +219,11 @@ export function MerchantApplicationForm({ applicationId }: MerchantApplicationFo
       form.dispatchEvent(submitEvent)
     } catch (error) {
       console.error('Error handling next step:', error)
+      toast({
+        title: "Error",
+        description: "Failed to proceed to next step. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 

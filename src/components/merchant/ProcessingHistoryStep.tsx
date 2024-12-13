@@ -1,106 +1,45 @@
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Input } from "../../components/ui/input"
-import { Label } from "../../components/ui/label"
-import { Alert, AlertDescription } from "../../components/ui/alert"
+import { Input } from "../ui/input"
+import { Label } from "../ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select"
+import { Alert, AlertDescription } from "../ui/alert"
 import { AlertCircle } from "lucide-react"
-import { merchantService, ProcessingHistory } from '@/services/merchantService'
+import { ProcessingHistory } from '@/types/merchant'
 
-const processingSchema = z
-  .object({
-    isCurrentlyProcessing: z.string(),
-    currentProcessor: z.string().optional().nullable(),
-    hasBeenTerminated: z.string(),
-    terminationExplanation: z.string().optional().nullable(),
-    monthlyVolume: z
-      .string()
-      .regex(/^\d+$/, "Monthly volume must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0, "Monthly volume must be positive"),
-    averageTicket: z
-      .string()
-      .regex(/^\d+$/, "Average ticket must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0, "Average ticket must be positive"),
-    highTicket: z
-      .string()
-      .regex(/^\d+$/, "High ticket must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0, "High ticket must be positive"),
-    cardPresentPercentage: z
-      .string()
-      .transform((val) => val.replace(/[^\d.]/g, ''))
-      .refine(
-        (val) => {
-          const num = parseFloat(val)
-          return !isNaN(num) && num >= 0 && num <= 100
-        },
-        {
-          message: "Percentage must be between 0 and 100",
-        }
-      ),
-    ecommercePercentage: z
-      .string()
-      .transform((val) => val.replace(/[^\d.]/g, ''))
-      .refine(
-        (val) => {
-          const num = parseFloat(val)
-          return !isNaN(num) && num >= 0 && num <= 100
-        },
-        {
-          message: "Percentage must be between 0 and 100",
-        }
-      ),
-    motoPercentage: z
-      .string()
-      .regex(/^\d+$/, "Percentage must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0 && n <= 100, "Percentage must be between 0 and 100"),
-  })
-  .refine(
-    (data) => {
-      const total =
-        Number(data.cardPresentPercentage) +
-        Number(data.ecommercePercentage) +
-        Number(data.motoPercentage)
-      return total === 100
-    },
-    {
-      message: "Percentages must add up to 100%",
-      path: ["cardPresentPercentage"],
-    }
-  )
-  .refine(
-    (data) => {
-      const highTicket = Number(data.highTicket)
-      const avgTicket = Number(data.averageTicket)
-      return highTicket >= avgTicket
-    },
-    {
-      message: "High ticket must be greater than or equal to average ticket",
-      path: ["highTicket"],
-    }
-  )
-  .refine(
-    (data) => {
-      if (data.hasBeenTerminated === "yes" && !data.terminationExplanation) {
-        return false
-      }
-      return true
-    },
-    {
-      message: "Please provide an explanation for the termination",
-      path: ["terminationExplanation"],
-    }
-  )
+const processingHistorySchema = z.object({
+  isCurrentlyProcessing: z.enum(["yes", "no"], {
+    required_error: "Please select if you are currently processing",
+  }),
+  hasBeenTerminated: z.enum(["yes", "no"], {
+    required_error: "Please select if you have been terminated",
+  }),
+  monthlyVolume: z.number().min(0, "Monthly volume must be a positive number"),
+  averageTicket: z.number().min(0, "Average ticket must be a positive number"),
+  highTicket: z.number().min(0, "High ticket must be a positive number"),
+  cardPresentPercentage: z.string(),
+  ecommercePercentage: z.string(),
+  motoPercentage: z.number().min(0).max(100, "Must be between 0 and 100"),
+  currentProcessor: z.string().optional(),
+  terminationExplanation: z.string().optional().refine((val) => {
+    if (val === undefined) return true
+    return val.length > 0
+  }, "Please provide an explanation"),
+})
 
-type ProcessingFormData = z.infer<typeof processingSchema>
+type ProcessingHistoryFormData = z.infer<typeof processingHistorySchema>
 
 interface ProcessingHistoryStepProps {
-  onSave: (data: ProcessingFormData) => Promise<void>
-  initialData?: Partial<ProcessingFormData>
+  onSave: (data: ProcessingHistory) => Promise<void>
+  initialData?: Partial<ProcessingHistory>
   leadId: string
 }
 
@@ -110,33 +49,38 @@ export function ProcessingHistoryStep({
   leadId,
 }: ProcessingHistoryStepProps) {
   const [serverError, setServerError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
     setValue,
-  } = useForm<ProcessingFormData>({
-    resolver: zodResolver(processingSchema),
+    trigger,
+    watch,
+  } = useForm<ProcessingHistoryFormData>({
+    resolver: zodResolver(processingHistorySchema),
     defaultValues: {
-      isCurrentlyProcessing: "no",
-      hasBeenTerminated: "no",
-      ...initialData,
+      isCurrentlyProcessing: initialData.isCurrentlyProcessing as "yes" | "no" || "no",
+      hasBeenTerminated: initialData.hasBeenTerminated as "yes" | "no" || "no",
+      monthlyVolume: initialData.monthlyVolume || 0,
+      averageTicket: initialData.averageTicket || 0,
+      highTicket: initialData.highTicket || 0,
+      cardPresentPercentage: initialData.cardPresentPercentage || "0",
+      ecommercePercentage: initialData.ecommercePercentage || "0",
+      motoPercentage: initialData.motoPercentage || 0,
+      currentProcessor: initialData.currentProcessor || "",
+      terminationExplanation: initialData.terminationExplanation || "",
     },
-    mode: "all",
+    mode: "onChange"
   })
 
-  // Watch fields for conditional rendering
-  const cardPresent = watch("cardPresentPercentage") || "0"
-  const ecommerce = watch("ecommercePercentage") || "0"
-  const moto = watch("motoPercentage") || "0"
-  const total = Number(cardPresent) + Number(ecommerce) + Number(moto)
-  const isCurrentlyProcessing = watch("isCurrentlyProcessing")
-  const hasBeenTerminated = watch("hasBeenTerminated")
-
-  const onSubmit = async (data: ProcessingFormData) => {
+  const onSubmit = useCallback(async (data: ProcessingHistoryFormData) => {
+    if (isSubmitting) return
+    
     try {
+      setIsSubmitting(true)
       setServerError(null)
       
       if (!leadId) {
@@ -145,294 +89,255 @@ export function ProcessingHistoryStep({
 
       const processingHistory: ProcessingHistory = {
         isCurrentlyProcessing: data.isCurrentlyProcessing,
-        currentProcessor: data.currentProcessor || undefined,
         hasBeenTerminated: data.hasBeenTerminated,
-        terminationExplanation: data.terminationExplanation || undefined,
-        volumes: {
-          monthlyVolume: Number(data.monthlyVolume),
-          averageTicket: Number(data.averageTicket),
-          highTicket: Number(data.highTicket)
-        },
-        processingMix: {
-          cardPresentPercentage: Number(data.cardPresentPercentage),
-          ecommercePercentage: Number(data.ecommercePercentage)
-        }
+        monthlyVolume: data.monthlyVolume,
+        averageTicket: data.averageTicket,
+        highTicket: data.highTicket,
+        cardPresentPercentage: data.cardPresentPercentage,
+        ecommercePercentage: data.ecommercePercentage,
+        motoPercentage: data.motoPercentage,
+        currentProcessor: data.currentProcessor,
+        terminationExplanation: data.terminationExplanation,
       }
 
-      // First verify the lead exists
-      const existingLead = await merchantService.getLead(leadId)
-      if (!existingLead) {
-        throw new Error('Lead not found')
-      }
-
-      await merchantService.updateLead(leadId, {
-        processingHistory,
-        status: 'in_progress',
-        updatedAt: new Date()
-      })
-
-      onSave(data)
+      await onSave(processingHistory)
+      return true
     } catch (error) {
       console.error('Error updating processing history:', error)
-      setServerError(error instanceof Error ? error.message : "An error occurred while saving your information")
-      throw error
+      setServerError(error instanceof Error ? error.message : "An error occurred while saving your information. Please try again.")
+      return false
+    } finally {
+      setIsSubmitting(false)
     }
-  }
+  }, [isSubmitting, leadId, onSave])
 
-  const handleCardPresentChange = (value: string) => {
-    const formatted = formatPercentage(value)
-    setValue("cardPresentPercentage", formatted, { shouldValidate: true })
-    
-    // Calculate and set e-commerce percentage
-    const cardPresentNum = parseFloat(formatted) || 0
-    const ecommerceNum = Math.max(0, Math.min(100 - cardPresentNum, 100))
-    setValue("ecommercePercentage", ecommerceNum.toString(), { shouldValidate: true })
-  }
+  useEffect(() => {
+    const form = formRef.current
+    if (!form) return
 
-  const handleEcommerceChange = (value: string) => {
-    const formatted = formatPercentage(value)
-    setValue("ecommercePercentage", formatted, { shouldValidate: true })
-    
-    // Calculate and set card present percentage
-    const ecommerceNum = parseFloat(formatted) || 0
-    const cardPresentNum = Math.max(0, Math.min(100 - ecommerceNum, 100))
-    setValue("cardPresentPercentage", cardPresentNum.toString(), { shouldValidate: true })
-  }
-
-  const formatPercentage = (value: string): string => {
-    // Remove any non-digits and dots
-    const numbers = value.replace(/[^\d.]/g, '')
-    
-    // Handle decimal points
-    const parts = numbers.split('.')
-    if (parts.length > 2) return parts[0] + '.' + parts.slice(1).join('')
-    if (parts[1]?.length > 2) {
-      return parts[0] + '.' + parts[1].slice(0, 2)
+    const handleFormSubmit = async (e: Event) => {
+      e.preventDefault()
+      e.stopPropagation()
+      
+      try {
+        const isValid = await trigger()
+        if (isValid) {
+          const formData = watch()
+          await onSubmit(formData)
+        }
+      } catch (error) {
+        console.error('Form submission error:', error)
+        setServerError("An error occurred while saving your information. Please try again.")
+      }
     }
-    
-    return numbers
-  }
+
+    form.addEventListener("submit", handleFormSubmit)
+    return () => form.removeEventListener("submit", handleFormSubmit)
+  }, [watch, trigger, onSubmit])
+
+  const hasBeenTerminated = watch("hasBeenTerminated")
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form ref={formRef} onSubmit={handleSubmit(onSubmit)} className="space-y-6" id="processing-history-form">
       {serverError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>{serverError}</AlertDescription>
         </Alert>
       )}
-
+      
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label className="flex items-center mb-2">
-            Are you currently processing payments?
-            <span className="text-destructive ml-1">*</span>
-          </Label>
-          <div className="flex gap-4">
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="processing-yes"
-                value="yes"
-                {...register("isCurrentlyProcessing")}
-                className="mr-2"
-              />
-              <Label htmlFor="processing-yes">Yes</Label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="processing-no"
-                value="no"
-                {...register("isCurrentlyProcessing")}
-                className="mr-2"
-              />
-              <Label htmlFor="processing-no">No</Label>
-            </div>
-          </div>
-        </div>
-
-        {isCurrentlyProcessing === "yes" && (
+        <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="currentProcessor" className="flex items-center">
-              Current Payment Processor
+            <Label htmlFor="isCurrentlyProcessing">
+              Currently Processing?
               <span className="text-destructive ml-1">*</span>
             </Label>
-            <Input
-              id="currentProcessor"
-              {...register("currentProcessor")}
-              placeholder="Enter your current processor"
-            />
-            {errors.currentProcessor && (
-              <p className="text-sm text-destructive">
-                {errors.currentProcessor.message || "Invalid input"}
-              </p>
+            <Select
+              onValueChange={(value) => setValue("isCurrentlyProcessing", value as "yes" | "no")}
+              defaultValue={watch("isCurrentlyProcessing")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select yes or no" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.isCurrentlyProcessing && (
+              <p className="text-sm text-destructive">{errors.isCurrentlyProcessing.message}</p>
             )}
           </div>
-        )}
 
-        <div className="space-y-2">
-          <Label className="flex items-center mb-2">
-            Have you ever been terminated by a payment processor?
-            <span className="text-destructive ml-1">*</span>
-          </Label>
-          <div className="flex gap-4">
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="terminated-yes"
-                value="yes"
-                {...register("hasBeenTerminated")}
-                className="mr-2"
-              />
-              <Label htmlFor="terminated-yes">Yes</Label>
-            </div>
-            <div className="flex items-center">
-              <input
-                type="radio"
-                id="terminated-no"
-                value="no"
-                {...register("hasBeenTerminated")}
-                className="mr-2"
-              />
-              <Label htmlFor="terminated-no">No</Label>
-            </div>
-          </div>
-        </div>
-
-        {hasBeenTerminated === "yes" && (
           <div className="space-y-2">
-            <Label htmlFor="terminationExplanation" className="flex items-center">
-              Please explain the circumstances
+            <Label htmlFor="hasBeenTerminated">
+              Previously Terminated?
               <span className="text-destructive ml-1">*</span>
             </Label>
-            <textarea
-              id="terminationExplanation"
-              {...register("terminationExplanation")}
-              className="w-full min-h-[100px] p-2 border rounded-md"
-              placeholder="Please provide a brief explanation..."
-            />
-            {errors.terminationExplanation && (
-              <p className="text-sm text-destructive">
-                {errors.terminationExplanation.message || "Invalid input"}
-              </p>
+            <Select
+              onValueChange={(value) => setValue("hasBeenTerminated", value as "yes" | "no")}
+              defaultValue={watch("hasBeenTerminated")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select yes or no" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="yes">Yes</SelectItem>
+                <SelectItem value="no">No</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.hasBeenTerminated && (
+              <p className="text-sm text-destructive">{errors.hasBeenTerminated.message}</p>
             )}
           </div>
-        )}
+        </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           <div className="space-y-2">
-            <Label htmlFor="monthlyVolume" className="flex items-center">
+            <Label htmlFor="monthlyVolume">
               Monthly Volume ($)
               <span className="text-destructive ml-1">*</span>
             </Label>
             <Input
               id="monthlyVolume"
-              {...register("monthlyVolume")}
-              placeholder="50000"
+              type="number"
+              {...register("monthlyVolume", { valueAsNumber: true })}
               className={errors.monthlyVolume ? "border-destructive" : ""}
             />
             {errors.monthlyVolume && (
-              <p className="text-sm text-destructive">
-                {errors.monthlyVolume.message || "Invalid input"}
-              </p>
+              <p className="text-sm text-destructive">{errors.monthlyVolume.message}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="averageTicket" className="flex items-center">
+            <Label htmlFor="averageTicket">
               Average Ticket ($)
               <span className="text-destructive ml-1">*</span>
             </Label>
             <Input
               id="averageTicket"
-              {...register("averageTicket")}
-              placeholder="100"
+              type="number"
+              {...register("averageTicket", { valueAsNumber: true })}
               className={errors.averageTicket ? "border-destructive" : ""}
             />
             {errors.averageTicket && (
-              <p className="text-sm text-destructive">
-                {errors.averageTicket.message || "Invalid input"}
-              </p>
+              <p className="text-sm text-destructive">{errors.averageTicket.message}</p>
             )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="highTicket" className="flex items-center">
+            <Label htmlFor="highTicket">
               High Ticket ($)
               <span className="text-destructive ml-1">*</span>
             </Label>
             <Input
               id="highTicket"
-              {...register("highTicket")}
-              placeholder="500"
+              type="number"
+              {...register("highTicket", { valueAsNumber: true })}
               className={errors.highTicket ? "border-destructive" : ""}
             />
             {errors.highTicket && (
-              <p className="text-sm text-destructive">
-                {errors.highTicket.message || "Invalid input"}
-              </p>
+              <p className="text-sm text-destructive">{errors.highTicket.message}</p>
             )}
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium">Processing Mix</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="cardPresentPercentage" className="flex items-center">
-                Card Present
-                <span className="text-destructive ml-1">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="cardPresentPercentage"
-                  {...register("cardPresentPercentage")}
-                  placeholder="0"
-                  onChange={(e) => handleCardPresentChange(e.target.value)}
-                  className={errors.cardPresentPercentage ? "border-destructive" : ""}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  %
-                </span>
-              </div>
-              {errors.cardPresentPercentage && (
-                <p className="text-sm text-destructive">
-                  {errors.cardPresentPercentage.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ecommercePercentage" className="flex items-center">
-                E-commerce
-                <span className="text-destructive ml-1">*</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  id="ecommercePercentage"
-                  {...register("ecommercePercentage")}
-                  placeholder="0"
-                  onChange={(e) => handleEcommerceChange(e.target.value)}
-                  className={errors.ecommercePercentage ? "border-destructive" : ""}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                  %
-                </span>
-              </div>
-              {errors.ecommercePercentage && (
-                <p className="text-sm text-destructive">
-                  {errors.ecommercePercentage.message}
-                </p>
-              )}
-            </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="space-y-2">
+            <Label htmlFor="cardPresentPercentage">
+              Card Present %
+              <span className="text-destructive ml-1">*</span>
+            </Label>
+            <Select
+              onValueChange={(value) => setValue("cardPresentPercentage", value)}
+              defaultValue={watch("cardPresentPercentage")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select percentage" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
+                  <SelectItem key={value} value={`${value}`}>{value}%</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.cardPresentPercentage && (
+              <p className="text-sm text-destructive">{errors.cardPresentPercentage.message}</p>
+            )}
           </div>
-          
-          <p className="text-sm text-muted-foreground">
-            Total: {(parseFloat(watch("cardPresentPercentage") || "0") + 
-                    parseFloat(watch("ecommercePercentage") || "0")).toFixed(2)}%
-          </p>
+
+          <div className="space-y-2">
+            <Label htmlFor="ecommercePercentage">
+              E-commerce %
+              <span className="text-destructive ml-1">*</span>
+            </Label>
+            <Select
+              onValueChange={(value) => setValue("ecommercePercentage", value)}
+              defaultValue={watch("ecommercePercentage")}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select percentage" />
+              </SelectTrigger>
+              <SelectContent>
+                {Array.from({ length: 11 }, (_, i) => i * 10).map((value) => (
+                  <SelectItem key={value} value={`${value}`}>{value}%</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.ecommercePercentage && (
+              <p className="text-sm text-destructive">{errors.ecommercePercentage.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="motoPercentage">
+              MOTO %
+              <span className="text-destructive ml-1">*</span>
+            </Label>
+            <Input
+              id="motoPercentage"
+              type="number"
+              {...register("motoPercentage", { valueAsNumber: true })}
+              className={errors.motoPercentage ? "border-destructive" : ""}
+            />
+            {errors.motoPercentage && (
+              <p className="text-sm text-destructive">{errors.motoPercentage.message}</p>
+            )}
+          </div>
         </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="currentProcessor">Current Processor</Label>
+          <Input
+            id="currentProcessor"
+            {...register("currentProcessor")}
+            className={errors.currentProcessor ? "border-destructive" : ""}
+          />
+          {errors.currentProcessor && (
+            <p className="text-sm text-destructive">{errors.currentProcessor.message}</p>
+          )}
+        </div>
+
+        {hasBeenTerminated === "yes" && (
+          <div className="space-y-2">
+            <Label htmlFor="terminationExplanation">
+              Termination Explanation
+              <span className="text-destructive ml-1">*</span>
+            </Label>
+            <textarea
+              id="terminationExplanation"
+              {...register("terminationExplanation")}
+              className={`min-h-[100px] w-full rounded-md border p-3 ${
+                errors.terminationExplanation ? "border-destructive" : "border-input"
+              }`}
+              placeholder="Please explain the circumstances of the termination..."
+            />
+            {errors.terminationExplanation && (
+              <p className="text-sm text-destructive">{errors.terminationExplanation.message}</p>
+            )}
+          </div>
+        )}
       </div>
     </form>
   )
