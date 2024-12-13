@@ -46,10 +46,21 @@ export const merchantSchema = z.object({
   id: z.string().optional(),
   email: z.string().email("Invalid email address"),
   phone: z.string().regex(phoneRegex, "Phone must be in format: +1 (XXX) XXX-XXXX").optional(),
+  customerServiceEmail: z.string().email("Invalid customer service email address"),
+  customerServicePhone: z.string().regex(phoneRegex, "Customer service phone must be in format: +1 (XXX) XXX-XXXX"),
+  companyAddress: z.object({
+    street: z.string().min(1, "Street address is required"),
+    city: z.string().min(1, "City is required"),
+    state: z.string().length(2, "State must be a 2-letter code"),
+    zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, "ZIP code must be in format: XXXXX or XXXXX-XXXX")
+  }),
   businessName: z.string()
     .min(2, "Business name must be at least 2 characters")
     .max(100, "Business name must be less than 100 characters"),
   dba: z.string().optional(),
+  businessDescription: z.string()
+    .min(10, "Business description must be at least 10 characters")
+    .max(500, "Business description must be less than 500 characters"),
   taxId: z.string()
     .regex(taxIdRegex, "Tax ID must be in format XX-XXXXXXX")
     .refine((val) => {

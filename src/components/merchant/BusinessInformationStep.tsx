@@ -2,93 +2,75 @@ import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Input } from "../../components/ui/input"
-import { Label } from "../../components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../../components/ui/select"
-import { Alert, AlertDescription } from "../../components/ui/alert"
+} from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
+import { merchantSchema } from "@/types/merchant"
 
-const formatTaxId = (value: string) => {
-  // Remove any non-digits
-  const numbers = value.replace(/\D/g, '')
-  
-  // If we have at least 2 digits, add the dash
-  if (numbers.length >= 2) {
-    return `${numbers.slice(0, 2)}-${numbers.slice(2, 9)}`
-  }
-  
-  return numbers
-}
+// US States for dropdown
+const states = [
+  { value: "AL", label: "Alabama" },
+  { value: "AK", label: "Alaska" },
+  { value: "AZ", label: "Arizona" },
+  { value: "AR", label: "Arkansas" },
+  { value: "CA", label: "California" },
+  { value: "CO", label: "Colorado" },
+  { value: "CT", label: "Connecticut" },
+  { value: "DE", label: "Delaware" },
+  { value: "FL", label: "Florida" },
+  { value: "GA", label: "Georgia" },
+  { value: "HI", label: "Hawaii" },
+  { value: "ID", label: "Idaho" },
+  { value: "IL", label: "Illinois" },
+  { value: "IN", label: "Indiana" },
+  { value: "IA", label: "Iowa" },
+  { value: "KS", label: "Kansas" },
+  { value: "KY", label: "Kentucky" },
+  { value: "LA", label: "Louisiana" },
+  { value: "ME", label: "Maine" },
+  { value: "MD", label: "Maryland" },
+  { value: "MA", label: "Massachusetts" },
+  { value: "MI", label: "Michigan" },
+  { value: "MN", label: "Minnesota" },
+  { value: "MS", label: "Mississippi" },
+  { value: "MO", label: "Missouri" },
+  { value: "MT", label: "Montana" },
+  { value: "NE", label: "Nebraska" },
+  { value: "NV", label: "Nevada" },
+  { value: "NH", label: "New Hampshire" },
+  { value: "NJ", label: "New Jersey" },
+  { value: "NM", label: "New Mexico" },
+  { value: "NY", label: "New York" },
+  { value: "NC", label: "North Carolina" },
+  { value: "ND", label: "North Dakota" },
+  { value: "OH", label: "Ohio" },
+  { value: "OK", label: "Oklahoma" },
+  { value: "OR", label: "Oregon" },
+  { value: "PA", label: "Pennsylvania" },
+  { value: "RI", label: "Rhode Island" },
+  { value: "SC", label: "South Carolina" },
+  { value: "SD", label: "South Dakota" },
+  { value: "TN", label: "Tennessee" },
+  { value: "TX", label: "Texas" },
+  { value: "UT", label: "Utah" },
+  { value: "VT", label: "Vermont" },
+  { value: "VA", label: "Virginia" },
+  { value: "WA", label: "Washington" },
+  { value: "WV", label: "West Virginia" },
+  { value: "WI", label: "Wisconsin" },
+  { value: "WY", label: "Wyoming" },
+]
 
-const formatWebsite = (value: string) => {
-  if (!value) return value
-  if (value.startsWith('http://') || value.startsWith('https://')) return value
-  return `https://${value}`
-}
-
-const businessSchema = z.object({
-  legalName: z
-    .string()
-    .min(2, "Business name must be at least 2 characters")
-    .max(100, "Business name must be less than 100 characters"),
-  dba: z.string().optional(),
-  taxId: z
-    .string()
-    .min(9, "Tax ID must be 9 digits")
-    .max(10, "Tax ID must be 9 digits")
-    .transform((val) => {
-      // Remove any non-digits for validation
-      const numbers = val.replace(/\D/g, '')
-      if (numbers.length === 9) {
-        // Format with dash
-        return `${numbers.slice(0, 2)}-${numbers.slice(2)}`
-      }
-      return val
-    })
-    .refine((val) => {
-      const numbers = val.replace(/\D/g, '')
-      return numbers.length === 9
-    }, "Tax ID must be 9 digits"),
-  businessType: z.enum([
-    "sole_proprietorship",
-    "partnership",
-    "llc",
-    "corporation",
-    "non_profit",
-  ], { required_error: "Please select a business type" }),
-  yearEstablished: z
-    .string()
-    .regex(/^\d{4}$/, "Year must be in YYYY format")
-    .refine(
-      (year) => {
-        const yearNum = parseInt(year)
-        const currentYear = new Date().getFullYear()
-        return yearNum >= 1900 && yearNum <= currentYear
-      },
-      { message: "Please enter a valid year between 1900 and current year" }
-    ),
-  website: z.string()
-    .optional()
-    .transform((val) => val ? formatWebsite(val) : val)
-    .refine((val) => {
-      if (!val) return true
-      try {
-        new URL(val)
-        return true
-      } catch {
-        return false
-      }
-    }, "Please enter a valid URL"),
-})
-
-type BusinessFormData = z.infer<typeof businessSchema>
-type BusinessType = z.infer<typeof businessSchema.shape.businessType>
+type BusinessFormData = z.infer<typeof merchantSchema>
 
 export type BusinessInformationStepProps = {
   onSave: (data: BusinessFormData) => void
@@ -104,14 +86,15 @@ export function BusinessInformationStep({
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, touchedFields },
+    formState: { errors },
     setValue,
-    trigger,
     watch,
+    trigger,
   } = useForm<BusinessFormData>({
-    resolver: zodResolver(businessSchema),
-    defaultValues: initialData,
-    mode: "all",
+    resolver: zodResolver(merchantSchema),
+    defaultValues: {
+      ...initialData,
+    },
   })
 
   // Listen for form submit events from parent
@@ -143,28 +126,16 @@ export function BusinessInformationStep({
     }
   }
 
-  const handleTaxIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatTaxId(e.target.value)
-    setValue("taxId", formatted, { shouldValidate: true })
-  }
-
-  const handleWebsiteFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    const value = e.target.value
-    if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
-      setValue("website", `https://${value}`, { shouldValidate: true })
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '')
+    if (value.length <= 10) {
+      const formattedValue = value.replace(/(\d{3})(\d{3})(\d{4})/, '+1 ($1) $2-$3')
+      setValue("customerServicePhone", formattedValue, { shouldValidate: true })
     }
-  }
-
-  const handleWebsiteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value
-    if (value && !value.startsWith('http://') && !value.startsWith('https://')) {
-      value = `https://${value}`
-    }
-    setValue("website", value, { shouldValidate: true })
   }
 
   return (
-    <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+    <form className="space-y-8" onSubmit={handleSubmit(onSubmit)}>
       {serverError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -173,126 +144,166 @@ export function BusinessInformationStep({
       )}
 
       <div className="space-y-4">
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="legalName" className="flex items-center">
-              Legal Business Name
-              <span className="text-destructive ml-1">*</span>
-            </Label>
-            <Input
-              id="legalName"
-              {...register("legalName")}
-              placeholder="Enter your legal business name"
-              className={errors.legalName ? "border-destructive" : ""}
-              aria-invalid={errors.legalName ? "true" : "false"}
-            />
-            {errors.legalName && (
-              <p className="text-sm text-destructive">{errors.legalName.message}</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="dba">DBA (Optional)</Label>
-            <Input
-              id="dba"
-              {...register("dba")}
-              placeholder="Doing Business As"
-              className={errors.dba ? "border-destructive" : ""}
-            />
-            {errors.dba && (
-              <p className="text-sm text-destructive">{errors.dba.message}</p>
-            )}
-          </div>
+        <div>
+          <Label htmlFor="businessName" className="flex items-center">
+            Business Legal Name
+            <span className="text-destructive ml-1">*</span>
+          </Label>
+          <Input
+            id="businessName"
+            {...register("businessName")}
+            placeholder="Legal Business Name"
+            className={errors.businessName ? "border-destructive" : ""}
+          />
+          {errors.businessName && (
+            <p className="text-sm text-destructive">{errors.businessName.message}</p>
+          )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="taxId" className="flex items-center">
-              Tax ID (EIN)
+        <div>
+          <Label htmlFor="dba">DBA (if different)</Label>
+          <Input
+            id="dba"
+            {...register("dba")}
+            placeholder="Doing Business As"
+          />
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Company Address</h3>
+          
+          <div>
+            <Label htmlFor="street" className="flex items-center">
+              Street Address
               <span className="text-destructive ml-1">*</span>
             </Label>
             <Input
-              id="taxId"
-              {...register("taxId")}
-              onChange={handleTaxIdChange}
-              placeholder="XX-XXXXXXX"
-              className={errors.taxId ? "border-destructive" : ""}
-              aria-invalid={errors.taxId ? "true" : "false"}
-              maxLength={10}
+              id="street"
+              {...register("companyAddress.street")}
+              placeholder="123 Business St"
+              className={errors.companyAddress?.street ? "border-destructive" : ""}
             />
-            {errors.taxId && (
-              <p className="text-sm text-destructive">{errors.taxId.message}</p>
+            {errors.companyAddress?.street && (
+              <p className="text-sm text-destructive">{errors.companyAddress.street.message}</p>
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="businessType" className="flex items-center">
-              Business Type
-              <span className="text-destructive ml-1">*</span>
-            </Label>
-            <Select
-              onValueChange={(value: BusinessType) => {
-                setValue("businessType", value)
-                trigger("businessType")
-              }}
-              defaultValue={watch("businessType")}
-            >
-              <SelectTrigger 
-                className={errors.businessType ? "border-destructive" : ""}
-                aria-invalid={errors.businessType ? "true" : "false"}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="city" className="flex items-center">
+                City
+                <span className="text-destructive ml-1">*</span>
+              </Label>
+              <Input
+                id="city"
+                {...register("companyAddress.city")}
+                placeholder="City"
+                className={errors.companyAddress?.city ? "border-destructive" : ""}
+              />
+              {errors.companyAddress?.city && (
+                <p className="text-sm text-destructive">{errors.companyAddress.city.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="state" className="flex items-center">
+                State
+                <span className="text-destructive ml-1">*</span>
+              </Label>
+              <Select
+                onValueChange={(value) => setValue("companyAddress.state", value)}
+                defaultValue={watch("companyAddress.state")}
               >
-                <SelectValue placeholder="Select business type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
-                <SelectItem value="partnership">Partnership</SelectItem>
-                <SelectItem value="llc">LLC</SelectItem>
-                <SelectItem value="corporation">Corporation</SelectItem>
-                <SelectItem value="non_profit">Non-Profit</SelectItem>
-              </SelectContent>
-            </Select>
-            {errors.businessType && (
-              <p className="text-sm text-destructive">{errors.businessType.message}</p>
+                <SelectTrigger
+                  className={errors.companyAddress?.state ? "border-destructive" : ""}
+                >
+                  <SelectValue placeholder="Select state" />
+                </SelectTrigger>
+                <SelectContent>
+                  {states.map((state) => (
+                    <SelectItem key={state.value} value={state.value}>
+                      {state.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.companyAddress?.state && (
+                <p className="text-sm text-destructive">{errors.companyAddress.state.message}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="zipCode" className="flex items-center">
+                ZIP Code
+                <span className="text-destructive ml-1">*</span>
+              </Label>
+              <Input
+                id="zipCode"
+                {...register("companyAddress.zipCode")}
+                placeholder="12345"
+                className={errors.companyAddress?.zipCode ? "border-destructive" : ""}
+              />
+              {errors.companyAddress?.zipCode && (
+                <p className="text-sm text-destructive">{errors.companyAddress.zipCode.message}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Customer Service Contact</h3>
+          
+          <div>
+            <Label htmlFor="customerServiceEmail" className="flex items-center">
+              Customer Service Email
+              <span className="text-destructive ml-1">*</span>
+            </Label>
+            <Input
+              id="customerServiceEmail"
+              type="email"
+              {...register("customerServiceEmail")}
+              placeholder="support@yourbusiness.com"
+              className={errors.customerServiceEmail ? "border-destructive" : ""}
+            />
+            {errors.customerServiceEmail && (
+              <p className="text-sm text-destructive">{errors.customerServiceEmail.message}</p>
+            )}
+          </div>
+
+          <div>
+            <Label htmlFor="customerServicePhone" className="flex items-center">
+              Customer Service Phone
+              <span className="text-destructive ml-1">*</span>
+            </Label>
+            <Input
+              id="customerServicePhone"
+              {...register("customerServicePhone")}
+              placeholder="+1 (555) 555-5555"
+              onChange={handlePhoneChange}
+              className={errors.customerServicePhone ? "border-destructive" : ""}
+            />
+            {errors.customerServicePhone && (
+              <p className="text-sm text-destructive">{errors.customerServicePhone.message}</p>
             )}
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="yearEstablished" className="flex items-center">
-              Year Established
-              <span className="text-destructive ml-1">*</span>
-            </Label>
-            <Input
-              id="yearEstablished"
-              {...register("yearEstablished")}
-              placeholder="YYYY"
-              className={errors.yearEstablished ? "border-destructive" : ""}
-              aria-invalid={errors.yearEstablished ? "true" : "false"}
-            />
-            {errors.yearEstablished && (
-              <p className="text-sm text-destructive">
-                {errors.yearEstablished.message}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="website">Website (Optional)</Label>
-            <Input
-              id="website"
-              {...register("website")}
-              onFocus={handleWebsiteFocus}
-              onChange={handleWebsiteChange}
-              placeholder="example.com"
-              className={errors.website ? "border-destructive" : ""}
-            />
-            {errors.website && (
-              <p className="text-sm text-destructive">{errors.website.message}</p>
-            )}
-          </div>
+        <div>
+          <Label htmlFor="businessDescription" className="flex items-center">
+            Business Description
+            <span className="text-destructive ml-1">*</span>
+          </Label>
+          <Textarea
+            id="businessDescription"
+            {...register("businessDescription")}
+            placeholder="Describe your business"
+            className={errors.businessDescription ? "border-destructive" : ""}
+          />
+          {errors.businessDescription && (
+            <p className="text-sm text-destructive">{errors.businessDescription.message}</p>
+          )}
         </div>
       </div>
     </form>
   )
-}
+} 

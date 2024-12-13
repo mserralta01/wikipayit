@@ -129,21 +129,41 @@ export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
             <h3 className="text-lg font-semibold mb-4">Business Information</h3>
             <div className="space-y-4">
               <div>
+                <Label className="text-sm text-muted-foreground">Business Description</Label>
+                <p className="font-medium whitespace-pre-wrap">{merchant.businessDescription}</p>
+              </div>
+              
+              <div>
+                <Label className="text-sm text-muted-foreground">Company Address</Label>
+                <p className="font-medium">
+                  {merchant.companyAddress?.street}<br />
+                  {merchant.companyAddress?.city}, {merchant.companyAddress?.state} {merchant.companyAddress?.zipCode}
+                </p>
+              </div>
+
+              <div>
+                <Label className="text-sm text-muted-foreground">Customer Service</Label>
+                <p className="font-medium">
+                  Email: {merchant.customerServiceEmail}<br />
+                  Phone: {merchant.customerServicePhone}
+                </p>
+              </div>
+
+              <div>
                 <Label className="text-sm text-muted-foreground">Tax ID</Label>
                 <p className="font-medium">{merchant.taxId}</p>
               </div>
+              
               <div>
-                <Label className="text-sm text-muted-foreground">
-                  Business Type
-                </Label>
+                <Label className="text-sm text-muted-foreground">Business Type</Label>
                 <p className="font-medium">{merchant.businessType}</p>
               </div>
+              
               <div>
-                <Label className="text-sm text-muted-foreground">
-                  Year Established
-                </Label>
+                <Label className="text-sm text-muted-foreground">Year Established</Label>
                 <p className="font-medium">{merchant.yearEstablished}</p>
               </div>
+              
               {merchant.website && (
                 <div>
                   <Label className="text-sm text-muted-foreground">Website</Label>
