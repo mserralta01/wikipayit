@@ -13,8 +13,15 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { AlertCircle, Building2, Phone, Mail, FileText, Info } from "lucide-react"
 import { merchantSchema } from "@/types/merchant"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 // US States for dropdown
 const states = [
@@ -72,7 +79,7 @@ const states = [
 
 type BusinessFormData = z.infer<typeof merchantSchema>
 
-export type BusinessInformationStepProps = {
+export interface BusinessInformationStepProps {
   onSave: (data: BusinessFormData) => void
   initialData?: Partial<BusinessFormData>
 }
@@ -97,16 +104,14 @@ export function BusinessInformationStep({
     },
   })
 
-  // Listen for form submit events from parent
   useEffect(() => {
     const handleFormSubmit = async (e: Event) => {
       e.preventDefault()
       e.stopPropagation()
 
-      // Trigger validation for all fields
-      const isValid = await trigger(undefined, { shouldFocus: true })
+      const isValid = await trigger()
       if (isValid) {
-        handleSubmit(onSubmit)()
+        void handleSubmit(onSubmit)()
       }
     }
 
@@ -120,7 +125,7 @@ export function BusinessInformationStep({
   const onSubmit = async (data: BusinessFormData) => {
     try {
       setServerError(null)
-      onSave(data)
+      await onSave(data)
     } catch (error) {
       setServerError("An error occurred while saving your information")
     }
@@ -135,175 +140,304 @@ export function BusinessInformationStep({
   }
 
   return (
-    <form className="space-y-8" onSubmit={handleSubmit(onSubmit)}>
-      {serverError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{serverError}</AlertDescription>
-        </Alert>
-      )}
+    <TooltipProvider>
+      <form className="space-y-6 max-w-4xl mx-auto" onSubmit={handleSubmit(onSubmit)} noValidate>
+        {serverError && (
+          <Alert variant="destructive" className="animate-in fade-in-50">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{serverError}</AlertDescription>
+          </Alert>
+        )}
 
-      <div className="space-y-4">
-        <div>
-          <Label htmlFor="businessName" className="flex items-center">
-            Business Legal Name
-            <span className="text-destructive ml-1">*</span>
-          </Label>
-          <Input
-            id="businessName"
-            {...register("businessName")}
-            placeholder="Legal Business Name"
-            className={errors.businessName ? "border-destructive" : ""}
-          />
-          {errors.businessName && (
-            <p className="text-sm text-destructive">{errors.businessName.message}</p>
-          )}
-        </div>
-
-        <div>
-          <Label htmlFor="dba">DBA (if different)</Label>
-          <Input
-            id="dba"
-            {...register("dba")}
-            placeholder="Doing Business As"
-          />
-        </div>
-
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Company Address</h3>
-          
-          <div>
-            <Label htmlFor="street" className="flex items-center">
-              Street Address
-              <span className="text-destructive ml-1">*</span>
-            </Label>
-            <Input
-              id="street"
-              {...register("companyAddress.street")}
-              placeholder="123 Business St"
-              className={errors.companyAddress?.street ? "border-destructive" : ""}
-            />
-            {errors.companyAddress?.street && (
-              <p className="text-sm text-destructive">{errors.companyAddress.street.message}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="city" className="flex items-center">
-                City
-                <span className="text-destructive ml-1">*</span>
-              </Label>
-              <Input
-                id="city"
-                {...register("companyAddress.city")}
-                placeholder="City"
-                className={errors.companyAddress?.city ? "border-destructive" : ""}
-              />
-              {errors.companyAddress?.city && (
-                <p className="text-sm text-destructive">{errors.companyAddress.city.message}</p>
-              )}
+        <Card className="group hover:shadow-md transition-all duration-200">
+          <CardHeader>
+            <div className="flex items-center space-x-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <CardTitle className="text-2xl font-bold">Business Information</CardTitle>
             </div>
+            <CardDescription className="text-muted-foreground">
+              Please provide your business details accurately as they appear on official documents.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="businessName" className="flex items-center">
+                      Business Legal Name
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Enter your legal business name as it appears on official documents</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    id="businessName"
+                    {...register("businessName")}
+                    placeholder="Legal Business Name"
+                    className={`transition-all duration-200 ${
+                      errors.businessName 
+                        ? "border-destructive focus:border-destructive" 
+                        : "hover:border-primary/50 focus:border-primary"
+                    }`}
+                  />
+                  {errors.businessName && (
+                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                      {errors.businessName.message}
+                    </p>
+                  )}
+                </div>
 
-            <div>
-              <Label htmlFor="state" className="flex items-center">
-                State
-                <span className="text-destructive ml-1">*</span>
-              </Label>
-              <Select
-                onValueChange={(value) => setValue("companyAddress.state", value)}
-                defaultValue={watch("companyAddress.state")}
-              >
-                <SelectTrigger
-                  className={errors.companyAddress?.state ? "border-destructive" : ""}
-                >
-                  <SelectValue placeholder="Select state" />
-                </SelectTrigger>
-                <SelectContent>
-                  {states.map((state) => (
-                    <SelectItem key={state.value} value={state.value}>
-                      {state.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.companyAddress?.state && (
-                <p className="text-sm text-destructive">{errors.companyAddress.state.message}</p>
-              )}
+                <div className="grid gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="dba">DBA (if different)</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Your "Doing Business As" name if different from legal name</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    id="dba"
+                    {...register("dba")}
+                    placeholder="Doing Business As"
+                    className="hover:border-primary/50 focus:border-primary transition-all duration-200"
+                  />
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <div className="flex items-center space-x-2">
+                  <Label htmlFor="businessDescription" className="flex items-center">
+                    Business Description
+                    <span className="text-destructive ml-1">*</span>
+                  </Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Describe your main business activities and services</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <Textarea
+                  id="businessDescription"
+                  {...register("businessDescription")}
+                  placeholder="Describe your business operations, products, and services"
+                  className={`min-h-[100px] transition-all duration-200 ${
+                    errors.businessDescription 
+                      ? "border-destructive focus:border-destructive" 
+                      : "hover:border-primary/50 focus:border-primary"
+                  }`}
+                />
+                {errors.businessDescription && (
+                  <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                    {errors.businessDescription.message}
+                  </p>
+                )}
+              </div>
             </div>
+          </CardContent>
+        </Card>
 
-            <div>
-              <Label htmlFor="zipCode" className="flex items-center">
-                ZIP Code
-                <span className="text-destructive ml-1">*</span>
-              </Label>
-              <Input
-                id="zipCode"
-                {...register("companyAddress.zipCode")}
-                placeholder="12345"
-                className={errors.companyAddress?.zipCode ? "border-destructive" : ""}
-              />
-              {errors.companyAddress?.zipCode && (
-                <p className="text-sm text-destructive">{errors.companyAddress.zipCode.message}</p>
-              )}
+        <Card className="group hover:shadow-md transition-all duration-200">
+          <CardHeader>
+            <div className="flex items-center space-x-2">
+              <Building2 className="h-5 w-5 text-primary" />
+              <CardTitle>Company Address</CardTitle>
             </div>
-          </div>
-        </div>
+            <CardDescription>
+              Enter the primary business address where your company operates.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="street" className="flex items-center">
+                  Street Address
+                  <span className="text-destructive ml-1">*</span>
+                </Label>
+                <Input
+                  id="street"
+                  {...register("companyAddress.street")}
+                  placeholder="123 Business St"
+                  className={`transition-all duration-200 ${
+                    errors.companyAddress?.street 
+                      ? "border-destructive focus:border-destructive" 
+                      : "hover:border-primary/50 focus:border-primary"
+                  }`}
+                />
+                {errors.companyAddress?.street && (
+                  <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                    {errors.companyAddress.street.message}
+                  </p>
+                )}
+              </div>
 
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Customer Service Contact</h3>
-          
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="city" className="flex items-center">
+                    City
+                    <span className="text-destructive ml-1">*</span>
+                  </Label>
+                  <Input
+                    id="city"
+                    {...register("companyAddress.city")}
+                    placeholder="City"
+                    className={`transition-all duration-200 ${
+                      errors.companyAddress?.city 
+                        ? "border-destructive focus:border-destructive" 
+                        : "hover:border-primary/50 focus:border-primary"
+                    }`}
+                  />
+                  {errors.companyAddress?.city && (
+                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                      {errors.companyAddress.city.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="state" className="flex items-center">
+                    State
+                    <span className="text-destructive ml-1">*</span>
+                  </Label>
+                  <Select
+                    onValueChange={(value) => setValue("companyAddress.state", value)}
+                    defaultValue={watch("companyAddress.state")}
+                  >
+                    <SelectTrigger
+                      className={`transition-all duration-200 ${
+                        errors.companyAddress?.state 
+                          ? "border-destructive focus:border-destructive" 
+                          : "hover:border-primary/50 focus:border-primary"
+                      }`}
+                    >
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {states.map((state) => (
+                        <SelectItem key={state.value} value={state.value}>
+                          {state.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.companyAddress?.state && (
+                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                      {errors.companyAddress.state.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="zipCode" className="flex items-center">
+                    ZIP Code
+                    <span className="text-destructive ml-1">*</span>
+                  </Label>
+                  <Input
+                    id="zipCode"
+                    {...register("companyAddress.zipCode")}
+                    placeholder="12345"
+                    className={`transition-all duration-200 ${
+                      errors.companyAddress?.zipCode 
+                        ? "border-destructive focus:border-destructive" 
+                        : "hover:border-primary/50 focus:border-primary"
+                    }`}
+                  />
+                  {errors.companyAddress?.zipCode && (
+                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                      {errors.companyAddress.zipCode.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="group hover:shadow-md transition-all duration-200">
+          <CardHeader>
+            <div className="flex items-center space-x-2">
+              <Phone className="h-5 w-5 text-primary" />
+              <CardTitle>Customer Service Contact</CardTitle>
+            </div>
+            <CardDescription>
+              Provide contact information for customer support inquiries.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="customerServiceEmail" className="flex items-center">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Customer Service Email
+                  <span className="text-destructive ml-1">*</span>
+                </Label>
+                <Input
+                  id="customerServiceEmail"
+                  type="email"
+                  {...register("customerServiceEmail")}
+                  placeholder="support@yourbusiness.com"
+                  className={`transition-all duration-200 ${
+                    errors.customerServiceEmail 
+                      ? "border-destructive focus:border-destructive" 
+                      : "hover:border-primary/50 focus:border-primary"
+                  }`}
+                />
+                {errors.customerServiceEmail && (
+                  <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                    {errors.customerServiceEmail.message}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="customerServicePhone" className="flex items-center">
+                  <Phone className="h-4 w-4 mr-2" />
+                  Customer Service Phone
+                  <span className="text-destructive ml-1">*</span>
+                </Label>
+                <Input
+                  id="customerServicePhone"
+                  {...register("customerServicePhone")}
+                  placeholder="+1 (555) 555-5555"
+                  onChange={handlePhoneChange}
+                  className={`transition-all duration-200 ${
+                    errors.customerServicePhone 
+                      ? "border-destructive focus:border-destructive" 
+                      : "hover:border-primary/50 focus:border-primary"
+                  }`}
+                />
+                {errors.customerServicePhone && (
+                  <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                    {errors.customerServicePhone.message}
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="flex items-center justify-between text-sm text-muted-foreground p-4 bg-muted/50 rounded-lg">
           <div>
-            <Label htmlFor="customerServiceEmail" className="flex items-center">
-              Customer Service Email
-              <span className="text-destructive ml-1">*</span>
-            </Label>
-            <Input
-              id="customerServiceEmail"
-              type="email"
-              {...register("customerServiceEmail")}
-              placeholder="support@yourbusiness.com"
-              className={errors.customerServiceEmail ? "border-destructive" : ""}
-            />
-            {errors.customerServiceEmail && (
-              <p className="text-sm text-destructive">{errors.customerServiceEmail.message}</p>
-            )}
+            <span className="text-destructive">*</span> Required fields
           </div>
-
-          <div>
-            <Label htmlFor="customerServicePhone" className="flex items-center">
-              Customer Service Phone
-              <span className="text-destructive ml-1">*</span>
-            </Label>
-            <Input
-              id="customerServicePhone"
-              {...register("customerServicePhone")}
-              placeholder="+1 (555) 555-5555"
-              onChange={handlePhoneChange}
-              className={errors.customerServicePhone ? "border-destructive" : ""}
-            />
-            {errors.customerServicePhone && (
-              <p className="text-sm text-destructive">{errors.customerServicePhone.message}</p>
-            )}
+          <div className="text-right">
+            All information is encrypted and secure
           </div>
         </div>
-
-        <div>
-          <Label htmlFor="businessDescription" className="flex items-center">
-            Business Description
-            <span className="text-destructive ml-1">*</span>
-          </Label>
-          <Textarea
-            id="businessDescription"
-            {...register("businessDescription")}
-            placeholder="Describe your business"
-            className={errors.businessDescription ? "border-destructive" : ""}
-          />
-          {errors.businessDescription && (
-            <p className="text-sm text-destructive">{errors.businessDescription.message}</p>
-          )}
-        </div>
-      </div>
-    </form>
+      </form>
+    </TooltipProvider>
   )
 } 

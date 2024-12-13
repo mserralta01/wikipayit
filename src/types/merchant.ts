@@ -114,12 +114,6 @@ export const merchantSchema = z.object({
       const n = Number(val)
       return !isNaN(n) && n >= 0 && n <= 100
     }, "Percentage must be between 0 and 100"),
-  motoPercentage: z.string()
-    .regex(percentageRegex, "Percentage must be a number")
-    .refine((val) => {
-      const n = Number(val)
-      return !isNaN(n) && n >= 0 && n <= 100
-    }, "Percentage must be between 0 and 100"),
   beneficialOwners: z.array(beneficialOwnerSchema)
     .min(1, "At least one beneficial owner is required")
     .max(4, "Maximum of 4 beneficial owners allowed")
@@ -167,8 +161,7 @@ export const merchantSchema = z.object({
 }).refine((data) => {
   const total = 
     Number(data.cardPresentPercentage) +
-    Number(data.ecommercePercentage) +
-    Number(data.motoPercentage)
+    Number(data.ecommercePercentage)
   return total === 100
 }, {
   message: "Processing method percentages must total 100%",
