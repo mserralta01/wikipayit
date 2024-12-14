@@ -10,9 +10,11 @@ import {
   where,
   orderBy,
   Timestamp,
+  serverTimestamp,
 } from "firebase/firestore"
 import { Merchant, BeneficialOwner, Lead } from "../types/merchant"
 import { Activity } from '../types/activity'
+import { ProcessingFormData } from "../components/merchant/ProcessingHistoryStep"
 
 const getDashboardMetrics = async (): Promise<any> => {
   // Implement logic to fetch dashboard metrics
@@ -366,4 +368,47 @@ export const merchantService = {
 
   getDashboardMetrics,
   getRecentActivity,
+
+  async updateProcessingHistory(leadId: string, processingHistory: ProcessingFormData) {
+    try {
+      const merchantRef = doc(db, 'merchants', leadId);
+      
+      // Validate required fields before saving
+      const requiredFields = [
+        'isCurrentlyProcessing',
+        'monthlyVolume',
+        'averageTicket',
+        'highTicket',
+        'hasBeenTerminated',
+        'cardPresentPercentage',
+        'ecommercePercentage'
+      ] as const;
+
+      const missingFields = requiredFields.filter(
+        field => !processingHistory[field as keyof ProcessingFormData]
+      );
+
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+      }
+
+      // Format the data before saving
+      const formattedData = {
+        processingHistory: {
+          ...processingHistory,
+          monthlyVolume: Number(processingHistory.monthlyVolume),
+          averageTicket: Number(processingHistory.averageTicket),
+          highTicket: Number(processingHistory.highTicket),
+          cardPresentPercentage: Number(processingHistory.cardPresentPercentage),
+          ecommercePercentage: Number(processingHistory.ecommercePercentage),
+        },
+        updatedAt: serverTimestamp(),
+      };
+
+      await updateDoc(merchantRef, formattedData);
+    } catch (error) {
+      console.error('Error updating processing history:', error);
+      throw error;
+    }
+  },
 }

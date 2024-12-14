@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -19,31 +19,21 @@ const processingSchema = z
     currentProcessor: z.string().optional().nullable(),
     hasBeenTerminated: z.string(),
     terminationExplanation: z.string().optional().nullable(),
-    monthlyVolume: z
-      .string()
+    monthlyVolume: z.string()
       .regex(/^\d+$/, "Monthly volume must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0, "Monthly volume must be positive"),
-    averageTicket: z
-      .string()
+      .transform(Number),
+    averageTicket: z.string()
       .regex(/^\d+$/, "Average ticket must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0, "Average ticket must be positive"),
-    highTicket: z
-      .string()
+      .transform(Number),
+    highTicket: z.string()
       .regex(/^\d+$/, "High ticket must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0, "High ticket must be positive"),
-    cardPresentPercentage: z
-      .string()
+      .transform(Number),
+    cardPresentPercentage: z.string()
       .regex(/^\d+$/, "Percentage must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0 && n <= 100, "Percentage must be between 0 and 100"),
-    ecommercePercentage: z
-      .string()
+      .transform(Number),
+    ecommercePercentage: z.string()
       .regex(/^\d+$/, "Percentage must be a number")
-      .transform(Number)
-      .refine((n) => n >= 0 && n <= 100, "Percentage must be between 0 and 100"),
+      .transform(Number),
   })
   .refine(
     (data) => {
@@ -79,56 +69,115 @@ const processingSchema = z
     }
   )
 
-type ProcessingFormData = z.input<typeof processingSchema>
-type ProcessingFormDataOutput = z.output<typeof processingSchema>
-
-type ProcessingHistoryWrapper = {
-  processingHistory: ProcessingFormData
+type ProcessingFormData = {
+  isCurrentlyProcessing: string;
+  currentProcessor?: string | null;
+  hasBeenTerminated: string;
+  terminationExplanation?: string | null;
+  monthlyVolume: string;
+  averageTicket: string;
+  highTicket: string;
+  cardPresentPercentage: string;
+  ecommercePercentage: string;
 }
 
-export function ProcessingHistoryStep({
-  onSave,
-  initialData = {},
-}: {
+type ProcessingHistoryData = {
+  isCurrentlyProcessing: string;
+  currentProcessor?: string | null;
+  hasBeenTerminated: string;
+  terminationExplanation?: string | null;
+  monthlyVolume: number;
+  averageTicket: number;
+  highTicket: number;
+  cardPresentPercentage: number;
+  ecommercePercentage: number;
+  updatedAt: string;
+}
+
+type ProcessingHistoryWrapper = {
+  processingHistory: ProcessingHistoryData;
+}
+
+export type ProcessingHistoryStepProps = {
   onSave: (data: ProcessingHistoryWrapper) => Promise<void>
   initialData?: Partial<ProcessingFormData>
-}) {
-  const [serverError, setServerError] = useState<string | null>(null)
+}
 
+export type ProcessingHistoryStepHandle = {
+  submit: () => Promise<void>
+}
+
+export const ProcessingHistoryStep = forwardRef<
+  ProcessingHistoryStepHandle,
+  ProcessingHistoryStepProps
+>(function ProcessingHistoryStep({ onSave, initialData = {} }, ref) {
+  const [serverError, setServerError] = useState<string | null>(null);
+  
   const {
     register,
     handleSubmit,
-    formState: { errors },
-    setValue,
     watch,
+    trigger,
+    setValue,
+    formState: { errors },
   } = useForm<ProcessingFormData>({
     resolver: zodResolver(processingSchema),
     defaultValues: {
-      isCurrentlyProcessing: initialData.isCurrentlyProcessing || "no",
-      hasBeenTerminated: initialData.hasBeenTerminated || "no",
-      cardPresentPercentage: initialData.cardPresentPercentage || "0",
-      ecommercePercentage: initialData.ecommercePercentage || "0",
-      ...initialData,
+      isCurrentlyProcessing: initialData?.isCurrentlyProcessing || '',
+      currentProcessor: initialData?.currentProcessor || '',
+      monthlyVolume: initialData?.monthlyVolume || '',
+      averageTicket: initialData?.averageTicket || '',
+      highTicket: initialData?.highTicket || '',
+      hasBeenTerminated: initialData?.hasBeenTerminated || '',
+      terminationExplanation: initialData?.terminationExplanation || '',
+      cardPresentPercentage: initialData?.cardPresentPercentage || '',
+      ecommercePercentage: initialData?.ecommercePercentage || '',
     },
-    mode: "all",
-  })
-
-  useEffect(() => {
-    if (initialData) {
-      Object.entries(initialData).forEach(([key, value]) => {
-        setValue(key as keyof ProcessingFormData, value)
-      })
-    }
-  }, [initialData, setValue])
+  });
 
   const onSubmit = async (data: ProcessingFormData) => {
     try {
-      setServerError(null)
-      await onSave({ processingHistory: data })
+      setServerError(null);
+      
+      const processingHistoryData: ProcessingHistoryWrapper = {
+        processingHistory: {
+          isCurrentlyProcessing: data.isCurrentlyProcessing,
+          currentProcessor: data.currentProcessor,
+          hasBeenTerminated: data.hasBeenTerminated,
+          terminationExplanation: data.terminationExplanation,
+          monthlyVolume: Number(data.monthlyVolume),
+          averageTicket: Number(data.averageTicket),
+          highTicket: Number(data.highTicket),
+          cardPresentPercentage: Number(data.cardPresentPercentage),
+          ecommercePercentage: Number(data.ecommercePercentage),
+          updatedAt: new Date().toISOString(),
+        }
+      };
+
+      await onSave(processingHistoryData);
     } catch (error) {
-      setServerError("An error occurred while saving your information")
+      console.error('Error saving processing history:', error);
+      setServerError("Failed to save processing history");
+      throw error;
     }
-  }
+  };
+
+  useImperativeHandle(ref, () => ({
+    submit: async () => {
+      try {
+        const isValid = await trigger();
+        if (!isValid) {
+          const errorMessage = "Please fix all validation errors before proceeding";
+          setServerError(errorMessage);
+          throw new Error(errorMessage);
+        }
+        return handleSubmit(onSubmit)();
+      } catch (error) {
+        console.error("Submit handler error:", error);
+        throw error;
+      }
+    }
+  }));
 
   // Watch fields for conditional rendering
   const isCurrentlyProcessing = watch("isCurrentlyProcessing")
@@ -409,4 +458,4 @@ export function ProcessingHistoryStep({
       </form>
     </TooltipProvider>
   )
-}
+})

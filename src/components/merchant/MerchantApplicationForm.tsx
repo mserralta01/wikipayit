@@ -4,7 +4,7 @@ import { Button } from "../ui/button"
 import { Progress } from "../ui/progress"
 import { AuthenticationStep } from "./AuthenticationStep"
 import { BusinessInformationStep, BusinessInformationStepHandle } from "./BusinessInformationStep"
-import { ProcessingHistoryStep } from "./ProcessingHistoryStep"
+import { ProcessingHistoryStep, ProcessingHistoryStepHandle } from "./ProcessingHistoryStep"
 import { BeneficialOwnerStep } from "./BeneficialOwnerStep"
 import { DocumentationStep } from "./DocumentationStep"
 import { BankDetailsStep } from "./BankDetailsStep"
@@ -67,6 +67,7 @@ export function MerchantApplicationForm({
   const { user } = useAuth()
   const progress = (currentStep / steps.length) * 100
   const businessInfoRef = useRef<BusinessInformationStepHandle>(null)
+  const processingHistoryRef = useRef<ProcessingHistoryStepHandle>(null)
   const [formData, setFormData] = useState(initialData)
 
   useEffect(() => {
@@ -89,55 +90,51 @@ export function MerchantApplicationForm({
 
   const handleNext = async () => {
     try {
-      if (currentStep === 2) {
-        console.log("Submitting business info step...");
-        if (businessInfoRef.current) {
-          await businessInfoRef.current.submit();
-          console.log("Business info submitted successfully");
-        }
-      }
-      let stepData
       switch (currentStep) {
         case 2: // Business Information Step
           if (businessInfoRef.current) {
+            await businessInfoRef.current.submit();
+            const nextStep = currentStep + 1;
+            onStepChange(nextStep);
+          }
+          return;
+        
+        case 3: // Processing History Step
+          if (processingHistoryRef.current) {
             try {
-              await businessInfoRef.current.submit()
-              const nextStep = currentStep + 1
-              onStepChange(nextStep)
+              await processingHistoryRef.current.submit();
+              const nextStep = currentStep + 1;
+              onStepChange(nextStep);
             } catch (error) {
-              console.error('Error submitting business information:', error)
-              return
+              console.error('Error submitting processing history:', error);
+              return;
             }
           }
-          return
-        case 1:
-          stepData = formData // Authentication step
-          break
-        case 3:
-          stepData = formData.processingHistory || {}
-          break
-        case 4:
-          stepData = formData.beneficialOwners || {}
-          break
-        case 5:
-          stepData = formData.bankDetails || {}
-          break
-        case 6:
-          stepData = formData.documentation || {}
-          break
+          return;
+
+        case 4: // Beneficial Owners Step
+          // Add similar handling for beneficial owners step
+          const beneficialOwnersData = {
+            beneficialOwners: {
+              ...formData.beneficialOwners,
+              updatedAt: new Date().toISOString(),
+            }
+          };
+          await handleStepSubmit(beneficialOwnersData);
+          const nextStep = currentStep + 1;
+          onStepChange(nextStep);
+          return;
+
+        // ... other cases
       }
 
-      // Save current step data before moving to next
-      if (stepData) {
-        await handleStepSubmit(stepData)
-      } else {
-        const nextStep = currentStep + 1
-        onStepChange(nextStep)
-      }
+      // Move to next step
+      const nextStep = currentStep + 1;
+      onStepChange(nextStep);
     } catch (error) {
-      console.error('Error handling next step:', error)
+      console.error('Error handling next step:', error);
     }
-  }
+  };
 
   const handleStepClick = (stepId: number) => {
     if (user && formData.email) {
@@ -158,7 +155,7 @@ export function MerchantApplicationForm({
       case 2:
         return <BusinessInformationStep {...stepProps} ref={businessInfoRef} />
       case 3:
-        return <ProcessingHistoryStep {...stepProps} />
+        return <ProcessingHistoryStep {...stepProps} ref={processingHistoryRef} />
       case 4:
         return <BeneficialOwnerStep {...stepProps} leadId={leadId} />
       case 5:
