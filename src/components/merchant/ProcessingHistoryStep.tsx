@@ -100,7 +100,21 @@ type ProcessingHistoryWrapper = {
 
 export type ProcessingHistoryStepProps = {
   onSave: (data: ProcessingHistoryWrapper) => Promise<void>
-  initialData?: Partial<ProcessingFormData>
+  initialData?: {
+    processingHistory?: {
+      isCurrentlyProcessing: string;
+      currentProcessor?: string | null;
+      hasBeenTerminated: string;
+      terminationExplanation?: string | null;
+      monthlyVolume: number;
+      averageTicket: number;
+      highTicket: number;
+      cardPresentPercentage: number;
+      ecommercePercentage: number;
+      updatedAt?: string;
+    }
+  }
+  leadId?: string
 }
 
 export type ProcessingHistoryStepHandle = {
@@ -113,6 +127,12 @@ export const ProcessingHistoryStep = forwardRef<
 >(function ProcessingHistoryStep({ onSave, initialData = {} }, ref) {
   const [serverError, setServerError] = useState<string | null>(null);
   
+  // Convert numeric values to strings for form inputs
+  const getInitialValue = (value: string | number | undefined) => {
+    if (value === undefined || value === null) return ''
+    return value.toString()
+  }
+  
   const {
     register,
     handleSubmit,
@@ -123,17 +143,33 @@ export const ProcessingHistoryStep = forwardRef<
   } = useForm<ProcessingFormData>({
     resolver: zodResolver(processingSchema),
     defaultValues: {
-      isCurrentlyProcessing: initialData?.isCurrentlyProcessing || '',
-      currentProcessor: initialData?.currentProcessor || '',
-      monthlyVolume: initialData?.monthlyVolume || '',
-      averageTicket: initialData?.averageTicket || '',
-      highTicket: initialData?.highTicket || '',
-      hasBeenTerminated: initialData?.hasBeenTerminated || '',
-      terminationExplanation: initialData?.terminationExplanation || '',
-      cardPresentPercentage: initialData?.cardPresentPercentage || '',
-      ecommercePercentage: initialData?.ecommercePercentage || '',
+      isCurrentlyProcessing: initialData?.processingHistory?.isCurrentlyProcessing || '',
+      currentProcessor: initialData?.processingHistory?.currentProcessor || '',
+      monthlyVolume: getInitialValue(initialData?.processingHistory?.monthlyVolume),
+      averageTicket: getInitialValue(initialData?.processingHistory?.averageTicket),
+      highTicket: getInitialValue(initialData?.processingHistory?.highTicket),
+      hasBeenTerminated: initialData?.processingHistory?.hasBeenTerminated || '',
+      terminationExplanation: initialData?.processingHistory?.terminationExplanation || '',
+      cardPresentPercentage: getInitialValue(initialData?.processingHistory?.cardPresentPercentage),
+      ecommercePercentage: getInitialValue(initialData?.processingHistory?.ecommercePercentage),
     },
   });
+
+  // Update form values when initialData changes
+  useEffect(() => {
+    if (initialData?.processingHistory) {
+      const data = initialData.processingHistory;
+      setValue('isCurrentlyProcessing', data.isCurrentlyProcessing || '');
+      setValue('currentProcessor', data.currentProcessor || '');
+      setValue('monthlyVolume', getInitialValue(data.monthlyVolume));
+      setValue('averageTicket', getInitialValue(data.averageTicket));
+      setValue('highTicket', getInitialValue(data.highTicket));
+      setValue('hasBeenTerminated', data.hasBeenTerminated || '');
+      setValue('terminationExplanation', data.terminationExplanation || '');
+      setValue('cardPresentPercentage', getInitialValue(data.cardPresentPercentage));
+      setValue('ecommercePercentage', getInitialValue(data.ecommercePercentage));
+    }
+  }, [initialData, setValue]);
 
   const onSubmit = async (data: ProcessingFormData) => {
     try {

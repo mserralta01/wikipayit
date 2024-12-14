@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 import { MerchantApplicationForm } from "../components/merchant/MerchantApplicationForm"
+import { ProcessingHistoryStep, ProcessingHistoryStepHandle } from "../components/merchant/ProcessingHistoryStep"
 import { merchantService } from "../services/merchantService"
 
 type ApplicationState = {
@@ -27,6 +28,7 @@ export function MerchantApplicationPage() {
     currentStep: STEPS.AUTHENTICATION,
     formData: {},
   })
+  const processingHistoryRef = useRef<ProcessingHistoryStepHandle>(null)
 
   // Load application data whenever the step changes or user changes
   useEffect(() => {
