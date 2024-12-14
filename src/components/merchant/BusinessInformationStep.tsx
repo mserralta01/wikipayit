@@ -1,6 +1,6 @@
 import { useState, useEffect, useImperativeHandle, forwardRef } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, UseFormRegister } from "react-hook-form"
 import * as z from "zod"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -78,7 +78,74 @@ const states = [
   { value: "WY", label: "Wyoming" },
 ]
 
+// Add type for business types
+type BusinessType = "sole_proprietorship" | "llc" | "corporation" | "partnership" | "non_profit"
+
+// Update the BUSINESS_TYPES constant with proper typing
+const BUSINESS_TYPES: { value: BusinessType; label: string }[] = [
+  { value: "sole_proprietorship", label: "Sole Proprietorship" },
+  { value: "llc", label: "Limited Liability Company (LLC)" },
+  { value: "corporation", label: "Corporation" },
+  { value: "partnership", label: "Partnership" },
+  { value: "non_profit", label: "Non-Profit Organization" },
+] as const;
+
 type BusinessFormData = z.infer<typeof merchantSchema>
+
+// Add this type for just the business information fields
+type BusinessInfoFields = Pick<BusinessFormData, 
+  | 'businessName'
+  | 'businessType'
+  | 'businessDescription'
+  | 'taxId'
+  | 'yearEstablished'
+  | 'website'
+  | 'customerServiceEmail'
+  | 'customerServicePhone'
+  | 'companyAddress'
+  | 'dba'
+>;
+
+// Create a specific schema for just the business information step
+const businessInfoSchema = z.object({
+  businessName: z.string()
+    .min(2, "Business name must be at least 2 characters")
+    .max(100, "Business name must be less than 100 characters"),
+  businessType: z.enum([
+    "sole_proprietorship",
+    "llc",
+    "corporation",
+    "partnership",
+    "non_profit",
+  ], { required_error: "Please select a business type" }),
+  businessDescription: z.string()
+    .min(10, "Business description must be at least 10 characters")
+    .max(500, "Business description must be less than 500 characters"),
+  taxId: z.string()
+    .regex(/^\d{2}-\d{7}$/, "Tax ID must be in format XX-XXXXXXX"),
+  yearEstablished: z.string()
+    .regex(/^\d{4}$/, "Year must be in YYYY format")
+    .refine((year) => {
+      const yearNum = parseInt(year)
+      const currentYear = new Date().getFullYear()
+      return yearNum >= 1900 && yearNum <= currentYear
+    }, "Please enter a valid year between 1900 and current year"),
+  website: z.string()
+    .url("Must be a valid URL")
+    .optional()
+    .nullable(),
+  customerServiceEmail: z.string()
+    .email("Invalid customer service email address"),
+  customerServicePhone: z.string()
+    .regex(/^\(\d{3}\) \d{3}-\d{4}$/, "Customer service phone must be in format: (XXX) XXX-XXXX"),
+  companyAddress: z.object({
+    street: z.string().min(1, "Street address is required"),
+    city: z.string().min(1, "City is required"),
+    state: z.string().length(2, "State must be a 2-letter code"),
+    zipCode: z.string().regex(/^\d{5}(-\d{4})?$/, "ZIP code must be in format: XXXXX or XXXXX-XXXX")
+  }),
+  dba: z.string().optional(),
+});
 
 export type BusinessInformationStepHandle = {
   submit: () => Promise<void>
@@ -96,56 +163,199 @@ export const BusinessInformationStep = forwardRef<
 >(function BusinessInformationStep(
   { onSave, initialData = {}, onSubmit: parentSubmit },
   ref
-) {
+): JSX.Element {
   const [serverError, setServerError] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isValid, isDirty },
     setValue,
     watch,
-  } = useForm<BusinessFormData>({
-    resolver: zodResolver(merchantSchema),
+    trigger,
+  } = useForm<BusinessInfoFields>({
+    resolver: zodResolver(businessInfoSchema),
     defaultValues: {
-      ...initialData,
+      businessName: initialData?.businessName || '',
+      businessType: initialData?.businessType,
+      businessDescription: initialData?.businessDescription || '',
+      taxId: initialData?.taxId || '',
+      yearEstablished: initialData?.yearEstablished || '',
+      website: initialData?.website || '',
+      customerServiceEmail: initialData?.customerServiceEmail || '',
+      customerServicePhone: initialData?.customerServicePhone || '',
+      companyAddress: initialData?.companyAddress || {
+        street: '',
+        city: '',
+        state: '',
+        zipCode: ''
+      },
+      dba: initialData?.dba || '',
     },
+    mode: "onBlur",
   })
-
-  const onSubmit = async (data: BusinessFormData) => {
-    try {
-      console.log('Submitting form data:', data)
-      console.log('Form errors:', errors)
-      setServerError(null)
-      await onSave(data)
-      if (parentSubmit) {
-        parentSubmit()
-      }
-    } catch (error) {
-      console.error('Submission error:', error)
-      setServerError("An error occurred while saving your information")
-    }
-  }
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '') // Strip non-digits
-    const formattedValue = formatPhoneNumber(value)
-    setValue("customerServicePhone", formattedValue, { 
-      shouldValidate: true,
-      shouldDirty: true 
-    })
-  }
 
   useEffect(() => {
     const subscription = watch((value, { name, type }) => 
-      console.log('Field changed:', name, 'New value:', value, 'Type:', type)
+      console.log('Form value changed:', name, value)
     )
     return () => subscription.unsubscribe()
   }, [watch])
 
+  const getNestedValue = (obj: any, path: string) => {
+    return path.split('.').reduce((acc, part) => acc?.[part], obj);
+  };
+
+  useEffect(() => {
+    // Debug check for required fields
+    const requiredFields = [
+      'businessName',
+      'businessType',
+      'businessDescription',
+      'taxId',
+      'yearEstablished',
+      'customerServiceEmail',
+      'customerServicePhone',
+      'companyAddress.street',
+      'companyAddress.city',
+      'companyAddress.state',
+      'companyAddress.zipCode'
+    ] as const;
+    
+    const formValues = watch();
+    const missingFields = requiredFields.filter(field => {
+      const value = field.includes('.')
+        ? getNestedValue(formValues, field)
+        : (formValues as any)[field];
+      return !value;
+    });
+    
+    if (missingFields.length > 0) {
+      console.log('Missing required fields:', missingFields);
+    }
+  }, [watch]);
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '')
+    const formattedValue = formatPhoneNumber(value)
+    setValue("customerServicePhone", formattedValue, { 
+      shouldValidate: false // Don't validate immediately while typing
+    })
+  }
+
+  const handleTaxIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '')
+    if (value.length <= 9) {
+      const formattedValue = value.length > 2 
+        ? `${value.slice(0, 2)}-${value.slice(2)}`
+        : value
+      setValue("taxId", formattedValue, { 
+        shouldValidate: false
+      })
+    }
+  }
+
+  const onSubmit = async (data: BusinessInfoFields) => {
+    try {
+      setIsSubmitting(true);
+      setServerError(null);
+      
+      const isFormValid = await trigger();
+      if (!isFormValid) {
+        setServerError("Please fix all validation errors before proceeding");
+        return;
+      }
+
+      // Only pass the business info fields to onSave
+      await onSave(data as BusinessFormData);
+      if (parentSubmit) {
+        parentSubmit();
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      setServerError("An error occurred while saving your information");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const validateRequiredFields = () => {
+    const formValues = watch();
+    const requiredFields = {
+      businessName: "Business Legal Name",
+      businessType: "Business Type",
+      businessDescription: "Business Description",
+      taxId: "Tax ID (EIN)",
+      yearEstablished: "Year Established",
+      customerServiceEmail: "Customer Service Email",
+      customerServicePhone: "Customer Service Phone",
+      'companyAddress.street': "Street Address",
+      'companyAddress.city': "City",
+      'companyAddress.state': "State",
+      'companyAddress.zipCode': "ZIP Code"
+    } as const;
+
+    // Update the type signature to be more specific
+    const getFieldValue = (obj: BusinessInfoFields, path: keyof typeof requiredFields): unknown => {
+      if (path.includes('.')) {
+        const [parent, child] = path.split('.');
+        if (parent === 'companyAddress') {
+          return obj.companyAddress?.[child as keyof typeof obj.companyAddress];
+        }
+        return undefined;
+      }
+      return obj[path as keyof BusinessInfoFields];
+    };
+
+    const missingFields = Object.entries(requiredFields).filter(([field]) => {
+      const value = getFieldValue(formValues, field as keyof typeof requiredFields);
+      return !value;
+    });
+
+    if (missingFields.length > 0) {
+      console.error(
+        "Missing required fields:", 
+        missingFields.map(([_, label]) => label).join(", ")
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   useImperativeHandle(ref, () => ({
-    submit: () => handleSubmit(onSubmit)()
-  }))
+    submit: async () => {
+      // First check required fields
+      if (!validateRequiredFields()) {
+        const errorMessage = "Please fill in all required fields";
+        setServerError(errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      // Then validate with zod schema
+      const isFormValid = await trigger();
+      if (!isFormValid) {
+        const errorMessages = Object.entries(errors)
+          .map(([field, error]) => `${field}: ${error?.message}`)
+          .join('\n');
+        
+        setServerError(`Please fix the following errors:\n${errorMessages}`);
+        throw new Error("Form validation failed");
+      }
+
+      try {
+        return await handleSubmit(onSubmit)();
+      } catch (error) {
+        console.error("Submit handler error:", error);
+        throw error;
+      }
+    }
+  }));
+
+  const formValues = watch()
+  console.log('Current form values:', formValues)
+  console.log('Current form errors:', errors)
 
   return (
     <TooltipProvider>
@@ -216,7 +426,7 @@ export const BusinessInformationStep = forwardRef<
                   </div>
                   <Input
                     id="dba"
-                    {...register("dba")}
+                    {...(register("dba") as any)}
                     placeholder="Doing Business As"
                     className="hover:border-primary/50 focus:border-primary transition-all duration-200"
                   />
@@ -225,8 +435,8 @@ export const BusinessInformationStep = forwardRef<
 
               <div className="grid gap-2">
                 <div className="flex items-center space-x-2">
-                  <Label htmlFor="businessDescription" className="flex items-center">
-                    Business Description
+                  <Label htmlFor="businessType" className="flex items-center">
+                    Business Type
                     <span className="text-destructive ml-1">*</span>
                   </Label>
                   <Tooltip>
@@ -234,25 +444,168 @@ export const BusinessInformationStep = forwardRef<
                       <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Describe your main business activities and services</p>
+                      <p>Select your business's legal structure</p>
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                <Textarea
-                  id="businessDescription"
-                  {...register("businessDescription")}
-                  placeholder="Describe your business operations, products, and services"
-                  className={`min-h-[100px] transition-all duration-200 ${
-                    errors.businessDescription 
-                      ? "border-destructive focus:border-destructive" 
-                      : "hover:border-primary/50 focus:border-primary"
-                  }`}
-                />
-                {errors.businessDescription && (
+                <Select
+                  onValueChange={(value: BusinessType) => setValue("businessType", value)}
+                  defaultValue={watch("businessType")}
+                >
+                  <SelectTrigger
+                    className={`transition-all duration-200 ${
+                      errors.businessType 
+                        ? "border-destructive focus:border-destructive" 
+                        : "hover:border-primary/50 focus:border-primary"
+                    }`}
+                  >
+                    <SelectValue placeholder="Select business type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BUSINESS_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.businessType && (
                   <p className="text-sm text-destructive animate-in slide-in-from-left-1">
-                    {errors.businessDescription.message}
+                    {errors.businessType.message}
                   </p>
                 )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="taxId" className="flex items-center">
+                      Tax ID (EIN)
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Enter your 9-digit Employer Identification Number (XX-XXXXXXX)</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    id="taxId"
+                    {...(register("taxId") as any)}
+                    placeholder="XX-XXXXXXX"
+                    onChange={handleTaxIdChange}
+                    className={`transition-all duration-200 ${
+                      errors.taxId 
+                        ? "border-destructive focus:border-destructive" 
+                        : "hover:border-primary/50 focus:border-primary"
+                    }`}
+                  />
+                  {errors.taxId && (
+                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                      {errors.taxId.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="yearEstablished" className="flex items-center">
+                      Year Established
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Enter the year your business was established (YYYY)</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    id="yearEstablished"
+                    {...(register("yearEstablished") as any)}
+                    placeholder="YYYY"
+                    maxLength={4}
+                    className={`transition-all duration-200 ${
+                      errors.yearEstablished 
+                        ? "border-destructive focus:border-destructive" 
+                        : "hover:border-primary/50 focus:border-primary"
+                    }`}
+                  />
+                  {errors.yearEstablished && (
+                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                      {errors.yearEstablished.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="website">Website (Optional)</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Enter your business website URL (if available)</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Input
+                    id="website"
+                    type="url"
+                    {...(register("website") as any)}
+                    placeholder="https://www.example.com"
+                    className={`transition-all duration-200 ${
+                      errors.website 
+                        ? "border-destructive focus:border-destructive" 
+                        : "hover:border-primary/50 focus:border-primary"
+                    }`}
+                  />
+                  {errors.website && (
+                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                      {errors.website.message}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="businessDescription" className="flex items-center">
+                      Business Description
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Describe your main business activities and services</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <Textarea
+                    id="businessDescription"
+                    {...register("businessDescription")}
+                    placeholder="Describe your business operations, products, and services"
+                    className={`min-h-[100px] transition-all duration-200 ${
+                      errors.businessDescription 
+                        ? "border-destructive focus:border-destructive" 
+                        : "hover:border-primary/50 focus:border-primary"
+                    }`}
+                  />
+                  {errors.businessDescription && (
+                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                      {errors.businessDescription.message}
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -418,11 +771,17 @@ export const BusinessInformationStep = forwardRef<
                 </Label>
                 <Input
                   id="customerServicePhone"
-                  placeholder="+1 (555) 555-5555"
+                  type="tel"
+                  placeholder="(555) 555-5555"
                   {...register("customerServicePhone")}
                   onChange={handlePhoneChange}
-                  maxLength={17} // +1 (XXX) XXX-XXXX
-                  className={errors.customerServicePhone ? "border-destructive" : ""}
+                  onBlur={() => trigger("customerServicePhone")} // Validate on blur
+                  className={`transition-all duration-200 ${
+                    errors.customerServicePhone 
+                      ? "border-destructive focus:border-destructive" 
+                      : "hover:border-primary/50 focus:border-primary"
+                  }`}
+                  disabled={isSubmitting}
                 />
                 {errors.customerServicePhone && (
                   <p className="text-sm text-destructive animate-in slide-in-from-left-1">
@@ -445,4 +804,6 @@ export const BusinessInformationStep = forwardRef<
       </form>
     </TooltipProvider>
   )
-}) 
+})
+
+BusinessInformationStep.displayName = "BusinessInformationStep" 

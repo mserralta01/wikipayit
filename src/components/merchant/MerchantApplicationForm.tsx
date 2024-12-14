@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Progress } from "../ui/progress"
@@ -67,9 +67,19 @@ export function MerchantApplicationForm({
   const { user } = useAuth()
   const progress = (currentStep / steps.length) * 100
   const businessInfoRef = useRef<BusinessInformationStepHandle>(null)
+  const [formData, setFormData] = useState(initialData)
 
-  const handleStepSubmit = (stepData: any) => {
-    onStepComplete(stepData, currentStep)
+  useEffect(() => {
+    setFormData(initialData)
+  }, [initialData])
+
+  const handleStepSubmit = async (stepData: any) => {
+    const updatedData = {
+      ...formData,
+      ...stepData,
+    }
+    setFormData(updatedData)
+    await onStepComplete(stepData, currentStep)
   }
 
   const handlePrevious = () => {
@@ -78,25 +88,59 @@ export function MerchantApplicationForm({
   }
 
   const handleNext = async () => {
-    if (currentStep === 2) {
-      try {
-        // Business Information Step
-        await businessInfoRef.current?.submit()
+    try {
+      if (currentStep === 2) {
+        console.log("Submitting business info step...");
+        if (businessInfoRef.current) {
+          await businessInfoRef.current.submit();
+          console.log("Business info submitted successfully");
+        }
+      }
+      let stepData
+      switch (currentStep) {
+        case 2: // Business Information Step
+          if (businessInfoRef.current) {
+            try {
+              await businessInfoRef.current.submit()
+              const nextStep = currentStep + 1
+              onStepChange(nextStep)
+            } catch (error) {
+              console.error('Error submitting business information:', error)
+              return
+            }
+          }
+          return
+        case 1:
+          stepData = formData // Authentication step
+          break
+        case 3:
+          stepData = formData.processingHistory || {}
+          break
+        case 4:
+          stepData = formData.beneficialOwners || {}
+          break
+        case 5:
+          stepData = formData.bankDetails || {}
+          break
+        case 6:
+          stepData = formData.documentation || {}
+          break
+      }
+
+      // Save current step data before moving to next
+      if (stepData) {
+        await handleStepSubmit(stepData)
+      } else {
         const nextStep = currentStep + 1
         onStepChange(nextStep)
-      } catch (error) {
-        console.error('Error submitting business information:', error)
       }
-    } else {
-      // Handle other steps
-      const nextStep = currentStep + 1
-      onStepChange(nextStep)
+    } catch (error) {
+      console.error('Error handling next step:', error)
     }
   }
 
   const handleStepClick = (stepId: number) => {
-    // Allow navigation to any step if user is authenticated and has completed authentication step
-    if (user && initialData.email) {
+    if (user && formData.email) {
       onStepChange(stepId)
     }
   }
@@ -104,7 +148,8 @@ export function MerchantApplicationForm({
   const renderStep = () => {
     const stepProps = {
       onSave: handleStepSubmit,
-      initialData,
+      initialData: formData,
+      leadId,
     }
 
     switch (currentStep) {
@@ -131,10 +176,9 @@ export function MerchantApplicationForm({
     }
   }
 
-  // Check if step is accessible
   const isStepAccessible = (stepId: number) => {
-    if (stepId === 1) return true // Authentication step is always accessible
-    return user && initialData.email // Other steps require authentication
+    if (stepId === 1) return true
+    return user && formData.email
   }
 
   return (

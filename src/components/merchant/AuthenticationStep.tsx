@@ -7,26 +7,46 @@ import { GoogleAuthProvider, signInWithPopup, signInWithEmailLink, sendSignInLin
 import { useAuth } from "../../contexts/AuthContext"
 
 type AuthenticationStepProps = {
-  onSave: (data: { email: string }) => void
+  onSave: (data: { email: string, firstName: string, lastName: string }) => void
   initialData?: { email?: string }
 }
 
 export function AuthenticationStep({ onSave, initialData }: AuthenticationStepProps) {
   const { user } = useAuth()
-  const [email, setEmail] = useState(initialData?.email || "")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [emailInput, setEmailInput] = useState(initialData?.email || user?.email || "")
 
-  // If user is already authenticated, proceed with their email
+  // If user is already authenticated, proceed with their email and name
   useEffect(() => {
     if (user?.email && !initialData?.email) {
-      // Small delay to ensure Firebase auth state is fully updated
       const timer = setTimeout(() => {
-        onSave({ email: user.email! })
+        onSave({
+          email: user.email!,
+          firstName: user.displayName?.split(' ')[0] || '',
+          lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+        })
       }, 500)
       return () => clearTimeout(timer)
     }
   }, [user, initialData, onSave])
+
+  // Update emailInput when user changes
+  useEffect(() => {
+    if (user?.email) {
+      setEmailInput(user.email)
+    }
+  }, [user?.email])
+
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newEmail = e.target.value
+    setEmailInput(newEmail)
+    onSave({
+      email: newEmail,
+      firstName: user?.displayName?.split(' ')[0] || '',
+      lastName: user?.displayName?.split(' ').slice(1).join(' ') || '',
+    })
+  }
 
   const handleGoogleSignIn = async () => {
     try {
@@ -34,25 +54,30 @@ export function AuthenticationStep({ onSave, initialData }: AuthenticationStepPr
       setError("")
       const provider = new GoogleAuthProvider()
       
-      // Configure custom parameters for Google sign-in
       provider.setCustomParameters({
         prompt: 'select_account'
       })
 
       const result = await signInWithPopup(auth, provider)
       
-      // Wait a bit for auth state to update
-      setTimeout(() => {
-        if (result.user?.email) {
-          onSave({ email: result.user.email })
-        }
-      }, 500)
+      if (result.user?.email) {
+        const names = result.user.displayName?.split(' ') || []
+        onSave({
+          email: result.user.email,
+          firstName: names[0] || '',
+          lastName: names.slice(1).join(' ') || '',
+        })
+      }
       
     } catch (err: any) {
-      // Ignore the COOP warning as it doesn't affect functionality
       if (err.message?.includes('Cross-Origin-Opener-Policy')) {
         if (auth.currentUser?.email) {
-          onSave({ email: auth.currentUser.email })
+          const names = auth.currentUser.displayName?.split(' ') || []
+          onSave({
+            email: auth.currentUser.email,
+            firstName: names[0] || '',
+            lastName: names.slice(1).join(' ') || '',
+          })
           return
         }
       }
@@ -65,7 +90,7 @@ export function AuthenticationStep({ onSave, initialData }: AuthenticationStepPr
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email) {
+    if (!user?.email) {
       setError("Please enter an email address")
       return
     }
@@ -79,9 +104,13 @@ export function AuthenticationStep({ onSave, initialData }: AuthenticationStepPr
         handleCodeInApp: true,
       }
 
-      await sendSignInLinkToEmail(auth, email, actionCodeSettings)
-      window.localStorage.setItem("emailForSignIn", email)
-      onSave({ email })
+      await sendSignInLinkToEmail(auth, user.email, actionCodeSettings)
+      window.localStorage.setItem("emailForSignIn", user.email)
+      onSave({
+        email: user.email,
+        firstName: user.displayName?.split(' ')[0] || '',
+        lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+      })
     } catch (err) {
       setError("Failed to send email link. Please try again.")
       console.error(err)
@@ -142,8 +171,8 @@ export function AuthenticationStep({ onSave, initialData }: AuthenticationStepPr
             id="email"
             type="email"
             placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={emailInput}
+            onChange={handleEmailChange}
             disabled={loading}
           />
         </div>

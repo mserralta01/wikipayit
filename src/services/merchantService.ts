@@ -31,18 +31,29 @@ const getRecentActivity = async (): Promise<Activity[]> => {
 };
 
 export const merchantService = {
-  async createLead(email: string): Promise<string> {
+  async createLead(email: string, additionalData: { firstName?: string; lastName?: string } = {}) {
     try {
       const leadsRef = collection(db, "leads")
-      const docRef = await addDoc(leadsRef, {
+      const leadData = {
         email,
-        status: "started",
-        pipelineStatus: "lead",
+        formData: {
+          email,
+          firstName: additionalData.firstName || '',
+          lastName: additionalData.lastName || '',
+        },
         currentStep: 1,
-        formData: { email },
+        status: "started",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-      })
+      }
+      
+      // Check if lead already exists before creating
+      const existingLead = await this.getLeadByEmail(email)
+      if (existingLead) {
+        return existingLead.id
+      }
+      
+      const docRef = await addDoc(leadsRef, leadData)
       return docRef.id
     } catch (error) {
       console.error("Error creating lead:", error)
@@ -59,50 +70,6 @@ export const merchantService = {
       })
     } catch (error) {
       console.error("Error updating lead:", error)
-      throw error
-    }
-  },
-
-  async saveApplicationStep(
-    leadId: string, 
-    stepData: any, 
-    stepNumber: number, 
-    stepName: string
-  ): Promise<void> {
-    try {
-      const leadRef = doc(db, "leads", leadId)
-      const leadDoc = await getDoc(leadRef)
-      
-      if (!leadDoc.exists()) {
-        throw new Error("Lead not found")
-      }
-
-      const currentData = leadDoc.data()
-      const updatedFormData = {
-        ...currentData.formData,
-        [stepName]: stepData,
-      }
-
-      await updateDoc(leadRef, {
-        formData: updatedFormData,
-        currentStep: stepNumber,
-        lastCompletedStep: stepNumber,
-        updatedAt: Timestamp.now(),
-        [`stepCompletionDates.${stepName}`]: Timestamp.now(),
-      })
-
-      // Log activity
-      const activitiesRef = collection(db, "activities")
-      await addDoc(activitiesRef, {
-        leadId,
-        type: "step_completion",
-        stepName,
-        stepNumber,
-        timestamp: Timestamp.now(),
-        details: `Completed ${stepName} step`,
-      })
-    } catch (error) {
-      console.error("Error saving application step:", error)
       throw error
     }
   },

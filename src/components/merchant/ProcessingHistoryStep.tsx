@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -82,15 +82,17 @@ const processingSchema = z
 type ProcessingFormData = z.input<typeof processingSchema>
 type ProcessingFormDataOutput = z.output<typeof processingSchema>
 
-export type ProcessingHistoryStepProps = {
-  onSave: (data: ProcessingFormDataOutput) => void
-  initialData?: Partial<ProcessingFormData>
+type ProcessingHistoryWrapper = {
+  processingHistory: ProcessingFormData
 }
 
 export function ProcessingHistoryStep({
   onSave,
   initialData = {},
-}: ProcessingHistoryStepProps) {
+}: {
+  onSave: (data: ProcessingHistoryWrapper) => Promise<void>
+  initialData?: Partial<ProcessingFormData>
+}) {
   const [serverError, setServerError] = useState<string | null>(null)
 
   const {
@@ -102,14 +104,31 @@ export function ProcessingHistoryStep({
   } = useForm<ProcessingFormData>({
     resolver: zodResolver(processingSchema),
     defaultValues: {
-      isCurrentlyProcessing: "no",
-      hasBeenTerminated: "no",
-      cardPresentPercentage: "0",
-      ecommercePercentage: "0",
+      isCurrentlyProcessing: initialData.isCurrentlyProcessing || "no",
+      hasBeenTerminated: initialData.hasBeenTerminated || "no",
+      cardPresentPercentage: initialData.cardPresentPercentage || "0",
+      ecommercePercentage: initialData.ecommercePercentage || "0",
       ...initialData,
     },
     mode: "all",
   })
+
+  useEffect(() => {
+    if (initialData) {
+      Object.entries(initialData).forEach(([key, value]) => {
+        setValue(key as keyof ProcessingFormData, value)
+      })
+    }
+  }, [initialData, setValue])
+
+  const onSubmit = async (data: ProcessingFormData) => {
+    try {
+      setServerError(null)
+      await onSave({ processingHistory: data })
+    } catch (error) {
+      setServerError("An error occurred while saving your information")
+    }
+  }
 
   // Watch fields for conditional rendering
   const isCurrentlyProcessing = watch("isCurrentlyProcessing")
@@ -137,15 +156,6 @@ export function ProcessingHistoryStep({
   // Handle focus to select all text
   const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
     e.target.select()
-  }
-
-  const onSubmit = async (data: ProcessingFormData) => {
-    try {
-      setServerError(null)
-      onSave(data as unknown as ProcessingFormDataOutput)
-    } catch (error) {
-      setServerError("An error occurred while saving your information")
-    }
   }
 
   return (

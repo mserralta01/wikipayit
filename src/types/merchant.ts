@@ -1,7 +1,7 @@
 import * as z from "zod"
 import { ReactNode } from 'react';
 
-const phoneRegex = /^\+1 \(\d{3}\) \d{3}-\d{4}$/
+const phoneRegex = /^\(\d{3}\) \d{3}-\d{4}$/
 const ssnRegex = /^\d{3}-\d{2}-\d{4}$/
 const percentageRegex = /^\d+$/
 const taxIdRegex = /^\d{2}-\d{7}$/
@@ -19,7 +19,7 @@ export const beneficialOwnerSchema = z.object({
       return !isNaN(n) && n > 0 && n <= 100
     }, "Percentage must be between 0 and 100"),
   email: z.string().email("Invalid email address"),
-  phone: z.string().regex(phoneRegex, "Phone must be in format: +1 (XXX) XXX-XXXX"),
+  phone: z.string().regex(phoneRegex, "Phone must be in format: (XXX) XXX-XXXX"),
   address: z.string().min(1, "Address is required"),
   city: z.string().min(1, "City is required"),
   state: z.string().min(2, "State is required"),
@@ -45,9 +45,9 @@ export const bankDetailsSchema = z.object({
 export const merchantSchema = z.object({
   id: z.string().optional(),
   email: z.string().email("Invalid email address"),
-  phone: z.string().regex(phoneRegex, "Phone must be in format: +1 (XXX) XXX-XXXX").optional(),
+  phone: z.string().regex(phoneRegex, "Phone must be in format: (XXX) XXX-XXXX").optional(),
   customerServiceEmail: z.string().email("Invalid customer service email address"),
-  customerServicePhone: z.string().regex(phoneRegex, "Customer service phone must be in format: +1 (XXX) XXX-XXXX"),
+  customerServicePhone: z.string().regex(phoneRegex, "Customer service phone must be in format: (XXX) XXX-XXXX"),
   companyAddress: z.object({
     street: z.string().min(1, "Street address is required"),
     city: z.string().min(1, "City is required"),

@@ -3,8 +3,6 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 import { MerchantApplicationForm } from "../components/merchant/MerchantApplicationForm"
 import { merchantService } from "../services/merchantService"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
 
 type ApplicationState = {
   leadId?: string
@@ -21,31 +19,20 @@ const STEPS = {
   BANK_DETAILS: 6,
 }
 
-const STEP_NAMES = {
-  [STEPS.AUTHENTICATION]: "authentication",
-  [STEPS.BUSINESS_INFO]: "businessInfo",
-  [STEPS.PROCESSING_HISTORY]: "processingHistory",
-  [STEPS.BENEFICIAL_OWNERS]: "beneficialOwners",
-  [STEPS.DOCUMENTATION]: "documentation",
-  [STEPS.BANK_DETAILS]: "bankDetails",
-}
-
 export function MerchantApplicationPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [applicationState, setApplicationState] = useState<ApplicationState>({
     currentStep: STEPS.AUTHENTICATION,
     formData: {},
   })
 
-  // Try to load existing application data
+  // Load application data whenever the step changes or user changes
   useEffect(() => {
-    const loadExistingApplication = async () => {
+    const loadApplicationData = async () => {
       try {
-        setError(null)
-        // If user is authenticated, try to find or create a lead
+        setLoading(true)
         if (user?.email) {
           const lead = await merchantService.getLeadByEmail(user.email)
           if (lead) {
@@ -54,137 +41,129 @@ export function MerchantApplicationPage() {
               currentStep: lead.currentStep || STEPS.AUTHENTICATION,
               formData: {
                 ...lead.formData,
-                email: user.email, // Ensure email is always set
+                email: user.email,
+                firstName: user.displayName?.split(' ')[0] || '',
+                lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
               },
             })
           } else {
-            // Create a new lead for authenticated user
-            const leadId = await merchantService.createLead(user.email)
+            const leadId = await merchantService.createLead(user.email, {
+              firstName: user.displayName?.split(' ')[0] || '',
+              lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+            })
             setApplicationState({
               leadId,
               currentStep: STEPS.AUTHENTICATION,
-              formData: { email: user.email },
+              formData: {
+                email: user.email,
+                firstName: user.displayName?.split(' ')[0] || '',
+                lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+              },
             })
           }
-        } else {
-          // Not authenticated, start at authentication step
-          setApplicationState({
-            currentStep: STEPS.AUTHENTICATION,
-            formData: {},
-          })
         }
       } catch (error) {
-        console.error("Error loading existing application:", error)
-        setError("Failed to load application data. Please try again.")
+        console.error("Error loading application data:", error)
       } finally {
         setLoading(false)
       }
     }
 
-    loadExistingApplication()
-  }, [user?.email])
+    loadApplicationData()
+  }, [user?.email, user?.displayName])
 
   const handleStepComplete = async (stepData: any, step: number) => {
     try {
-      setError(null)
       const updatedFormData = {
         ...applicationState.formData,
         ...stepData,
       }
 
-      // If this is the authentication step
+      let nextStep = step + 1
+      let newState = {
+        ...applicationState,
+        currentStep: nextStep,
+        formData: updatedFormData,
+      }
+
       if (step === STEPS.AUTHENTICATION) {
         const email = stepData.email
-        
-        // Only proceed if we have a valid email
-        if (!email) {
-          throw new Error("Email is required")
-        }
+        if (!email) throw new Error("Email is required")
 
-        // Check if lead already exists
         let existingLead = await merchantService.getLeadByEmail(email)
         let leadId = applicationState.leadId
 
         if (existingLead) {
           leadId = existingLead.id
-          setApplicationState({
+          newState = {
             leadId: existingLead.id,
-            currentStep: existingLead.currentStep || step,
+            currentStep: nextStep,
             formData: {
               ...existingLead.formData,
               ...updatedFormData,
             },
-          })
+          }
         } else if (!leadId) {
-          // Create new lead only if we don't have one
           leadId = await merchantService.createLead(email)
-          setApplicationState({
+          newState = {
             leadId,
-            currentStep: step,
+            currentStep: nextStep,
             formData: updatedFormData,
-          })
+          }
         }
 
-        // Save step data
         if (leadId) {
-          await merchantService.saveApplicationStep(
-            leadId,
-            stepData,
-            step,
-            STEP_NAMES[step as keyof typeof STEP_NAMES]
-          )
+          await merchantService.updateLead(leadId, {
+            formData: newState.formData,
+            currentStep: nextStep,
+            status: "in_progress",
+          })
         }
       } else {
-        // For all other steps, just update the lead
         if (applicationState.leadId) {
-          await merchantService.saveApplicationStep(
-            applicationState.leadId,
-            stepData,
-            step,
-            STEP_NAMES[step as keyof typeof STEP_NAMES]
-          )
+          await merchantService.updateLead(applicationState.leadId, {
+            formData: updatedFormData,
+            currentStep: nextStep,
+            status: step === STEPS.BANK_DETAILS ? "completed" : "in_progress",
+          })
         }
       }
 
-      // If this is the final step, create the merchant record
-      if (step === STEPS.BANK_DETAILS && applicationState.leadId) {
+      if (step === STEPS.BANK_DETAILS) {
         await merchantService.createMerchant({
           ...updatedFormData,
           userId: user?.uid,
           email: user?.email,
         })
-        alert("Application submitted successfully!")
         navigate("/dashboard")
         return
       }
 
-      // Move to next step
-      setApplicationState((prev) => ({
-        ...prev,
-        currentStep: step + 1,
-        formData: updatedFormData,
-      }))
+      setApplicationState(newState)
     } catch (error) {
       console.error("Error handling step completion:", error)
-      setError("An error occurred while saving your information. Please try again.")
     }
   }
 
   const handleStepChange = async (newStep: number) => {
     try {
-      setError(null)
       if (applicationState.leadId) {
         await merchantService.updateLead(applicationState.leadId, {
           currentStep: newStep,
         })
+        
+        // Reload the lead data to ensure we have the latest state
+        const lead = await merchantService.getLeadByEmail(user?.email || '')
+        if (lead) {
+          setApplicationState({
+            leadId: lead.id,
+            currentStep: newStep,
+            formData: lead.formData || {},
+          })
+        }
       }
-      setApplicationState((prev) => ({
-        ...prev,
-        currentStep: newStep,
-      }))
     } catch (error) {
       console.error("Error changing step:", error)
-      setError("An error occurred while changing steps. Please try again.")
     }
   }
 
@@ -196,7 +175,6 @@ export function MerchantApplicationPage() {
     )
   }
 
-  // Ensure we have a leadId before rendering the form
   if (!applicationState.leadId && applicationState.currentStep > STEPS.AUTHENTICATION) {
     return (
       <div className="min-h-screen bg-background py-8 px-4 flex items-center justify-center">
@@ -208,12 +186,6 @@ export function MerchantApplicationPage() {
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="container mx-auto">
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
         <MerchantApplicationForm
           initialData={applicationState.formData}
           currentStep={applicationState.currentStep}
