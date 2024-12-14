@@ -2,35 +2,38 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Deny all access by default
-    match /{allPaths=**} {
-      allow read, write: if false;
-    }
-    
-    // Allow authenticated users to upload ID documents
-    match /beneficial-owners/{leadId}/{fileName} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-        && request.resource.size < 10 * 1024 * 1024  // 10MB
-        && request.resource.contentType.matches('image/.*')
-        && (request.resource.contentType == 'image/jpeg' 
-            || request.resource.contentType == 'image/jpg'
-            || request.resource.contentType == 'image/png');
-      allow delete: if request.auth != null;
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Allow authenticated users to upload documents
+    function isValidContentType() {
+      return request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    function isValidFileSize() {
+      return request.resource.size < 10 * 1024 * 1024; // 10MB
+    }
+
+    // Beneficial owners documents
+    match /beneficial-owners/{leadId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() 
+        && isValidContentType()
+        && isValidFileSize();
+    }
+
+    // Voided checks and bank statements
     match /documents/{leadId}/{documentType}/{fileName} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null
-        && request.resource.size < 10 * 1024 * 1024  // 10MB
-        && (request.resource.contentType.matches('image/.*') 
-            || request.resource.contentType == 'application/pdf')
-        && (request.resource.contentType == 'image/jpeg' 
-            || request.resource.contentType == 'image/jpg'
-            || request.resource.contentType == 'image/png'
-            || request.resource.contentType == 'application/pdf');
-      allow delete: if request.auth != null;
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() 
+        && isValidContentType()
+        && isValidFileSize();
+    }
+
+    // Default deny all other access
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

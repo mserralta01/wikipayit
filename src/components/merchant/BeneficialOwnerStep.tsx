@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select"
+import { auth } from "@/lib/firebase"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ACCEPTED_FILE_TYPES = [
@@ -229,6 +230,12 @@ export function BeneficialOwnerStep({
     async (acceptedFiles: File[], index: number) => {
       if (acceptedFiles.length === 0) return
 
+      const currentUser = auth.currentUser
+      if (!currentUser) {
+        setServerError("You must be logged in to upload files")
+        return
+      }
+
       const file = acceptedFiles[0]
       if (file.size > MAX_FILE_SIZE) {
         setServerError("File size must be less than 10MB")
@@ -302,10 +309,12 @@ export function BeneficialOwnerStep({
     })
   }
 
-  const handlePhoneChange = (index: number, value: string) => {
-    const formatted = formatPhoneNumber(value)
-    setValue(`owners.${index}.phone`, formatted, {
-      shouldValidate: true
+  const handlePhoneChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.replace(/\D/g, '') // Strip non-digits
+    const formattedValue = formatPhoneNumber(value)
+    setValue(`owners.${index}.phone`, formattedValue, { 
+      shouldValidate: true,
+      shouldDirty: true 
     })
   }
 
@@ -476,9 +485,12 @@ export function BeneficialOwnerStep({
                 <div className="space-y-2">
                   <Label htmlFor={`owners.${index}.phone`}>Phone</Label>
                   <Input
-                    {...register(`owners.${index}.phone`)}
+                    id="phoneNumber"
                     placeholder="+1 (555) 555-5555"
-                    onChange={(e) => handlePhoneChange(index, e.target.value)}
+                    {...register(`owners.${index}.phone`)}
+                    onChange={(e) => handlePhoneChange(index, e)}
+                    maxLength={17} // +1 (XXX) XXX-XXXX
+                    className={errors.owners?.[index]?.phone ? "border-destructive" : ""}
                   />
                   {errors.owners?.[index]?.phone && (
                     <p className="text-sm text-destructive">

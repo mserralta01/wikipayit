@@ -1,9 +1,9 @@
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Progress } from "../ui/progress"
 import { AuthenticationStep } from "./AuthenticationStep"
-import { BusinessInformationStep } from "./BusinessInformationStep"
+import { BusinessInformationStep, BusinessInformationStepHandle } from "./BusinessInformationStep"
 import { ProcessingHistoryStep } from "./ProcessingHistoryStep"
 import { BeneficialOwnerStep } from "./BeneficialOwnerStep"
 import { DocumentationStep } from "./DocumentationStep"
@@ -66,6 +66,7 @@ export function MerchantApplicationForm({
 }: MerchantApplicationFormProps) {
   const { user } = useAuth()
   const progress = (currentStep / steps.length) * 100
+  const businessInfoRef = useRef<BusinessInformationStepHandle>(null)
 
   const handleStepSubmit = (stepData: any) => {
     onStepComplete(stepData, currentStep)
@@ -76,14 +77,20 @@ export function MerchantApplicationForm({
     onStepChange(prevStep)
   }
 
-  const handleNext = () => {
-    const form = document.querySelector("form")
-    if (form) {
-      const submitEvent = new Event("submit", {
-        bubbles: true,
-        cancelable: true,
-      })
-      form.dispatchEvent(submitEvent)
+  const handleNext = async () => {
+    if (currentStep === 2) {
+      try {
+        // Business Information Step
+        await businessInfoRef.current?.submit()
+        const nextStep = currentStep + 1
+        onStepChange(nextStep)
+      } catch (error) {
+        console.error('Error submitting business information:', error)
+      }
+    } else {
+      // Handle other steps
+      const nextStep = currentStep + 1
+      onStepChange(nextStep)
     }
   }
 
@@ -104,7 +111,7 @@ export function MerchantApplicationForm({
       case 1:
         return <AuthenticationStep {...stepProps} />
       case 2:
-        return <BusinessInformationStep {...stepProps} />
+        return <BusinessInformationStep {...stepProps} ref={businessInfoRef} />
       case 3:
         return <ProcessingHistoryStep {...stepProps} />
       case 4:
@@ -206,11 +213,12 @@ export function MerchantApplicationForm({
             >
               Previous
             </Button>
-            {currentStep > 1 && (
-              <Button onClick={handleNext}>
-                {currentStep === steps.length ? "Submit Application" : "Next Step"}
-              </Button>
-            )}
+            <Button 
+              onClick={handleNext}
+              disabled={currentStep === steps.length}
+            >
+              {currentStep === steps.length ? "Submit Application" : "Next Step"}
+            </Button>
           </div>
         </Card>
       </div>

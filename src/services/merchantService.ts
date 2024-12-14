@@ -63,6 +63,50 @@ export const merchantService = {
     }
   },
 
+  async saveApplicationStep(
+    leadId: string, 
+    stepData: any, 
+    stepNumber: number, 
+    stepName: string
+  ): Promise<void> {
+    try {
+      const leadRef = doc(db, "leads", leadId)
+      const leadDoc = await getDoc(leadRef)
+      
+      if (!leadDoc.exists()) {
+        throw new Error("Lead not found")
+      }
+
+      const currentData = leadDoc.data()
+      const updatedFormData = {
+        ...currentData.formData,
+        [stepName]: stepData,
+      }
+
+      await updateDoc(leadRef, {
+        formData: updatedFormData,
+        currentStep: stepNumber,
+        lastCompletedStep: stepNumber,
+        updatedAt: Timestamp.now(),
+        [`stepCompletionDates.${stepName}`]: Timestamp.now(),
+      })
+
+      // Log activity
+      const activitiesRef = collection(db, "activities")
+      await addDoc(activitiesRef, {
+        leadId,
+        type: "step_completion",
+        stepName,
+        stepNumber,
+        timestamp: Timestamp.now(),
+        details: `Completed ${stepName} step`,
+      })
+    } catch (error) {
+      console.error("Error saving application step:", error)
+      throw error
+    }
+  },
+
   async getLeadByEmail(email: string): Promise<Lead | null> {
     try {
       const leadsRef = collection(db, "leads")

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
 import { MerchantApplicationForm } from "../components/merchant/MerchantApplicationForm"
 import { merchantService } from "../services/merchantService"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 type ApplicationState = {
   leadId?: string
@@ -19,10 +21,20 @@ const STEPS = {
   BANK_DETAILS: 6,
 }
 
+const STEP_NAMES = {
+  [STEPS.AUTHENTICATION]: "authentication",
+  [STEPS.BUSINESS_INFO]: "businessInfo",
+  [STEPS.PROCESSING_HISTORY]: "processingHistory",
+  [STEPS.BENEFICIAL_OWNERS]: "beneficialOwners",
+  [STEPS.DOCUMENTATION]: "documentation",
+  [STEPS.BANK_DETAILS]: "bankDetails",
+}
+
 export function MerchantApplicationPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [applicationState, setApplicationState] = useState<ApplicationState>({
     currentStep: STEPS.AUTHENTICATION,
     formData: {},
@@ -32,6 +44,7 @@ export function MerchantApplicationPage() {
   useEffect(() => {
     const loadExistingApplication = async () => {
       try {
+        setError(null)
         // If user is authenticated, try to find or create a lead
         if (user?.email) {
           const lead = await merchantService.getLeadByEmail(user.email)
@@ -62,6 +75,7 @@ export function MerchantApplicationPage() {
         }
       } catch (error) {
         console.error("Error loading existing application:", error)
+        setError("Failed to load application data. Please try again.")
       } finally {
         setLoading(false)
       }
@@ -72,6 +86,7 @@ export function MerchantApplicationPage() {
 
   const handleStepComplete = async (stepData: any, step: number) => {
     try {
+      setError(null)
       const updatedFormData = {
         ...applicationState.formData,
         ...stepData,
@@ -110,27 +125,29 @@ export function MerchantApplicationPage() {
           })
         }
 
-        // Update lead with new data
+        // Save step data
         if (leadId) {
-          await merchantService.updateLead(leadId, {
-            formData: updatedFormData,
-            currentStep: step + 1,
-            status: "in_progress",
-          })
+          await merchantService.saveApplicationStep(
+            leadId,
+            stepData,
+            step,
+            STEP_NAMES[step as keyof typeof STEP_NAMES]
+          )
         }
       } else {
         // For all other steps, just update the lead
         if (applicationState.leadId) {
-          await merchantService.updateLead(applicationState.leadId, {
-            formData: updatedFormData,
-            currentStep: step + 1,
-            status: step === STEPS.BANK_DETAILS ? "completed" : "in_progress",
-          })
+          await merchantService.saveApplicationStep(
+            applicationState.leadId,
+            stepData,
+            step,
+            STEP_NAMES[step as keyof typeof STEP_NAMES]
+          )
         }
       }
 
       // If this is the final step, create the merchant record
-      if (step === STEPS.BANK_DETAILS) {
+      if (step === STEPS.BANK_DETAILS && applicationState.leadId) {
         await merchantService.createMerchant({
           ...updatedFormData,
           userId: user?.uid,
@@ -149,12 +166,13 @@ export function MerchantApplicationPage() {
       }))
     } catch (error) {
       console.error("Error handling step completion:", error)
-      alert("An error occurred. Please try again.")
+      setError("An error occurred while saving your information. Please try again.")
     }
   }
 
   const handleStepChange = async (newStep: number) => {
     try {
+      setError(null)
       if (applicationState.leadId) {
         await merchantService.updateLead(applicationState.leadId, {
           currentStep: newStep,
@@ -166,7 +184,7 @@ export function MerchantApplicationPage() {
       }))
     } catch (error) {
       console.error("Error changing step:", error)
-      alert("An error occurred while changing steps. Please try again.")
+      setError("An error occurred while changing steps. Please try again.")
     }
   }
 
@@ -190,6 +208,12 @@ export function MerchantApplicationPage() {
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="container mx-auto">
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
         <MerchantApplicationForm
           initialData={applicationState.formData}
           currentStep={applicationState.currentStep}

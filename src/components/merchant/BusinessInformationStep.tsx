@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useImperativeHandle, forwardRef } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
@@ -22,6 +22,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { formatPhoneNumber } from "@/lib/utils"
 
 // US States for dropdown
 const states = [
@@ -79,15 +80,23 @@ const states = [
 
 type BusinessFormData = z.infer<typeof merchantSchema>
 
-export interface BusinessInformationStepProps {
-  onSave: (data: BusinessFormData) => void
-  initialData?: Partial<BusinessFormData>
+export type BusinessInformationStepHandle = {
+  submit: () => Promise<void>
 }
 
-export function BusinessInformationStep({
-  onSave,
-  initialData = {},
-}: BusinessInformationStepProps) {
+export type BusinessInformationStepProps = {
+  onSave: (data: BusinessFormData) => void
+  initialData?: Partial<BusinessFormData>
+  onSubmit?: () => void
+}
+
+export const BusinessInformationStep = forwardRef<
+  BusinessInformationStepHandle,
+  BusinessInformationStepProps
+>(function BusinessInformationStep(
+  { onSave, initialData = {}, onSubmit: parentSubmit },
+  ref
+) {
   const [serverError, setServerError] = useState<string | null>(null)
 
   const {
@@ -96,7 +105,6 @@ export function BusinessInformationStep({
     formState: { errors },
     setValue,
     watch,
-    trigger,
   } = useForm<BusinessFormData>({
     resolver: zodResolver(merchantSchema),
     defaultValues: {
@@ -104,40 +112,40 @@ export function BusinessInformationStep({
     },
   })
 
-  useEffect(() => {
-    const handleFormSubmit = async (e: Event) => {
-      e.preventDefault()
-      e.stopPropagation()
-
-      const isValid = await trigger()
-      if (isValid) {
-        void handleSubmit(onSubmit)()
-      }
-    }
-
-    const form = document.querySelector("form")
-    if (form) {
-      form.addEventListener("submit", handleFormSubmit)
-      return () => form.removeEventListener("submit", handleFormSubmit)
-    }
-  }, [handleSubmit, trigger])
-
   const onSubmit = async (data: BusinessFormData) => {
     try {
+      console.log('Submitting form data:', data)
+      console.log('Form errors:', errors)
       setServerError(null)
       await onSave(data)
+      if (parentSubmit) {
+        parentSubmit()
+      }
     } catch (error) {
+      console.error('Submission error:', error)
       setServerError("An error occurred while saving your information")
     }
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, '')
-    if (value.length <= 10) {
-      const formattedValue = value.replace(/(\d{3})(\d{3})(\d{4})/, '+1 ($1) $2-$3')
-      setValue("customerServicePhone", formattedValue, { shouldValidate: true })
-    }
+    const value = e.target.value.replace(/\D/g, '') // Strip non-digits
+    const formattedValue = formatPhoneNumber(value)
+    setValue("customerServicePhone", formattedValue, { 
+      shouldValidate: true,
+      shouldDirty: true 
+    })
   }
+
+  useEffect(() => {
+    const subscription = watch((value, { name, type }) => 
+      console.log('Field changed:', name, 'New value:', value, 'Type:', type)
+    )
+    return () => subscription.unsubscribe()
+  }, [watch])
+
+  useImperativeHandle(ref, () => ({
+    submit: () => handleSubmit(onSubmit)()
+  }))
 
   return (
     <TooltipProvider>
@@ -410,14 +418,11 @@ export function BusinessInformationStep({
                 </Label>
                 <Input
                   id="customerServicePhone"
-                  {...register("customerServicePhone")}
                   placeholder="+1 (555) 555-5555"
+                  {...register("customerServicePhone")}
                   onChange={handlePhoneChange}
-                  className={`transition-all duration-200 ${
-                    errors.customerServicePhone 
-                      ? "border-destructive focus:border-destructive" 
-                      : "hover:border-primary/50 focus:border-primary"
-                  }`}
+                  maxLength={17} // +1 (XXX) XXX-XXXX
+                  className={errors.customerServicePhone ? "border-destructive" : ""}
                 />
                 {errors.customerServicePhone && (
                   <p className="text-sm text-destructive animate-in slide-in-from-left-1">
@@ -440,4 +445,4 @@ export function BusinessInformationStep({
       </form>
     </TooltipProvider>
   )
-} 
+}) 
