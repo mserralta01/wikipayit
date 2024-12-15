@@ -15,22 +15,6 @@ service firebase.storage {
       return request.resource.size < 10 * 1024 * 1024; // 10MB
     }
 
-    // Beneficial owners documents
-    match /beneficial-owners/{leadId}/{fileName} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() 
-        && isValidContentType()
-        && isValidFileSize();
-    }
-
-    // Voided checks and bank statements
-    match /documents/{leadId}/{documentType}/{fileName} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated() 
-        && isValidContentType()
-        && isValidFileSize();
-    }
-
     // Default deny all other access
     match /{allPaths=**} {
       allow read, write: if false;

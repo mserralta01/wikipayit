@@ -1,16 +1,13 @@
-import { useState, useCallback, forwardRef, useImperativeHandle } from "react"
+import { useState, useCallback, forwardRef, useImperativeHandle, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
-import { useDropzone } from "react-dropzone"
-import * as z from "zod"
 import { Alert, AlertDescription } from "../ui/alert"
-import { AlertCircle, Plus, Trash2, Upload, X, FileText, Check } from "lucide-react"
 import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Card } from "../ui/card"
-import { Progress } from "../ui/progress"
-import { storageService } from "../../services/storageService"
+import { AlertCircle, Plus, Trash2 } from "lucide-react"
+import * as z from "zod"
 import {
   Select,
   SelectContent,
@@ -19,13 +16,6 @@ import {
   SelectValue,
 } from "../ui/select"
 import { auth } from "@/lib/firebase"
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
-const ACCEPTED_FILE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/jpg",
-] as const
 
 const US_STATES = [
   { value: "AL", label: "Alabama" },
@@ -119,9 +109,9 @@ const ownerSchema = z.object({
   ownershipPercentage: z
     .string()
     .min(1, "Ownership percentage is required")
-    .transform((val) => val.replace(/[^\d.]/g, ''))
+    .transform((val: string) => val.replace(/[^\d.]/g, ''))
     .refine(
-      (val) => {
+      (val: string) => {
         const num = parseFloat(val)
         return !isNaN(num) && num > 0 && num <= 100
       },
@@ -139,11 +129,10 @@ const ownerSchema = z.object({
     .string()
     .min(11, "SSN must be 9 digits")
     .refine(
-      (val) => /^\d{3}-\d{2}-\d{4}$/.test(val),
+      (val: string) => /^\d{3}-\d{2}-\d{4}$/.test(val),
       "SSN must be in format XXX-XX-XXXX"
     ),
   dateOfBirth: z.string().min(1, "Date of birth is required"),
-  idDocumentUrl: z.string().url("Invalid ID document URL").optional(),
 })
 
 const beneficialOwnerSchema = z.object({
@@ -152,9 +141,10 @@ const beneficialOwnerSchema = z.object({
     .min(1, "At least one beneficial owner is required")
     .max(4, "Maximum of 4 beneficial owners allowed")
     .refine(
-      (owners) => {
+      (owners: z.infer<typeof ownerSchema>[]) => {
         const totalPercentage = owners.reduce(
-          (sum, owner) => sum + parseFloat(owner.ownershipPercentage),
+          (sum: number, owner: z.infer<typeof ownerSchema>) => 
+            sum + parseFloat(owner.ownershipPercentage),
           0
         )
         return totalPercentage <= 100
@@ -180,7 +170,6 @@ export type BeneficialOwner = {
   zipCode: string
   ssn: string
   dateOfBirth: string
-  idDocumentUrl?: string
 }
 
 export type BeneficialOwnerStepProps = {
@@ -192,14 +181,6 @@ export type BeneficialOwnerStepProps = {
     }
   }
   leadId: string
-}
-
-type FileWithPreview = File & {
-  preview: string
-}
-
-type OwnerFiles = {
-  [key: number]: FileWithPreview | null
 }
 
 const defaultOwner = {
@@ -215,7 +196,6 @@ const defaultOwner = {
   zipCode: "",
   ssn: "",
   dateOfBirth: "",
-  idDocumentUrl: "",
 }
 
 export type BeneficialOwnerStepHandle = {
@@ -227,9 +207,6 @@ export const BeneficialOwnerStep = forwardRef<
   BeneficialOwnerStepProps
 >(function BeneficialOwnerStep({ onSave, initialData = {}, leadId }, ref) {
   const [serverError, setServerError] = useState<string | null>(null)
-  const [ownerFiles, setOwnerFiles] = useState<OwnerFiles>({})
-  const [uploadProgress, setUploadProgress] = useState<{ [key: number]: number }>({})
-  const [isUploading, setIsUploading] = useState<{ [key: number]: boolean }>({})
 
   const {
     register,
@@ -260,89 +237,16 @@ export const BeneficialOwnerStep = forwardRef<
           setServerError(errorMessage)
           throw new Error(errorMessage)
         }
-        return handleSubmit(onSubmit)()
+
+        const formData = await control._getWatch()() // Get current form values
+        await onSubmit(formData) // Call onSubmit with the form data
+        return Promise.resolve()
       } catch (error) {
         console.error("Submit handler error:", error)
         throw error
       }
     }
   }))
-
-  const onDrop = useCallback(
-    async (acceptedFiles: File[], index: number) => {
-      if (acceptedFiles.length === 0) return
-
-      const currentUser = auth.currentUser
-      if (!currentUser) {
-        setServerError("You must be logged in to upload files")
-        return
-      }
-
-      const file = acceptedFiles[0]
-      if (file.size > MAX_FILE_SIZE) {
-        setServerError("File size must be less than 10MB")
-        return
-      }
-
-      const fileWithPreview = Object.assign(file, {
-        preview: URL.createObjectURL(file),
-      }) as FileWithPreview
-
-      setOwnerFiles((prev) => ({
-        ...prev,
-        [index]: fileWithPreview,
-      }))
-
-      try {
-        setIsUploading((prev) => ({ ...prev, [index]: true }))
-        setUploadProgress((prev) => ({ ...prev, [index]: 0 }))
-        setServerError(null)
-
-        // Upload to Firebase Storage
-        const downloadURL = await storageService.uploadBeneficialOwnerID(
-          file,
-          leadId,
-          index,
-          (progress) => {
-            setUploadProgress((prev) => ({ ...prev, [index]: progress }))
-          }
-        )
-
-        // Update form with download URL
-        setValue(`owners.${index}.idDocumentUrl`, downloadURL)
-        setUploadProgress((prev) => ({ ...prev, [index]: 100 }))
-      } catch (error) {
-        console.error("Error uploading file:", error)
-        setServerError(error instanceof Error ? error.message : "Failed to upload ID document")
-        removeFile(index)
-      } finally {
-        setIsUploading((prev) => ({ ...prev, [index]: false }))
-      }
-    },
-    [leadId, setValue]
-  )
-
-  const removeFile = (index: number) => {
-    setOwnerFiles((prev) => {
-      const newFiles = { ...prev }
-      if (newFiles[index]?.preview) {
-        URL.revokeObjectURL(newFiles[index]!.preview)
-      }
-      delete newFiles[index]
-      return newFiles
-    })
-    setUploadProgress((prev) => {
-      const newProgress = { ...prev }
-      delete newProgress[index]
-      return newProgress
-    })
-    setIsUploading((prev) => {
-      const newUploading = { ...prev }
-      delete newUploading[index]
-      return newUploading
-    })
-    setValue(`owners.${index}.idDocumentUrl`, "")
-  }
 
   const handlePercentageChange = (index: number, value: string) => {
     const formatted = formatPercentage(value)
@@ -389,7 +293,7 @@ export const BeneficialOwnerStep = forwardRef<
   }, 0)
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+    <form className="space-y-8">
       {serverError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -427,310 +331,225 @@ export const BeneficialOwnerStep = forwardRef<
         )}
 
         <div className="space-y-6">
-          {fields.map((field, index) => (
-            <Card key={field.id} className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-base font-medium">
-                  Beneficial Owner {index + 1}
-                </h4>
-                {fields.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => remove(index)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Remove
-                  </Button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.firstName`}>First Name</Label>
-                  <Input
-                    {...register(`owners.${index}.firstName`)}
-                    placeholder="John"
-                  />
-                  {errors.owners?.[index]?.firstName && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.firstName?.message}
-                    </p>
+          {fields.map((field, index) => {
+            return (
+              <Card key={field.id} className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-base font-medium">
+                    Beneficial Owner {index + 1}
+                  </h4>
+                  {fields.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Remove
+                    </Button>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.lastName`}>Last Name</Label>
-                  <Input
-                    {...register(`owners.${index}.lastName`)}
-                    placeholder="Doe"
-                  />
-                  {errors.owners?.[index]?.lastName && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.lastName?.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.title`}>Title</Label>
-                  <Input
-                    {...register(`owners.${index}.title`)}
-                    placeholder="CEO"
-                  />
-                  {errors.owners?.[index]?.title && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.title?.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.ownershipPercentage`}>
-                    Ownership Percentage
-                  </Label>
-                  <div className="relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.firstName`}>First Name</Label>
                     <Input
-                      {...register(`owners.${index}.ownershipPercentage`)}
-                      placeholder="25"
-                      onChange={(e) => handlePercentageChange(index, e.target.value)}
+                      {...register(`owners.${index}.firstName`)}
+                      placeholder="John"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                      %
-                    </span>
+                    {errors.owners?.[index]?.firstName && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.firstName?.message}
+                      </p>
+                    )}
                   </div>
-                  {errors.owners?.[index]?.ownershipPercentage && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.ownershipPercentage?.message}
-                    </p>
-                  )}
-                  <p className="text-sm text-muted-foreground">
-                    Total ownership: {totalPercentage.toFixed(2)}%
-                  </p>
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.email`}>Email</Label>
-                  <Input
-                    {...register(`owners.${index}.email`)}
-                    type="email"
-                    placeholder="john@example.com"
-                  />
-                  {errors.owners?.[index]?.email && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.email?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.lastName`}>Last Name</Label>
+                    <Input
+                      {...register(`owners.${index}.lastName`)}
+                      placeholder="Doe"
+                    />
+                    {errors.owners?.[index]?.lastName && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.lastName?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.phone`}>Phone</Label>
-                  <Input
-                    id="phoneNumber"
-                    placeholder="+1 (555) 555-5555"
-                    {...register(`owners.${index}.phone`)}
-                    onChange={(e) => handlePhoneChange(index, e)}
-                    maxLength={17} // +1 (XXX) XXX-XXXX
-                    className={errors.owners?.[index]?.phone ? "border-destructive" : ""}
-                  />
-                  {errors.owners?.[index]?.phone && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.phone?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.title`}>Title</Label>
+                    <Input
+                      {...register(`owners.${index}.title`)}
+                      placeholder="CEO"
+                    />
+                    {errors.owners?.[index]?.title && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.title?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor={`owners.${index}.address`}>Address</Label>
-                  <Input
-                    {...register(`owners.${index}.address`)}
-                    placeholder="123 Main St"
-                  />
-                  {errors.owners?.[index]?.address && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.address?.message}
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.ownershipPercentage`}>
+                      Ownership Percentage
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        {...register(`owners.${index}.ownershipPercentage`)}
+                        placeholder="25"
+                        onChange={(e) => handlePercentageChange(index, e.target.value)}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                        %
+                      </span>
+                    </div>
+                    {errors.owners?.[index]?.ownershipPercentage && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.ownershipPercentage?.message}
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      Total ownership: {totalPercentage.toFixed(2)}%
                     </p>
-                  )}
-                </div>
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.city`}>City</Label>
-                  <Input
-                    {...register(`owners.${index}.city`)}
-                    placeholder="New York"
-                  />
-                  {errors.owners?.[index]?.city && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.city?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.email`}>Email</Label>
+                    <Input
+                      {...register(`owners.${index}.email`)}
+                      type="email"
+                      placeholder="john@example.com"
+                    />
+                    {errors.owners?.[index]?.email && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.email?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.state`}>State</Label>
-                  <Select
-                    onValueChange={(value) => {
-                      setValue(`owners.${index}.state`, value, {
-                        shouldValidate: true,
-                      })
-                    }}
-                    defaultValue={watch(`owners.${index}.state`)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {US_STATES.map((state) => (
-                        <SelectItem key={state.value} value={state.value}>
-                          {state.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.owners?.[index]?.state && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.state?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.phone`}>Phone</Label>
+                    <Input
+                      id="phoneNumber"
+                      placeholder="+1 (555) 555-5555"
+                      {...register(`owners.${index}.phone`)}
+                      onChange={(e) => handlePhoneChange(index, e)}
+                      maxLength={17} // +1 (XXX) XXX-XXXX
+                      className={errors.owners?.[index]?.phone ? "border-destructive" : ""}
+                    />
+                    {errors.owners?.[index]?.phone && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.phone?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.zipCode`}>ZIP Code</Label>
-                  <Input
-                    {...register(`owners.${index}.zipCode`)}
-                    placeholder="10001"
-                  />
-                  {errors.owners?.[index]?.zipCode && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.zipCode?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor={`owners.${index}.address`}>Address</Label>
+                    <Input
+                      {...register(`owners.${index}.address`)}
+                      placeholder="123 Main St"
+                    />
+                    {errors.owners?.[index]?.address && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.address?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.ssn`}>
-                    Social Security
-                    <span className="text-destructive ml-1">*</span>
-                  </Label>
-                  <Input
-                    {...register(`owners.${index}.ssn`)}
-                    placeholder="123-45-6789"
-                    onChange={(e) => handleSSNChange(index, e.target.value)}
-                  />
-                  {errors.owners?.[index]?.ssn && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.ssn?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.city`}>City</Label>
+                    <Input
+                      {...register(`owners.${index}.city`)}
+                      placeholder="New York"
+                    />
+                    {errors.owners?.[index]?.city && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.city?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.dateOfBirth`}>
-                    Date of Birth
-                  </Label>
-                  <Input
-                    {...register(`owners.${index}.dateOfBirth`)}
-                    type="date"
-                  />
-                  {errors.owners?.[index]?.dateOfBirth && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.dateOfBirth?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.state`}>State</Label>
+                    <Select
+                      onValueChange={(value) => {
+                        setValue(`owners.${index}.state`, value, {
+                          shouldValidate: true,
+                        })
+                      }}
+                      defaultValue={watch(`owners.${index}.state`)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {US_STATES.map((state) => (
+                          <SelectItem key={state.value} value={state.value}>
+                            {state.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.owners?.[index]?.state && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.state?.message}
+                      </p>
+                    )}
+                  </div>
 
-                {/* ID Document Upload */}
-                <div className="md:col-span-2 space-y-2">
-                  <Label>ID Document (Optional)</Label>
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Upload a photo ID such as driver's license or passport
-                  </p>
-                  <div
-                    {...useDropzone({
-                      onDrop: (files) => onDrop(files, index),
-                      accept: {
-                        'image/jpeg': ['.jpg', '.jpeg'],
-                        'image/png': ['.png']
-                      },
-                      maxSize: MAX_FILE_SIZE,
-                      maxFiles: 1,
-                      disabled: isUploading[index],
-                    }).getRootProps()}
-                    className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
-                      isUploading[index] ? 'opacity-50 cursor-not-allowed' : ''
-                    }`}
-                  >
-                    <input {...useDropzone({
-                      onDrop: (files) => onDrop(files, index),
-                      accept: {
-                        'image/jpeg': ['.jpg', '.jpeg'],
-                        'image/png': ['.png']
-                      },
-                      maxSize: MAX_FILE_SIZE,
-                      maxFiles: 1,
-                      disabled: isUploading[index],
-                    }).getInputProps()} />
-                    
-                    {ownerFiles[index] ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between bg-secondary/50 p-2 rounded">
-                          <div className="flex items-center space-x-2">
-                            <FileText className="h-4 w-4" />
-                            <span className="text-sm">{ownerFiles[index]?.name}</span>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              removeFile(index)
-                            }}
-                            disabled={isUploading[index]}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        
-                        {uploadProgress[index] !== undefined && uploadProgress[index] < 100 ? (
-                          <Progress value={uploadProgress[index]} className="h-2" />
-                        ) : (
-                          <div className="flex items-center justify-center text-green-600">
-                            <Check className="h-4 w-4 mr-2" />
-                            <span>Upload complete</span>
-                          </div>
-                        )}
-                        
-                        {/* Image Preview */}
-                        <div className="mt-4">
-                          <img
-                            src={ownerFiles[index]?.preview}
-                            alt="ID Preview"
-                            className="max-h-48 mx-auto rounded-lg"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                        <p>Drag and drop your ID here or click to browse</p>
-                        <p className="text-sm text-muted-foreground">
-                          JPG, JPEG, or PNG (max 10MB)
-                        </p>
-                      </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.zipCode`}>ZIP Code</Label>
+                    <Input
+                      {...register(`owners.${index}.zipCode`)}
+                      placeholder="10001"
+                    />
+                    {errors.owners?.[index]?.zipCode && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.zipCode?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.ssn`}>
+                      Social Security
+                      <span className="text-destructive ml-1">*</span>
+                    </Label>
+                    <Input
+                      {...register(`owners.${index}.ssn`)}
+                      placeholder="123-45-6789"
+                      onChange={(e) => handleSSNChange(index, e.target.value)}
+                    />
+                    {errors.owners?.[index]?.ssn && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.ssn?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.dateOfBirth`}>
+                      Date of Birth
+                    </Label>
+                    <Input
+                      {...register(`owners.${index}.dateOfBirth`)}
+                      type="date"
+                    />
+                    {errors.owners?.[index]?.dateOfBirth && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.dateOfBirth?.message}
+                      </p>
                     )}
                   </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            )
+          })}
         </div>
       </div>
-
-      <Button type="submit" className="w-full" disabled={Object.values(isUploading).some(Boolean)}>
-        {Object.values(isUploading).some(Boolean) ? "Uploading..." : "Save and Continue"}
-      </Button>
     </form>
   )
 })

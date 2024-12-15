@@ -1,5 +1,12 @@
 import { storage } from "../lib/firebase"
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage"
+import { ref, uploadBytesResumable, getDownloadURL, getMetadata, listAll } from "firebase/storage"
+
+// Add the StoredDocument type definition
+export type StoredDocument = {
+  url: string;
+  name: string;
+  uploadedAt: string;
+}
 
 export const storageService = {
   async uploadFile(
@@ -47,25 +54,6 @@ export const storageService = {
     }
   },
 
-  async uploadBeneficialOwnerID(
-    file: File, 
-    leadId: string, 
-    ownerIndex: number,
-    onProgress?: (progress: number) => void
-  ): Promise<string> {
-    if (!leadId) {
-      throw new Error("Lead ID is required")
-    }
-
-    const extension = file.name.split(".").pop()?.toLowerCase()
-    if (!extension || !["jpg", "jpeg", "png"].includes(extension)) {
-      throw new Error("Invalid file type. Please upload a JPG or PNG file.")
-    }
-
-    const path = `beneficial-owners/${leadId}/owner-${ownerIndex}-id.${extension}`
-    return this.uploadFile(file, path, onProgress)
-  },
-
   async uploadVoidedCheck(
     file: File,
     leadId: string,
@@ -100,6 +88,24 @@ export const storageService = {
     }
 
     const path = `documents/${leadId}/bank-statements/statement-${index + 1}.${extension}`
+    return this.uploadFile(file, path, onProgress)
+  },
+
+  async uploadDriversLicense(
+    file: File,
+    leadId: string,
+    onProgress?: (progress: number) => void
+  ): Promise<string> {
+    if (!leadId) {
+      throw new Error("Lead ID is required")
+    }
+
+    const extension = file.name.split(".").pop()?.toLowerCase()
+    if (!extension || !["jpg", "jpeg", "png"].includes(extension)) {
+      throw new Error("Invalid file type. Please upload a JPG or PNG file.")
+    }
+
+    const path = `documents/${leadId}/drivers-license/license.${extension}`
     return this.uploadFile(file, path, onProgress)
   }
 }

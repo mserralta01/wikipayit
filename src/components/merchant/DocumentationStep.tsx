@@ -17,11 +17,12 @@ const ACCEPTED_FILE_TYPES = [
   "image/jpg",
 ] as const
 
-type FileFields = "voided_check" | "bank_statements"
+type FileFields = "voided_check" | "bank_statements" | "drivers_license"
 
 const documentSchema = z.object({
   voided_check: z.array(z.string().url("Invalid voided check URL")).optional(),
   bank_statements: z.array(z.string().url("Invalid bank statement URL")).optional(),
+  drivers_license: z.array(z.string().url("Invalid driver's license URL")).optional(),
 })
 
 type DocumentFormData = z.infer<typeof documentSchema>
@@ -59,6 +60,7 @@ export function DocumentationStep({
   const [files, setFiles] = useState<FileState>({
     voided_check: [],
     bank_statements: [],
+    drivers_license: [],
   })
 
   const {
@@ -97,6 +99,20 @@ export function DocumentationStep({
           try {
             const downloadURL = fieldName === "voided_check"
               ? await storageService.uploadVoidedCheck(
+                  file,
+                  leadId,
+                  (progress) => {
+                    setUploadProgress((prev) => ({
+                      ...prev,
+                      [fieldName]: { 
+                        ...prev[fieldName],
+                        [currentIndex]: progress 
+                      },
+                    }))
+                  }
+                )
+              : fieldName === "drivers_license"
+              ? await storageService.uploadDriversLicense(
                   file,
                   leadId,
                   (progress) => {
@@ -174,6 +190,17 @@ export function DocumentationStep({
     maxFiles: 3,
   })
 
+  const { getRootProps: getDriversLicenseProps, getInputProps: getDriversLicenseInputProps } =
+    useDropzone({
+      onDrop: (files) => onDrop(files, "drivers_license"),
+      accept: {
+        "image/jpeg": [".jpg", ".jpeg"],
+        "image/png": [".png"],
+      },
+      maxSize: MAX_FILE_SIZE,
+      maxFiles: 1,
+    })
+
   const removeFile = (fieldName: FileFields, index: number) => {
     setFiles((prev) => ({
       ...prev,
@@ -225,6 +252,56 @@ export function DocumentationStep({
       )}
 
       <div className="space-y-6">
+        {/* Driver's License Upload */}
+        <div>
+          <h3 className="text-lg font-medium mb-2">Driver's License</h3>
+          <div
+            {...getDriversLicenseProps()}
+            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
+              isAnyFileUploading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            <input {...getDriversLicenseInputProps()} disabled={isAnyFileUploading} />
+            {files.drivers_license?.length ? (
+              <div className="space-y-2">
+                {files.drivers_license.map((file, index) => (
+                  <div
+                    key={file.name}
+                    className="flex items-center justify-between bg-secondary/50 p-2 rounded"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <FileText className="h-4 w-4" />
+                      <span className="text-sm">{file.name}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 w-8 p-0"
+                      onClick={() => removeFile("drivers_license", index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    {isUploading.drivers_license?.[index] && (
+                      <Progress value={uploadProgress.drivers_license?.[index] || 0} className="w-24" />
+                    )}
+                    {!isUploading.drivers_license?.[index] && uploadProgress.drivers_license?.[index] === 100 && (
+                      <Check className="h-4 w-4 text-green-500" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  Drag and drop your driver's license, or click to select
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Voided Check Upload */}
         <div>
           <h3 className="text-lg font-medium mb-2">Voided Check</h3>
