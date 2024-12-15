@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, forwardRef, useImperativeHandle } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useFieldArray, useForm } from "react-hook-form"
 import { useDropzone } from "react-dropzone"
@@ -167,9 +167,30 @@ const beneficialOwnerSchema = z.object({
 
 type BeneficialOwnerFormData = z.infer<typeof beneficialOwnerSchema>
 
+export type BeneficialOwner = {
+  firstName: string
+  lastName: string
+  title: string
+  ownershipPercentage: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  state: string
+  zipCode: string
+  ssn: string
+  dateOfBirth: string
+  idDocumentUrl?: string
+}
+
 export type BeneficialOwnerStepProps = {
-  onSave: (data: BeneficialOwnerFormData) => void
-  initialData?: Partial<BeneficialOwnerFormData>
+  onSave: (data: { owners: BeneficialOwner[] }) => Promise<void>
+  initialData?: {
+    beneficialOwners?: {
+      owners: BeneficialOwner[]
+      updatedAt?: string
+    }
+  }
   leadId: string
 }
 
@@ -197,11 +218,14 @@ const defaultOwner = {
   idDocumentUrl: "",
 }
 
-export function BeneficialOwnerStep({
-  onSave,
-  initialData = {},
-  leadId,
-}: BeneficialOwnerStepProps) {
+export type BeneficialOwnerStepHandle = {
+  submit: () => Promise<void>
+}
+
+export const BeneficialOwnerStep = forwardRef<
+  BeneficialOwnerStepHandle,
+  BeneficialOwnerStepProps
+>(function BeneficialOwnerStep({ onSave, initialData = {}, leadId }, ref) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [ownerFiles, setOwnerFiles] = useState<OwnerFiles>({})
   const [uploadProgress, setUploadProgress] = useState<{ [key: number]: number }>({})
@@ -214,10 +238,11 @@ export function BeneficialOwnerStep({
     formState: { errors },
     setValue,
     watch,
+    trigger,
   } = useForm<BeneficialOwnerFormData>({
     resolver: zodResolver(beneficialOwnerSchema),
     defaultValues: {
-      owners: initialData.owners || [defaultOwner],
+      owners: initialData.beneficialOwners?.owners || [defaultOwner],
     },
   })
 
@@ -225,6 +250,23 @@ export function BeneficialOwnerStep({
     control,
     name: "owners",
   })
+
+  useImperativeHandle(ref, () => ({
+    submit: async () => {
+      try {
+        const isValid = await trigger()
+        if (!isValid) {
+          const errorMessage = "Please fix all validation errors before proceeding"
+          setServerError(errorMessage)
+          throw new Error(errorMessage)
+        }
+        return handleSubmit(onSubmit)()
+      } catch (error) {
+        console.error("Submit handler error:", error)
+        throw error
+      }
+    }
+  }))
 
   const onDrop = useCallback(
     async (acceptedFiles: File[], index: number) => {
@@ -327,16 +369,16 @@ export function BeneficialOwnerStep({
 
   const onSubmit = async (data: BeneficialOwnerFormData) => {
     try {
-      // Check if any files are still uploading
-      if (Object.values(isUploading).some(Boolean)) {
-        setServerError("Please wait for all files to finish uploading")
-        return
-      }
-
       setServerError(null)
-      onSave(data)
+      
+      // Restructure the data to match the expected format
+      await onSave({
+        owners: data.owners
+      })
     } catch (error) {
-      setServerError("An error occurred while saving your information")
+      console.error('Error saving beneficial owners:', error)
+      setServerError("Failed to save beneficial owners information")
+      throw error
     }
   }
 
@@ -568,7 +610,8 @@ export function BeneficialOwnerStep({
 
                 <div className="space-y-2">
                   <Label htmlFor={`owners.${index}.ssn`}>
-                    SSN (XXX-XX-XXXX)
+                    Social Security
+                    <span className="text-destructive ml-1">*</span>
                   </Label>
                   <Input
                     {...register(`owners.${index}.ssn`)}
@@ -690,4 +733,4 @@ export function BeneficialOwnerStep({
       </Button>
     </form>
   )
-}
+})

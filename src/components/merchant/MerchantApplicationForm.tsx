@@ -5,7 +5,7 @@ import { Progress } from "../ui/progress"
 import { AuthenticationStep } from "./AuthenticationStep"
 import { BusinessInformationStep, BusinessInformationStepHandle } from "./BusinessInformationStep"
 import { ProcessingHistoryStep, ProcessingHistoryStepHandle } from "./ProcessingHistoryStep"
-import { BeneficialOwnerStep } from "./BeneficialOwnerStep"
+import { BeneficialOwnerStep, BeneficialOwnerStepHandle } from "./BeneficialOwnerStep"
 import { DocumentationStep } from "./DocumentationStep"
 import { BankDetailsStep } from "./BankDetailsStep"
 import { useAuth } from "../../contexts/AuthContext"
@@ -68,6 +68,7 @@ export function MerchantApplicationForm({
   const progress = (currentStep / steps.length) * 100
   const businessInfoRef = useRef<BusinessInformationStepHandle>(null)
   const processingHistoryRef = useRef<ProcessingHistoryStepHandle>(null)
+  const beneficialOwnersRef = useRef<BeneficialOwnerStepHandle>(null)
   const [formData, setFormData] = useState(initialData)
 
   useEffect(() => {
@@ -113,17 +114,24 @@ export function MerchantApplicationForm({
           return;
 
         case 4: // Beneficial Owners Step
-          // Add similar handling for beneficial owners step
-          const beneficialOwnersData = {
-            beneficialOwners: {
-              ...formData.beneficialOwners,
-              updatedAt: new Date().toISOString(),
+          if (beneficialOwnersRef.current) {
+            try {
+              await beneficialOwnersRef.current.submit()
+              const beneficialOwnersData = {
+                beneficialOwners: {
+                  owners: formData.beneficialOwners?.owners || [],
+                  updatedAt: new Date().toISOString()
+                }
+              }
+              await handleStepSubmit(beneficialOwnersData)
+              const nextStep = currentStep + 1
+              onStepChange(nextStep)
+            } catch (error) {
+              console.error('Error submitting beneficial owners:', error)
+              return
             }
-          };
-          await handleStepSubmit(beneficialOwnersData);
-          const nextStep = currentStep + 1;
-          onStepChange(nextStep);
-          return;
+          }
+          return
 
         // ... other cases
       }
@@ -157,7 +165,7 @@ export function MerchantApplicationForm({
       case 3:
         return <ProcessingHistoryStep {...stepProps} ref={processingHistoryRef} />
       case 4:
-        return <BeneficialOwnerStep {...stepProps} leadId={leadId} />
+        return <BeneficialOwnerStep {...stepProps} ref={beneficialOwnersRef} />
       case 5:
         return <BankDetailsStep {...stepProps} />
       case 6:
