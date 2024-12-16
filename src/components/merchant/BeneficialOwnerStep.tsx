@@ -288,6 +288,23 @@ export const BeneficialOwnerStep = forwardRef<
       setIsSaving(true)
       setServerError(null)
 
+      // Validate the data before saving
+      const isValid = await trigger()
+      if (!isValid) {
+        setServerError("Please fix all validation errors before saving")
+        return
+      }
+
+      // If we're adding a new owner, we need to ensure it's properly added to the list
+      if (isAddingNew) {
+        const newOwner = data.owners[data.owners.length - 1]
+        if (!newOwner) {
+          setServerError("No owner data found")
+          return
+        }
+      }
+
+      // Save the data
       await onSave({
         beneficialOwners: {
           owners: data.owners,
@@ -295,15 +312,18 @@ export const BeneficialOwnerStep = forwardRef<
         }
       })
 
+      // Reset states after successful save
       setIsAddingNew(false)
       setEditingOwnerIndex(null)
+
+      // Show success state (you might want to add a success toast here)
 
       if (onContinue) {
         onContinue()
       }
     } catch (error) {
       console.error('Error saving beneficial owner:', error)
-      setServerError('Failed to save beneficial owner')
+      setServerError('Failed to save beneficial owner. Please try again.')
     } finally {
       setIsSaving(false)
     }
@@ -317,14 +337,19 @@ export const BeneficialOwnerStep = forwardRef<
     
     setIsAddingNew(true)
     append(defaultOwner)
+    setEditingOwnerIndex(null) // Ensure we're not in edit mode
   }
 
   const handleEditOwner = (index: number) => {
     setEditingOwnerIndex(index)
+    setIsAddingNew(false) // Ensure we're not in add mode
   }
 
   const handleDeleteOwner = async (index: number) => {
     try {
+      setIsSaving(true)
+      setServerError(null)
+
       const currentOwners = getValues().owners
       const updatedOwners = [...currentOwners]
       updatedOwners.splice(index, 1)
@@ -337,9 +362,12 @@ export const BeneficialOwnerStep = forwardRef<
       })
 
       remove(index)
+      setEditingOwnerIndex(null) // Reset editing state after delete
     } catch (error) {
       console.error('Error deleting beneficial owner:', error)
       setServerError('Failed to delete beneficial owner')
+    } finally {
+      setIsSaving(false)
     }
   }
 
