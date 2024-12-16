@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { User, onAuthStateChanged } from 'firebase/auth'
+import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 
 export type AuthContextType = {
@@ -7,6 +7,7 @@ export type AuthContextType = {
   isAdmin: boolean;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
+  signInWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -15,6 +16,7 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
   loading: true,
   signInWithGoogle: async () => {},
+  signInWithEmail: async () => {},
   signOut: async () => {}
 })
 
@@ -33,8 +35,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe
   }, [])
 
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider()
+    try {
+      await signInWithPopup(auth, provider)
+    } catch (error) {
+      console.error('Google sign in error:', error)
+      throw error
+    }
+  }
+
+  const signInWithEmail = async (email: string, password: string, firstName: string, lastName: string) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+      
+      // Update the user's display name
+      await updateProfile(user, {
+        displayName: `${firstName} ${lastName}`
+      })
+    } catch (error) {
+      console.error('Email sign in error:', error)
+      throw error
+    }
+  }
+
+  const signOut = async () => {
+    try {
+      await firebaseSignOut(auth)
+    } catch (error) {
+      console.error('Sign out error:', error)
+      throw error
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, isAdmin, loading, signInWithGoogle: async () => {}, signOut: async () => {} }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      isAdmin, 
+      loading, 
+      signInWithGoogle,
+      signInWithEmail,
+      signOut 
+    }}>
       {!loading && children}
     </AuthContext.Provider>
   )
