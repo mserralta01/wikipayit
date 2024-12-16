@@ -16,33 +16,28 @@ type POSSystem = {
 const posSystems: POSSystem[] = [
   {
     name: "Clover POS Family",
-    image: "https://www.clover.com/assets/images/public-site/clover_station.png",
+    image: "/dist/assets/clove.webp",
     features: ["Full POS System", "Inventory Management", "Employee Management", "Customer Insights"],
     premium: true
   },
   {
-    name: "Poynt Smart Terminal",
-    image: "https://poynt.com/wp-content/uploads/2019/03/poynt-5-hero.png",
-    features: ["Dual Screen", "Smart Terminal", "Mobile Payments", "Cloud Reporting"],
-    premium: true
-  },
-  {
-    name: "SwipeSimple Reader",
-    image: "https://swipesimple.com/wp-content/uploads/2019/03/reader-hero.png",
-    features: ["Mobile Payments", "Virtual Terminal", "SMS Payments", "Basic Reporting"],
-    premium: false
-  },
-  {
     name: "Ingenico Terminal",
-    image: "https://ingenico.com/assets/images/products/desk-5000.png",
+    image: "/dist/assets/enginico.jpg",
     features: ["EMV Chip", "NFC Payments", "Basic Reports", "Receipt Printing"],
     premium: false
+  },
+  {
+    name: "Business Dashboard",
+    image: "/dist/assets/dashbaord.webp",
+    features: ["Real-time Analytics", "Cloud Reporting", "Multi-Location Support", "Mobile Access"],
+    premium: true
   }
 ];
 
 const Carousel: React.FC = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [imageLoaded, setImageLoaded] = useState<{[key: string]: boolean}>({});
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -67,13 +62,18 @@ const Carousel: React.FC = () => {
           }}
           transition={{ duration: 0.8, type: "spring" }}
         >
-          <div className="relative">
+          <div className="relative bg-white p-8 rounded-xl shadow-lg">
             <motion.img
               src={system.image}
               alt={system.name}
-              className="h-[300px] object-contain"
+              className={`h-[300px] object-contain ${!imageLoaded[system.name] ? 'opacity-0' : 'opacity-100'}`}
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              onLoad={() => setImageLoaded(prev => ({...prev, [system.name]: true}))}
+              onError={(e) => {
+                console.error(`Failed to load image for ${system.name}:`, e);
+                (e.target as HTMLImageElement).src = '/assets/fallback-pos.png';
+              }}
             />
             {system.premium && (
               <motion.div
@@ -168,6 +168,13 @@ export default function POSSection() {
   });
 
   const opacity = useTransform(scrollYProgress, [0, 0.2, 0.8, 1], [0, 1, 1, 0]);
+
+  useEffect(() => {
+    console.log('POS Systems:', posSystems);
+    posSystems.forEach(system => {
+      console.log(`Checking image path for ${system.name}:`, system.image);
+    });
+  }, []);
 
   return (
     <section

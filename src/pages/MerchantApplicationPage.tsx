@@ -22,8 +22,8 @@ export default function MerchantApplicationPage() {
   const handleStepComplete = async (stepData: any, step: number) => {
     setFormData(prev => ({ ...prev, ...stepData }))
     
-    // If this is the final step, show the success dialog
-    if (step === 5) { // Adjust this number based on your total steps
+    // Show success dialog only after completing the Documentation step (step 6)
+    if (step === 6) {
       setShowSuccessDialog(true)
     }
   }
@@ -33,63 +33,57 @@ export default function MerchantApplicationPage() {
   }
 
   const handleReturnHome = () => {
+    setShowSuccessDialog(false)
     navigate('/')
   }
 
   return (
-    <>
-      <div className="container py-8">
-        <MerchantApplicationForm
-          initialData={formData}
-          currentStep={currentStep}
-          leadId={leadId}
-          onStepComplete={handleStepComplete}
-          onStepChange={handleStepChange}
-        />
-      </div>
+    <div className="min-h-screen bg-background py-8">
+      <MerchantApplicationForm
+        initialData={formData}
+        currentStep={currentStep}
+        leadId={leadId}
+        onStepComplete={handleStepComplete}
+        onStepChange={handleStepChange}
+      />
 
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <div className="flex flex-col items-center text-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
-              </div>
-              <DialogTitle className="text-xl font-semibold">
-                Application Submitted Successfully!
-              </DialogTitle>
+            <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mb-4">
+              <CheckCircle2 className="h-6 w-6 text-green-600" />
             </div>
-            <DialogDescription className="text-center space-y-2 pt-4">
-              <p>
-                Thank you for submitting your merchant application. Our team will review
-                your information and contact you shortly via phone or email.
-              </p>
-              <p className="font-medium text-primary">
-                What happens next?
-              </p>
-              <ul className="text-sm text-left space-y-2 mt-2">
-                <li className="flex items-start">
-                  1. Our team will review your application within 1-2 business days
-                </li>
-                <li className="flex items-start">
-                  2. A representative will contact you to discuss your application
-                </li>
-                <li className="flex items-start">
-                  3. We'll guide you through any additional requirements or documentation needed
-                </li>
-              </ul>
+            <DialogTitle className="text-center text-xl">Application Submitted Successfully!</DialogTitle>
+            <DialogDescription className="text-center">
+              Thank you for submitting your merchant application. Our team will review your information and contact you shortly via phone or email.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="sm:justify-center">
-            <Button 
-              onClick={handleReturnHome}
-              className="w-full sm:w-auto"
-            >
+
+          <div className="space-y-4 mt-4">
+            <h3 className="font-medium text-center">What happens next?</h3>
+            <ol className="space-y-3 text-sm">
+              <li className="flex gap-2">
+                <span className="font-medium">1.</span>
+                <span>Our team will review your application within 1-2 business days</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-medium">2.</span>
+                <span>A representative will contact you to discuss your application</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-medium">3.</span>
+                <span>We'll guide you through any additional requirements or documentation needed</span>
+              </li>
+            </ol>
+          </div>
+
+          <DialogFooter className="mt-6">
+            <Button onClick={handleReturnHome} className="w-full">
               Return to Homepage
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }

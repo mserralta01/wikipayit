@@ -77,15 +77,28 @@ export default function Header() {
           </nav>
 
           {/* Phone Number, Apply Now, and User Menu */}
-          <div className="flex items-center space-x-4">
-            <div className="hidden md:flex items-center text-blue-600">
-              <PhoneCall className="h-5 w-5 mr-2" />
-              +1 (305) 396-1226
-            </div>
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <a 
+              href="tel:+13053961226" 
+              className="hidden sm:flex items-center text-blue-600 hover:text-blue-700 transition-colors px-2 py-1 rounded-md hover:bg-blue-50"
+            >
+              <PhoneCall className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+              <span className="text-sm sm:text-base">+1 (305) 396-1226</span>
+            </a>
+
+            <a 
+              href="tel:+13053961226"
+              className="sm:hidden flex items-center justify-center text-blue-600 hover:text-blue-700 transition-colors w-10 h-10 rounded-md hover:bg-blue-50"
+            >
+              <PhoneCall className="h-5 w-5" />
+            </a>
 
             <Link to="/apply">
-              <Button className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] text-white hover:opacity-90">
+              <Button className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] text-white hover:opacity-90 hidden sm:block">
                 Apply Now
+              </Button>
+              <Button className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] text-white hover:opacity-90 sm:hidden px-3">
+                Apply
               </Button>
             </Link>
 
@@ -125,32 +138,39 @@ export default function Header() {
               <Button
                 variant="outline"
                 onClick={() => setShowLoginModal(true)}
+                className="hidden sm:inline-flex"
               >
                 Sign In
               </Button>
             )}
 
-            {/* Mobile menu button */}
-            <div className="md:hidden">
+            <div className="md:hidden ml-2">
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={toggleMenu}
+                className="h-9 w-9"
               >
                 {isOpen ? (
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5" />
                 ) : (
-                  <Menu className="h-6 w-6" />
+                  <Menu className="h-5 w-5" />
                 )}
               </Button>
             </div>
           </div>
         </div>
 
-        {/* Mobile menu */}
         {isOpen && (
           <div className="md:hidden py-4">
             <div className="flex flex-col space-y-4">
+              <a 
+                href="tel:+13053961226" 
+                className="flex items-center text-gray-700 hover:text-blue-600"
+              >
+                <PhoneCall className="h-4 w-4 mr-2" />
+                +1 (305) 396-1226
+              </a>
               <a href="#services" className="text-gray-700 hover:text-blue-600">
                 Services
               </a>
@@ -171,7 +191,6 @@ export default function Header() {
         )}
       </div>
 
-      {/* Login Modal */}
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
