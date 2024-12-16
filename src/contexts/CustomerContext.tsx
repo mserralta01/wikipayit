@@ -47,12 +47,12 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
 
       const result = await CustomerService.getCustomers(
         filter,
-        reset ? undefined : lastDoc
+        reset ? undefined : (lastDoc || undefined)
       );
 
       setCustomers(reset ? result.customers : [...customers, ...result.customers]);
       setLastDoc(result.lastDoc);
-      setHasMore(result.customers.length === 20); // Using the BATCH_SIZE constant
+      setHasMore(result.customers.length === 20);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       toast({

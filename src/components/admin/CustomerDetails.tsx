@@ -259,7 +259,7 @@ export function CustomerDetails({
                       </>
                     )}
 
-                    {customer.processingInfo.terminationHistory?.length > 0 && (
+                    {customer.processingInfo?.terminationHistory && customer.processingInfo.terminationHistory.length > 0 && (
                       <>
                         <Separator />
                         <div>

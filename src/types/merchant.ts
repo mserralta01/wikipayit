@@ -210,6 +210,8 @@ export interface PipelineMerchant {
   columnId: string;
   createdAt: Date;
   updatedAt: Date;
+  cardPresentPercentage: number;
+  ecommercePercentage: number;
 }
 
 export interface Column {

@@ -225,24 +225,6 @@ export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
       </div>
 
       <Card className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Processing Method Breakdown</h3>
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <Label className="text-sm text-muted-foreground">Card Present</Label>
-            <p className="font-medium">{merchant.cardPresentPercentage}%</p>
-          </div>
-          <div>
-            <Label className="text-sm text-muted-foreground">E-commerce</Label>
-            <p className="font-medium">{merchant.ecommercePercentage}%</p>
-          </div>
-          <div>
-            <Label className="text-sm text-muted-foreground">MOTO</Label>
-            <p className="font-medium">{merchant.motoPercentage}%</p>
-          </div>
-        </div>
-      </Card>
-
-      <Card className="p-6">
         <h3 className="text-lg font-semibold mb-4">Beneficial Owners</h3>
         <div className="space-y-4">
           {merchant.beneficialOwners?.map((owner: BeneficialOwner, index: number) => (

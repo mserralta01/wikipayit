@@ -69,7 +69,7 @@ const processingSchema = z
     }
   )
 
-type ProcessingFormData = {
+export type ProcessingFormData = {
   isCurrentlyProcessing: string;
   currentProcessor?: string | null;
   hasBeenTerminated: string;
@@ -220,7 +220,8 @@ export const ProcessingHistoryStep = forwardRef<
   const hasBeenTerminated = watch("hasBeenTerminated")
 
   // Handle percentage change
-  const handlePercentageChange = (e: React.ChangeEvent<HTMLInputElement>, field: keyof Pick<ProcessingFormData, "cardPresentPercentage" | "ecommercePercentage">) => {
+  const handlePercentageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const field = e.target.name as keyof Pick<ProcessingFormData, "cardPresentPercentage" | "ecommercePercentage">
     const value = e.target.value.replace(/\D/g, '')
     const numValue = parseInt(value) || 0
 
@@ -416,77 +417,24 @@ export const ProcessingHistoryStep = forwardRef<
               Enter the percentage breakdown of your processing methods. E-commerce percentage will automatically adjust to total 100%.
             </p>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="cardPresentPercentage">Card Present %</Label>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Percentage of transactions where the card is physically present</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="cardPresentPercentage"
-                    {...register("cardPresentPercentage")}
-                    placeholder="0"
-                    onFocus={handleFocus}
-                    onChange={(e) => handlePercentageChange(e, "cardPresentPercentage")}
-                    className={`pr-8 transition-all duration-200 ${
-                      errors.cardPresentPercentage 
-                        ? "border-destructive focus:border-destructive" 
-                        : "hover:border-primary/50 focus:border-primary"
-                    }`}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    %
-                  </span>
-                </div>
-                {errors.cardPresentPercentage && (
-                  <p className="text-sm text-destructive animate-in slide-in-from-left-1">
-                    {errors.cardPresentPercentage.message}
-                  </p>
-                )}
+                <Label htmlFor="cardPresentPercentage">Card Present %</Label>
+                <Input
+                  {...register("cardPresentPercentage")}
+                  name="cardPresentPercentage"
+                  placeholder="0"
+                  onChange={handlePercentageChange}
+                />
               </div>
-
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Label htmlFor="ecommercePercentage">E-commerce %</Label>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Percentage of online and digital transactions</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="ecommercePercentage"
-                    {...register("ecommercePercentage")}
-                    placeholder="0"
-                    onFocus={handleFocus}
-                    onChange={(e) => handlePercentageChange(e, "ecommercePercentage")}
-                    className={`pr-8 transition-all duration-200 ${
-                      errors.ecommercePercentage 
-                        ? "border-destructive focus:border-destructive" 
-                        : "hover:border-primary/50 focus:border-primary"
-                    }`}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                    %
-                  </span>
-                </div>
-                {errors.ecommercePercentage && (
-                  <p className="text-sm text-destructive animate-in slide-in-from-left-1">
-                    {errors.ecommercePercentage.message}
-                  </p>
-                )}
+                <Label htmlFor="ecommercePercentage">E-commerce %</Label>
+                <Input
+                  {...register("ecommercePercentage")}
+                  name="ecommercePercentage"
+                  placeholder="0"
+                  onChange={handlePercentageChange}
+                />
               </div>
             </div>
           </div>
