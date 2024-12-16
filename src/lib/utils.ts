@@ -11,10 +11,9 @@ export const formatPhoneNumber = (value: string): string => {
   // Remove all non-digits
   const phoneNumber = value.replace(/[^\d]/g, '')
   
-  // Format the number as (XXX) XXX-XXXX
-  if (phoneNumber.length < 4) return phoneNumber
-  if (phoneNumber.length < 7) {
-    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`
-  }
+  // Format as (XXX) XXX-XXXX
+  if (phoneNumber.length === 0) return ''
+  if (phoneNumber.length <= 3) return `(${phoneNumber}`
+  if (phoneNumber.length <= 6) return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`
   return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`
 }

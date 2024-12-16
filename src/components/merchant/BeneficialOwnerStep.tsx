@@ -85,12 +85,11 @@ const formatPhoneNumber = (value: string) => {
   // Remove all non-digits
   const numbers = value.replace(/\D/g, '')
   
-  // Format with +1 and parentheses
+  // Format without +1
   if (numbers.length === 0) return ''
-  if (numbers.length <= 3) return `+1 (${numbers}`
-  if (numbers.length <= 6) return `+1 (${numbers.slice(0, 3)}) ${numbers.slice(3)}`
-  if (numbers.length <= 10) return `+1 (${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6)}`
-  return `+1 (${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`
+  if (numbers.length <= 3) return `(${numbers}`
+  if (numbers.length <= 6) return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`
+  return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`
 }
 
 const formatSSN = (value: string) => {
@@ -372,8 +371,23 @@ export const BeneficialOwnerStep = forwardRef<
   }
 
   const handlePhoneChange = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value)
-    setValue(`owners.${index}.phone`, formatted)
+    // Get only the last character typed
+    const newChar = e.target.value.slice(-1)
+    const currentValue = watch(`owners.${index}.phone`)
+    
+    // If backspace was pressed (value is shorter), format the new shorter value
+    if (e.target.value.length < currentValue.length) {
+      const formatted = formatPhoneNumber(e.target.value)
+      setValue(`owners.${index}.phone`, formatted)
+      return
+    }
+
+    // Only add the new character if it's a digit
+    if (/\d/.test(newChar)) {
+      const newValue = currentValue + newChar
+      const formatted = formatPhoneNumber(newValue)
+      setValue(`owners.${index}.phone`, formatted)
+    }
   }
 
   const handleSSNChange = (index: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
