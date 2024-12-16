@@ -342,6 +342,18 @@ export const BeneficialOwnerStep = forwardRef<
   const handleEditOwner = (index: number) => {
     setEditingOwnerIndex(index)
     setIsAddingNew(false)
+    
+    // Mark the form as dirty when entering edit mode
+    const currentOwner = getValues().owners[index]
+    if (currentOwner) {
+      // Reset the form with current values to ensure proper dirty state tracking
+      reset({
+        owners: getValues().owners
+      }, {
+        keepDirty: true, // This will maintain the dirty state
+        keepValues: true // This will keep the current values
+      })
+    }
   }
 
   const handleDeleteOwner = async (index: number) => {
@@ -977,7 +989,7 @@ export const BeneficialOwnerStep = forwardRef<
                     <div className="space-x-2">
                       <Button
                         type="submit"
-                        disabled={!isDirty || isSaving}
+                        disabled={isSaving}
                       >
                         {isSaving ? "Saving..." : "Save Changes"}
                       </Button>
