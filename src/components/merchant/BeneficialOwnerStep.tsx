@@ -953,7 +953,7 @@ export const BeneficialOwnerStep = forwardRef<
                     type="button"
                     variant="outline"
                     onClick={handleAddOwner}
-                    disabled={fields.length > 3 || isSaving || editingOwnerIndex !== null}
+                    disabled={fields.length > 3 || isSaving}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Beneficial Owner
