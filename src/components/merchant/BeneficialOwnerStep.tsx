@@ -6,7 +6,7 @@ import { Button } from "../ui/button"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Card } from "../ui/card"
-import { AlertCircle, Plus, Trash2 } from "lucide-react"
+import { AlertCircle, Plus, Trash2, Edit2 } from "lucide-react"
 import * as z from "zod"
 import {
   Select,
@@ -174,6 +174,7 @@ export type BeneficialOwner = {
 
 export type BeneficialOwnerStepProps = {
   onSave: (data: { owners: BeneficialOwner[] }) => Promise<void>
+  onContinue?: () => void
   initialData?: {
     beneficialOwners?: {
       owners: BeneficialOwner[]
@@ -205,20 +206,23 @@ export type BeneficialOwnerStepHandle = {
 export const BeneficialOwnerStep = forwardRef<
   BeneficialOwnerStepHandle,
   BeneficialOwnerStepProps
->(function BeneficialOwnerStep({ onSave, initialData = {}, leadId }, ref) {
+>(function BeneficialOwnerStep({ onSave, onContinue, initialData = {}, leadId }, ref) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
   const [existingOwners, setExistingOwners] = useState<BeneficialOwner[]>([])
+  const [editingOwnerIndex, setEditingOwnerIndex] = useState<number | null>(null)
 
   const {
     register,
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     setValue,
     watch,
     trigger,
-    reset
+    reset,
+    getValues
   } = useForm<BeneficialOwnerFormData>({
     resolver: zodResolver(beneficialOwnerSchema),
     defaultValues: {
@@ -241,8 +245,8 @@ export const BeneficialOwnerStep = forwardRef<
           throw new Error(errorMessage)
         }
 
-        const formData = await control._getWatch()() // Get current form values
-        await onSubmit(formData) // Call onSubmit with the form data
+        const formData = getValues()
+        await onSubmit(formData)
         return Promise.resolve()
       } catch (error) {
         console.error("Submit handler error:", error)
@@ -276,16 +280,75 @@ export const BeneficialOwnerStep = forwardRef<
 
   const onSubmit = async (data: BeneficialOwnerFormData) => {
     try {
+      setIsSaving(true)
       setServerError(null)
       
-      // Restructure the data to match the expected format
+      // Validate total percentage
+      const totalPercentage = data.owners.reduce(
+        (sum, owner) => sum + parseFloat(owner.ownershipPercentage),
+        0
+      )
+      
+      if (totalPercentage > 100) {
+        setServerError("Total ownership percentage cannot exceed 100%")
+        return
+      }
+
       await onSave({
         owners: data.owners
       })
+
+      // Update existing owners list
+      setExistingOwners(data.owners)
+      setEditingOwnerIndex(null)
+
     } catch (error) {
       console.error('Error saving beneficial owners:', error)
       setServerError("Failed to save beneficial owners information")
       throw error
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleSaveAndContinue = async () => {
+    try {
+      await handleSubmit(onSubmit)()
+      if (onContinue) {
+        onContinue()
+      }
+    } catch (error) {
+      console.error('Error saving and continuing:', error)
+    }
+  }
+
+  const handleSaveAndAddAnother = async () => {
+    try {
+      await handleSubmit(onSubmit)()
+      append(defaultOwner)
+    } catch (error) {
+      console.error('Error saving and adding another:', error)
+    }
+  }
+
+  const handleEditOwner = (index: number) => {
+    setEditingOwnerIndex(index)
+    const owner = existingOwners[index]
+    reset({
+      owners: [owner]
+    })
+  }
+
+  const handleDeleteOwner = async (index: number) => {
+    try {
+      const updatedOwners = existingOwners.filter((_, idx) => idx !== index)
+      await onSave({
+        owners: updatedOwners
+      })
+      setExistingOwners(updatedOwners)
+    } catch (error) {
+      console.error('Error deleting owner:', error)
+      setServerError("Failed to delete owner")
     }
   }
 
@@ -302,12 +365,13 @@ export const BeneficialOwnerStep = forwardRef<
         setIsLoading(true)
         
         if (initialData?.beneficialOwners?.owners) {
-          // Reset form with initial data
-          reset({
-            owners: initialData.beneficialOwners.owners
-          })
+          setExistingOwners(initialData.beneficialOwners.owners)
+          if (editingOwnerIndex === null) {
+            reset({
+              owners: [defaultOwner]
+            })
+          }
         } else {
-          // Reset to default state with one empty owner
           reset({
             owners: [defaultOwner]
           })
@@ -321,13 +385,7 @@ export const BeneficialOwnerStep = forwardRef<
     }
 
     loadInitialData()
-  }, [initialData, reset])
-
-  useEffect(() => {
-    if (initialData?.beneficialOwners?.owners) {
-      setExistingOwners(initialData.beneficialOwners.owners)
-    }
-  }, [initialData])
+  }, [initialData, reset, editingOwnerIndex])
 
   // Add loading state to the form
   if (isLoading) {
@@ -345,7 +403,7 @@ export const BeneficialOwnerStep = forwardRef<
   }
 
   return (
-    <form className="space-y-8">
+    <div className="space-y-8">
       {serverError && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
@@ -354,267 +412,341 @@ export const BeneficialOwnerStep = forwardRef<
       )}
 
       <div className="space-y-4">
-        {existingOwners.length > 0 && (
+        {existingOwners.length > 0 && editingOwnerIndex === null && (
           <Card className="p-4">
             <h4 className="font-medium mb-3">Current Ownership Summary</h4>
             <div className="space-y-2">
               {existingOwners.map((owner, idx) => (
                 <div key={idx} className="flex justify-between items-center py-1 border-b last:border-0">
-                  <span className="text-sm">
-                    {owner.firstName} {owner.lastName} ({owner.title})
-                  </span>
-                  <span className="text-sm font-medium">
-                    {owner.ownershipPercentage}%
-                  </span>
+                  <div className="flex-1">
+                    <span className="text-sm">
+                      {owner.firstName} {owner.lastName} ({owner.title})
+                    </span>
+                    <span className="text-sm font-medium ml-4">
+                      {owner.ownershipPercentage}%
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditOwner(idx)}
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteOwner(idx)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
               <div className="flex justify-between items-center pt-2 text-sm font-medium">
                 <span>Total Ownership</span>
-                <span>{totalPercentage.toFixed(2)}%</span>
+                <span>
+                  {existingOwners.reduce(
+                    (sum, owner) => sum + parseFloat(owner.ownershipPercentage),
+                    0
+                  ).toFixed(2)}%
+                </span>
               </div>
             </div>
           </Card>
         )}
 
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-lg font-medium">Beneficial Owners</h3>
-            <p className="text-sm text-muted-foreground">
-              Please provide information for all owners with 25% or greater
-              ownership (maximum 4 owners)
-            </p>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">
+                {editingOwnerIndex !== null 
+                  ? `Edit Beneficial Owner ${editingOwnerIndex + 1}`
+                  : 'Add Beneficial Owner'}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Please provide information for all owners with 25% or greater
+                ownership (maximum 4 owners)
+              </p>
+            </div>
+            {editingOwnerIndex === null && existingOwners.length < 4 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => append(defaultOwner)}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Owner
+              </Button>
+            )}
           </div>
-          {fields.length < 4 && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => append(defaultOwner)}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Owner
-            </Button>
+
+          {errors.owners?.root?.message && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{errors.owners.root.message}</AlertDescription>
+            </Alert>
           )}
-        </div>
 
-        {errors.owners?.root?.message && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{errors.owners.root.message}</AlertDescription>
-          </Alert>
-        )}
-
-        <div className="space-y-6">
-          {fields.map((field, index) => (
-            <Card key={field.id} className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h4 className="text-base font-medium">
-                  Beneficial Owner {index + 1}
-                </h4>
-                {fields.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => remove(index)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Remove
-                  </Button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.firstName`}>First Name</Label>
-                  <Input
-                    {...register(`owners.${index}.firstName`)}
-                    placeholder="John"
-                  />
-                  {errors.owners?.[index]?.firstName && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.firstName?.message}
-                    </p>
+          <div className="space-y-6">
+            {fields.map((field, index) => (
+              <Card key={field.id} className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-base font-medium">
+                    {editingOwnerIndex !== null 
+                      ? `Editing Owner ${editingOwnerIndex + 1}`
+                      : `Beneficial Owner ${index + 1}`}
+                  </h4>
+                  {fields.length > 1 && editingOwnerIndex === null && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => remove(index)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Remove
+                    </Button>
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.lastName`}>Last Name</Label>
-                  <Input
-                    {...register(`owners.${index}.lastName`)}
-                    placeholder="Doe"
-                  />
-                  {errors.owners?.[index]?.lastName && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.lastName?.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.title`}>Title</Label>
-                  <Input
-                    {...register(`owners.${index}.title`)}
-                    placeholder="CEO"
-                  />
-                  {errors.owners?.[index]?.title && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.title?.message}
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.ownershipPercentage`}>
-                    Ownership Percentage
-                  </Label>
-                  <div className="relative">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.firstName`}>First Name</Label>
                     <Input
-                      {...register(`owners.${index}.ownershipPercentage`)}
-                      placeholder="25"
-                      onChange={(e) => handlePercentageChange(index, e.target.value)}
+                      {...register(`owners.${index}.firstName`)}
+                      placeholder="John"
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                      %
-                    </span>
+                    {errors.owners?.[index]?.firstName && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.firstName?.message}
+                      </p>
+                    )}
                   </div>
-                  {errors.owners?.[index]?.ownershipPercentage && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.ownershipPercentage?.message}
-                    </p>
-                  )}
-                </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.email`}>Email</Label>
-                  <Input
-                    {...register(`owners.${index}.email`)}
-                    type="email"
-                    placeholder="john@example.com"
-                  />
-                  {errors.owners?.[index]?.email && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.email?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.lastName`}>Last Name</Label>
+                    <Input
+                      {...register(`owners.${index}.lastName`)}
+                      placeholder="Doe"
+                    />
+                    {errors.owners?.[index]?.lastName && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.lastName?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.phone`}>Phone</Label>
-                  <Input
-                    {...register(`owners.${index}.phone`)}
-                    placeholder="+1 (555) 555-5555"
-                    onChange={(e) => handlePhoneChange(index, e)}
-                  />
-                  {errors.owners?.[index]?.phone && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.phone?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.title`}>Title</Label>
+                    <Input
+                      {...register(`owners.${index}.title`)}
+                      placeholder="CEO"
+                    />
+                    {errors.owners?.[index]?.title && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.title?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2 md:col-span-2">
-                  <Label htmlFor={`owners.${index}.address`}>Address</Label>
-                  <Input
-                    {...register(`owners.${index}.address`)}
-                    placeholder="123 Main St"
-                  />
-                  {errors.owners?.[index]?.address && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.address?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.ownershipPercentage`}>
+                      Ownership Percentage
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        {...register(`owners.${index}.ownershipPercentage`)}
+                        placeholder="25"
+                        onChange={(e) => handlePercentageChange(index, e.target.value)}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
+                        %
+                      </span>
+                    </div>
+                    {errors.owners?.[index]?.ownershipPercentage && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.ownershipPercentage?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.city`}>City</Label>
-                  <Input
-                    {...register(`owners.${index}.city`)}
-                    placeholder="New York"
-                  />
-                  {errors.owners?.[index]?.city && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.city?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.email`}>Email</Label>
+                    <Input
+                      {...register(`owners.${index}.email`)}
+                      type="email"
+                      placeholder="john@example.com"
+                    />
+                    {errors.owners?.[index]?.email && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.email?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.state`}>State</Label>
-                  <Select
-                    onValueChange={(value) => {
-                      setValue(`owners.${index}.state`, value, {
-                        shouldValidate: true,
-                      })
-                    }}
-                    defaultValue={watch(`owners.${index}.state`)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {US_STATES.map((state) => (
-                        <SelectItem key={state.value} value={state.value}>
-                          {state.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.owners?.[index]?.state && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.state?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.phone`}>Phone</Label>
+                    <Input
+                      {...register(`owners.${index}.phone`)}
+                      placeholder="+1 (555) 555-5555"
+                      onChange={(e) => handlePhoneChange(index, e)}
+                    />
+                    {errors.owners?.[index]?.phone && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.phone?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.zipCode`}>ZIP Code</Label>
-                  <Input
-                    {...register(`owners.${index}.zipCode`)}
-                    placeholder="10001"
-                  />
-                  {errors.owners?.[index]?.zipCode && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.zipCode?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor={`owners.${index}.address`}>Address</Label>
+                    <Input
+                      {...register(`owners.${index}.address`)}
+                      placeholder="123 Main St"
+                    />
+                    {errors.owners?.[index]?.address && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.address?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.ssn`}>
-                    Social Security Number
-                  </Label>
-                  <Input
-                    {...register(`owners.${index}.ssn`)}
-                    placeholder="123-45-6789"
-                    onChange={(e) => handleSSNChange(index, e.target.value)}
-                  />
-                  {errors.owners?.[index]?.ssn && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.ssn?.message}
-                    </p>
-                  )}
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.city`}>City</Label>
+                    <Input
+                      {...register(`owners.${index}.city`)}
+                      placeholder="New York"
+                    />
+                    {errors.owners?.[index]?.city && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.city?.message}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor={`owners.${index}.dateOfBirth`}>
-                    Date of Birth
-                  </Label>
-                  <Input
-                    {...register(`owners.${index}.dateOfBirth`)}
-                    type="date"
-                  />
-                  {errors.owners?.[index]?.dateOfBirth && (
-                    <p className="text-sm text-destructive">
-                      {errors.owners[index]?.dateOfBirth?.message}
-                    </p>
-                  )}
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.state`}>State</Label>
+                    <Select
+                      onValueChange={(value) => {
+                        setValue(`owners.${index}.state`, value, {
+                          shouldValidate: true,
+                        })
+                      }}
+                      defaultValue={watch(`owners.${index}.state`)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select state" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {US_STATES.map((state) => (
+                          <SelectItem key={state.value} value={state.value}>
+                            {state.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {errors.owners?.[index]?.state && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.state?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.zipCode`}>ZIP Code</Label>
+                    <Input
+                      {...register(`owners.${index}.zipCode`)}
+                      placeholder="10001"
+                    />
+                    {errors.owners?.[index]?.zipCode && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.zipCode?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.ssn`}>
+                      Social Security Number
+                    </Label>
+                    <Input
+                      {...register(`owners.${index}.ssn`)}
+                      placeholder="123-45-6789"
+                      onChange={(e) => handleSSNChange(index, e.target.value)}
+                    />
+                    {errors.owners?.[index]?.ssn && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.ssn?.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor={`owners.${index}.dateOfBirth`}>
+                      Date of Birth
+                    </Label>
+                    <Input
+                      {...register(`owners.${index}.dateOfBirth`)}
+                      type="date"
+                    />
+                    {errors.owners?.[index]?.dateOfBirth && (
+                      <p className="text-sm text-destructive">
+                        {errors.owners[index]?.dateOfBirth?.message}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+              </Card>
+            ))}
+          </div>
+
+          <div className="flex justify-end space-x-4 pt-6">
+            {editingOwnerIndex !== null ? (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingOwnerIndex(null)
+                    reset({ owners: [defaultOwner] })
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit"
+                  disabled={isSaving || !isDirty}
+                >
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSaveAndAddAnother}
+                  disabled={isSaving || !isDirty || existingOwners.length >= 4}
+                >
+                  {isSaving ? 'Saving...' : 'Save & Add Another'}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveAndContinue}
+                  disabled={isSaving || !isDirty}
+                >
+                  {isSaving ? 'Saving...' : 'Save & Continue'}
+                </Button>
+              </>
+            )}
+          </div>
+        </form>
       </div>
-    </form>
+    </div>
   )
 })
