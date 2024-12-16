@@ -141,19 +141,6 @@ const beneficialOwnerSchema = z.object({
     .array(ownerSchema)
     .min(1, "At least one beneficial owner is required")
     .max(4, "Maximum of 4 beneficial owners allowed")
-    .refine(
-      (owners: z.infer<typeof ownerSchema>[]) => {
-        const totalPercentage = owners.reduce(
-          (sum: number, owner: z.infer<typeof ownerSchema>) => 
-            sum + parseFloat(owner.ownershipPercentage),
-          0
-        )
-        return totalPercentage <= 100
-      },
-      {
-        message: "Total ownership percentage cannot exceed 100%",
-      }
-    ),
 })
 
 type BeneficialOwnerFormData = z.infer<typeof beneficialOwnerSchema>
@@ -267,6 +254,19 @@ export const BeneficialOwnerStep = forwardRef<
         }
 
         const currentData = getValues()
+        
+        // Validate total ownership percentage only when submitting the step
+        const totalPercentage = currentData.owners.reduce(
+          (sum, owner) => sum + parseFloat(owner.ownershipPercentage),
+          0
+        )
+        
+        if (totalPercentage > 100) {
+          const errorMessage = "Total ownership percentage cannot exceed 100%"
+          setServerError(errorMessage)
+          throw new Error(errorMessage)
+        }
+
         await onSave({
           beneficialOwners: {
             owners: currentData.owners,
@@ -277,7 +277,7 @@ export const BeneficialOwnerStep = forwardRef<
         return Promise.resolve()
       } catch (error) {
         console.error('Error submitting beneficial owners:', error)
-        setServerError('Failed to save beneficial owners')
+        setServerError(error instanceof Error ? error.message : 'Failed to save beneficial owners')
         return Promise.reject(error)
       }
     }
@@ -330,19 +330,19 @@ export const BeneficialOwnerStep = forwardRef<
   }
 
   const handleAddOwner = () => {
-    if (fields.length >= 4) {
+    if (fields.length > 3) {
       setServerError('Maximum of 4 beneficial owners allowed')
       return
     }
     
     setIsAddingNew(true)
     append(defaultOwner)
-    setEditingOwnerIndex(null) // Ensure we're not in edit mode
+    setEditingOwnerIndex(null)
   }
 
   const handleEditOwner = (index: number) => {
     setEditingOwnerIndex(index)
-    setIsAddingNew(false) // Ensure we're not in add mode
+    setIsAddingNew(false)
   }
 
   const handleDeleteOwner = async (index: number) => {
@@ -362,7 +362,7 @@ export const BeneficialOwnerStep = forwardRef<
       })
 
       remove(index)
-      setEditingOwnerIndex(null) // Reset editing state after delete
+      setEditingOwnerIndex(null)
     } catch (error) {
       console.error('Error deleting beneficial owner:', error)
       setServerError('Failed to delete beneficial owner')
@@ -953,7 +953,7 @@ export const BeneficialOwnerStep = forwardRef<
                     type="button"
                     variant="outline"
                     onClick={handleAddOwner}
-                    disabled={fields.length >= 4 || isSaving || editingOwnerIndex !== null}
+                    disabled={fields.length > 3 || isSaving || editingOwnerIndex !== null}
                   >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Beneficial Owner
