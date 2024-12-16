@@ -4,10 +4,18 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import { Alert, AlertDescription } from "../../components/ui/alert"
-import { AlertCircle, Upload, X, FileText, Check } from "lucide-react"
+import { AlertCircle, Upload, X, FileText, Check, AlertTriangle } from "lucide-react"
 import { Button } from "../../components/ui/button"
 import { Progress } from "../../components/ui/progress"
 import { storageService } from "../../services/storageService"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../../components/ui/dialog"
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
 const ACCEPTED_FILE_TYPES = [
@@ -20,9 +28,9 @@ const ACCEPTED_FILE_TYPES = [
 type FileFields = "voided_check" | "bank_statements" | "drivers_license"
 
 const documentSchema = z.object({
-  voided_check: z.array(z.string().url("Invalid voided check URL")).optional(),
-  bank_statements: z.array(z.string().url("Invalid bank statement URL")).optional(),
-  drivers_license: z.array(z.string().url("Invalid driver's license URL")).optional(),
+  voided_check: z.array(z.string().url("Invalid voided check URL")).default([]),
+  bank_statements: z.array(z.string().url("Invalid bank statement URL")).default([]),
+  drivers_license: z.array(z.string().url("Invalid driver's license URL")).default([]),
 })
 
 type DocumentFormData = z.infer<typeof documentSchema>
@@ -62,6 +70,8 @@ export function DocumentationStep({
     bank_statements: [],
     drivers_license: [],
   })
+  const [showWarningDialog, setShowWarningDialog] = useState(false)
+  const [pendingData, setPendingData] = useState<DocumentFormData | null>(null)
 
   const {
     handleSubmit,
@@ -69,7 +79,12 @@ export function DocumentationStep({
     setValue,
   } = useForm<DocumentFormData>({
     resolver: zodResolver(documentSchema),
-    defaultValues: initialData,
+    defaultValues: documentSchema.parse({
+      voided_check: [],
+      bank_statements: [],
+      drivers_license: [],
+      ...initialData,
+    }),
   })
 
   const onDrop = useCallback(
@@ -231,6 +246,27 @@ export function DocumentationStep({
         return
       }
 
+      // Check if any documents have been uploaded
+      const hasAnyDocuments = 
+        files.drivers_license.length > 0 || 
+        files.voided_check.length > 0 || 
+        files.bank_statements.length > 0
+
+      // Only show warning if they started uploading documents but didn't complete all
+      const hasPartialDocuments = hasAnyDocuments && !(
+        files.drivers_license.length > 0 && 
+        files.voided_check.length > 0 && 
+        files.bank_statements.length > 0
+      )
+
+      if (hasPartialDocuments) {
+        setPendingData(data)
+        setShowWarningDialog(true)
+        return
+      }
+
+      // If no documents were uploaded at all, or all documents are uploaded,
+      // proceed without warning
       setServerError(null)
       onSave(data)
     } catch (error) {
@@ -238,199 +274,263 @@ export function DocumentationStep({
     }
   }
 
+  const handleContinueWithoutDocuments = () => {
+    if (pendingData) {
+      // Ensure we're sending empty arrays for any missing documents
+      const completeData = {
+        voided_check: pendingData.voided_check || [],
+        bank_statements: pendingData.bank_statements || [],
+        drivers_license: pendingData.drivers_license || [],
+      }
+      onSave(completeData)
+    }
+    setShowWarningDialog(false)
+  }
+
   const isAnyFileUploading = Object.values(isUploading).some((field) =>
     Object.values(field || {}).some(Boolean)
   )
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-      {serverError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{serverError}</AlertDescription>
-        </Alert>
-      )}
+    <>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+        {serverError && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{serverError}</AlertDescription>
+          </Alert>
+        )}
 
-      <div className="space-y-6">
-        {/* Driver's License Upload */}
-        <div>
-          <h3 className="text-lg font-medium mb-2">Driver's License</h3>
-          <div
-            {...getDriversLicenseProps()}
-            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
-              isAnyFileUploading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-          >
-            <input {...getDriversLicenseInputProps()} disabled={isAnyFileUploading} />
-            {files.drivers_license?.length ? (
-              <div className="space-y-2">
-                {files.drivers_license.map((file, index) => (
-                  <div
-                    key={file.name}
-                    className="flex items-center justify-between bg-secondary/50 p-2 rounded"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4" />
-                      <span className="text-sm">{file.name}</span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="h-8 w-8 p-0"
-                      onClick={() => removeFile("drivers_license", index)}
+        <div className="space-y-6">
+          {/* Driver's License Upload */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-medium">Driver's License</h3>
+              <span className="text-sm text-muted-foreground">(Optional)</span>
+            </div>
+            <div
+              {...getDriversLicenseProps()}
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
+                isAnyFileUploading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              <input {...getDriversLicenseInputProps()} disabled={isAnyFileUploading} />
+              {files.drivers_license?.length ? (
+                <div className="space-y-2">
+                  {files.drivers_license.map((file, index) => (
+                    <div
+                      key={file.name}
+                      className="flex items-center justify-between bg-secondary/50 p-2 rounded"
                     >
-                      <X className="h-4 w-4" />
-                    </Button>
-                    {isUploading.drivers_license?.[index] && (
-                      <Progress value={uploadProgress.drivers_license?.[index] || 0} className="w-24" />
-                    )}
-                    {!isUploading.drivers_license?.[index] && uploadProgress.drivers_license?.[index] === 100 && (
-                      <Check className="h-4 w-4 text-green-500" />
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  Drag and drop your driver's license, or click to select
-                </p>
-              </div>
-            )}
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm">{file.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => removeFile("drivers_license", index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                      {isUploading.drivers_license?.[index] && (
+                        <Progress value={uploadProgress.drivers_license?.[index] || 0} className="w-24" />
+                      )}
+                      {!isUploading.drivers_license?.[index] && uploadProgress.drivers_license?.[index] === 100 && (
+                        <Check className="h-4 w-4 text-green-500" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Upload className="mx-auto h-8 w-8 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    Drag and drop your driver's license, or click to select
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Voided Check Upload */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-medium">Voided Check</h3>
+              <span className="text-sm text-muted-foreground">(Optional)</span>
+            </div>
+            <div
+              {...getCheckProps()}
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
+                isAnyFileUploading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              <input {...getCheckInputProps()} disabled={isAnyFileUploading} />
+              {files.voided_check?.length ? (
+                <div className="space-y-2">
+                  {files.voided_check.map((file, index) => (
+                    <div
+                      key={file.name}
+                      className="flex items-center justify-between bg-secondary/50 p-2 rounded"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm">{file.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile("voided_check", index)}
+                        disabled={isUploading.voided_check?.[index]}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {files.voided_check.map((_, index) => (
+                    uploadProgress.voided_check?.[index] !== undefined && 
+                    uploadProgress.voided_check[index] < 100 ? (
+                      <Progress 
+                        key={`progress-${index}`}
+                        value={uploadProgress.voided_check[index]} 
+                        className="h-2" 
+                      />
+                    ) : (
+                      <div key={`complete-${index}`} className="flex items-center justify-center text-green-600">
+                        <Check className="h-4 w-4 mr-2" />
+                        <span>Upload complete</span>
+                      </div>
+                    )
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                  <p>Drag and drop your voided check here or click to browse</p>
+                  <p className="text-sm text-muted-foreground">
+                    PDF, JPG, JPEG, or PNG (max 10MB)
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Bank Statements Upload */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-medium">Bank Statements</h3>
+              <span className="text-sm text-muted-foreground">(Optional)</span>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              You may provide up to 3 months of bank statements to expedite your application
+            </p>
+            <div
+              {...getStatementsProps()}
+              className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
+                isAnyFileUploading ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              <input {...getStatementsInputProps()} disabled={isAnyFileUploading} />
+              {files.bank_statements?.length ? (
+                <div className="space-y-2">
+                  {files.bank_statements.map((file, index) => (
+                    <div
+                      key={file.name}
+                      className="flex items-center justify-between bg-secondary/50 p-2 rounded"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-4 w-4" />
+                        <span className="text-sm">{file.name}</span>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeFile("bank_statements", index)}
+                        disabled={isUploading.bank_statements?.[index]}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                  {files.bank_statements.map((_, index) => (
+                    uploadProgress.bank_statements?.[index] !== undefined && 
+                    uploadProgress.bank_statements[index] < 100 ? (
+                      <Progress 
+                        key={`progress-${index}`}
+                        value={uploadProgress.bank_statements[index]} 
+                        className="h-2" 
+                      />
+                    ) : (
+                      <div key={`complete-${index}`} className="flex items-center justify-center text-green-600">
+                        <Check className="h-4 w-4 mr-2" />
+                        <span>Upload complete</span>
+                      </div>
+                    )
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
+                  <p>
+                    Drag and drop your bank statements here or click to browse
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    PDF, JPG, JPEG, or PNG (max 10MB per file)
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Voided Check Upload */}
-        <div>
-          <h3 className="text-lg font-medium mb-2">Voided Check</h3>
-          <div
-            {...getCheckProps()}
-            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
-              isAnyFileUploading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-          >
-            <input {...getCheckInputProps()} disabled={isAnyFileUploading} />
-            {files.voided_check?.length ? (
-              <div className="space-y-2">
-                {files.voided_check.map((file, index) => (
-                  <div
-                    key={file.name}
-                    className="flex items-center justify-between bg-secondary/50 p-2 rounded"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4" />
-                      <span className="text-sm">{file.name}</span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFile("voided_check", index)}
-                      disabled={isUploading.voided_check?.[index]}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                {files.voided_check.map((_, index) => (
-                  uploadProgress.voided_check?.[index] !== undefined && 
-                  uploadProgress.voided_check[index] < 100 ? (
-                    <Progress 
-                      key={`progress-${index}`}
-                      value={uploadProgress.voided_check[index]} 
-                      className="h-2" 
-                    />
-                  ) : (
-                    <div key={`complete-${index}`} className="flex items-center justify-center text-green-600">
-                      <Check className="h-4 w-4 mr-2" />
-                      <span>Upload complete</span>
-                    </div>
-                  )
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                <p>Drag and drop your voided check here or click to browse</p>
-                <p className="text-sm text-muted-foreground">
-                  PDF, JPG, JPEG, or PNG (max 10MB)
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Bank Statements Upload */}
-        <div>
-          <h3 className="text-lg font-medium mb-2">Bank Statements</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            You may provide up to 3 months of bank statements
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground italic">
+            * While document upload is optional at this stage, providing these documents now will help expedite your application processing.
           </p>
-          <div
-            {...getStatementsProps()}
-            className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-primary ${
-              isAnyFileUploading ? "opacity-50 cursor-not-allowed" : ""
-            }`}
-          >
-            <input {...getStatementsInputProps()} disabled={isAnyFileUploading} />
-            {files.bank_statements?.length ? (
-              <div className="space-y-2">
-                {files.bank_statements.map((file, index) => (
-                  <div
-                    key={file.name}
-                    className="flex items-center justify-between bg-secondary/50 p-2 rounded"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <FileText className="h-4 w-4" />
-                      <span className="text-sm">{file.name}</span>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeFile("bank_statements", index)}
-                      disabled={isUploading.bank_statements?.[index]}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                {files.bank_statements.map((_, index) => (
-                  uploadProgress.bank_statements?.[index] !== undefined && 
-                  uploadProgress.bank_statements[index] < 100 ? (
-                    <Progress 
-                      key={`progress-${index}`}
-                      value={uploadProgress.bank_statements[index]} 
-                      className="h-2" 
-                    />
-                  ) : (
-                    <div key={`complete-${index}`} className="flex items-center justify-center text-green-600">
-                      <Check className="h-4 w-4 mr-2" />
-                      <span>Upload complete</span>
-                    </div>
-                  )
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <Upload className="h-8 w-8 mx-auto text-muted-foreground" />
-                <p>
-                  Drag and drop your bank statements here or click to browse
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  PDF, JPG, JPEG, or PNG (max 10MB per file)
-                </p>
-              </div>
-            )}
-          </div>
+          <Button type="submit" className="w-full" disabled={isAnyFileUploading}>
+            {isAnyFileUploading ? "Uploading..." : "Save and Continue"}
+          </Button>
         </div>
-      </div>
+      </form>
 
-      <Button type="submit" className="w-full" disabled={isAnyFileUploading}>
-        {isAnyFileUploading ? "Uploading..." : "Save and Continue"}
-      </Button>
-    </form>
+      <Dialog open={showWarningDialog} onOpenChange={setShowWarningDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Missing Documents</DialogTitle>
+            <DialogDescription className="space-y-2">
+              <p>
+                Not providing all required documents may result in delays in processing 
+                your application and final approval.
+              </p>
+              <p>
+                Would you like to continue without uploading all documents or return 
+                to upload them now?
+              </p>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowWarningDialog(false)}
+              className="sm:w-full"
+            >
+              Return to Upload
+            </Button>
+            <Button
+              type="button"
+              onClick={handleContinueWithoutDocuments}
+              className="sm:w-full"
+            >
+              Continue Without Documents
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

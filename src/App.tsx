@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Outlet } from "react-router-dom
 import { AuthProvider } from "./contexts/AuthContext"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import HomePage from "./pages/HomePage"
-import { MerchantApplicationPage } from "./pages/MerchantApplicationPage"
+import MerchantApplicationPage from './pages/MerchantApplicationPage'
 import MainLayout from "./components/layouts/MainLayout"
 import { AdminLayout } from "./components/admin/AdminLayout"
 import Dashboard from "./components/admin/Dashboard"
