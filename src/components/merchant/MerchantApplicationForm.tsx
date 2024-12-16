@@ -7,7 +7,7 @@ import { BusinessInformationStep, BusinessInformationStepHandle } from "./Busine
 import { ProcessingHistoryStep, ProcessingHistoryStepHandle } from "./ProcessingHistoryStep"
 import { BeneficialOwnerStep, BeneficialOwnerStepHandle } from "./BeneficialOwnerStep"
 import { DocumentationStep } from "./DocumentationStep"
-import { BankDetailsStep } from "./BankDetailsStep"
+import { BankDetailsStep, BankDetailsStepHandle } from "./BankDetailsStep"
 import { useAuth } from "../../contexts/AuthContext"
 
 type Step = {
@@ -59,16 +59,18 @@ export type MerchantApplicationFormProps = {
 
 export function MerchantApplicationForm({
   initialData,
-  currentStep,
+  currentStep = 1,
   leadId,
   onStepComplete,
   onStepChange,
 }: MerchantApplicationFormProps) {
   const { user } = useAuth()
-  const progress = (currentStep / steps.length) * 100
+  const validatedStep = Math.max(1, Math.min(currentStep, steps.length))
+  const progress = (validatedStep / steps.length) * 100
   const businessInfoRef = useRef<BusinessInformationStepHandle>(null)
   const processingHistoryRef = useRef<ProcessingHistoryStepHandle>(null)
   const beneficialOwnersRef = useRef<BeneficialOwnerStepHandle>(null)
+  const bankDetailsRef = useRef<BankDetailsStepHandle>(null)
   const [formData, setFormData] = useState(initialData)
 
   useEffect(() => {
@@ -133,6 +135,19 @@ export function MerchantApplicationForm({
           }
           return
 
+        case 5: // Bank Details Step
+          if (bankDetailsRef.current) {
+            try {
+              await bankDetailsRef.current.submit()
+              const nextStep = currentStep + 1
+              onStepChange(nextStep)
+            } catch (error) {
+              console.error('Error submitting bank details:', error)
+              return
+            }
+          }
+          return
+
         // ... other cases
       }
 
@@ -179,7 +194,7 @@ export function MerchantApplicationForm({
           />
         )
       case 5:
-        return <BankDetailsStep {...stepProps} />
+        return <BankDetailsStep {...stepProps} ref={bankDetailsRef} />
       case 6:
         return <DocumentationStep {...stepProps} leadId={leadId} />
       default:
@@ -198,6 +213,8 @@ export function MerchantApplicationForm({
     return user && formData.email
   }
 
+  const currentStepData = steps[validatedStep - 1]
+
   return (
     <div className="w-full max-w-4xl mx-auto space-y-8">
       <div className="space-y-4">
@@ -210,7 +227,7 @@ export function MerchantApplicationForm({
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-muted-foreground">
-            Step {currentStep} of {steps.length}
+            Step {validatedStep} of {steps.length}
           </span>
           <span className="text-muted-foreground">{Math.round(progress)}%</span>
         </div>
@@ -229,9 +246,9 @@ export function MerchantApplicationForm({
                   onClick={() => isAccessible && handleStepClick(step.id)}
                   disabled={!isAccessible}
                   className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                    currentStep === step.id
+                    validatedStep === step.id
                       ? "bg-primary text-primary-foreground"
-                      : currentStep > step.id
+                      : validatedStep > step.id
                       ? "bg-secondary text-secondary-foreground"
                       : "hover:bg-secondary/50"
                   } ${
@@ -243,7 +260,7 @@ export function MerchantApplicationForm({
                   <div className="font-medium">{step.title}</div>
                   <div
                     className={`text-sm ${
-                      currentStep === step.id
+                      validatedStep === step.id
                         ? "text-primary-foreground/80"
                         : "text-muted-foreground"
                     }`}
@@ -257,12 +274,14 @@ export function MerchantApplicationForm({
         </div>
 
         <Card className="flex-1 p-6">
-          <div className="md:hidden mb-6">
-            <h3 className="font-semibold">{steps[currentStep - 1].title}</h3>
-            <p className="text-sm text-muted-foreground">
-              {steps[currentStep - 1].description}
-            </p>
-          </div>
+          {currentStepData && (
+            <div className="md:hidden mb-6">
+              <h3 className="font-semibold">{currentStepData.title}</h3>
+              <p className="text-sm text-muted-foreground">
+                {currentStepData.description}
+              </p>
+            </div>
+          )}
 
           {renderStep()}
 
@@ -270,15 +289,15 @@ export function MerchantApplicationForm({
             <Button
               variant="outline"
               onClick={handlePrevious}
-              disabled={currentStep === 1}
+              disabled={validatedStep === 1}
             >
               Previous
             </Button>
             <Button 
               onClick={handleNext}
-              disabled={currentStep === steps.length}
+              disabled={validatedStep === steps.length}
             >
-              {currentStep === steps.length ? "Submit Application" : "Next Step"}
+              {validatedStep === steps.length ? "Submit Application" : "Next Step"}
             </Button>
           </div>
         </Card>

@@ -119,8 +119,7 @@ const businessInfoSchema = z.object({
     "non_profit",
   ], { required_error: "Please select a business type" }),
   businessDescription: z.string()
-    .min(10, "Business description must be at least 10 characters")
-    .max(500, "Business description must be less than 500 characters"),
+    .min(10, "Business description must be at least 10 characters"),
   taxId: z.string()
     .regex(/^\d{2}-\d{7}$/, "Tax ID must be in format XX-XXXXXXX"),
   yearEstablished: z.string()
@@ -131,9 +130,13 @@ const businessInfoSchema = z.object({
       return yearNum >= 1900 && yearNum <= currentYear
     }, "Please enter a valid year between 1900 and current year"),
   website: z.string()
-    .url("Must be a valid URL")
-    .optional()
-    .nullable(),
+    .transform(val => {
+      if (val && !val.match(/^https?:\/\//)) {
+        return `https://${val}`
+      }
+      return val
+    })
+    .optional(),
   customerServiceEmail: z.string()
     .email("Invalid customer service email address"),
   customerServicePhone: z.string()
@@ -545,7 +548,7 @@ export const BusinessInformationStep = forwardRef<
 
                 <div className="grid gap-2">
                   <div className="flex items-center space-x-2">
-                    <Label htmlFor="website">Website (Optional)</Label>
+                    <Label htmlFor="website">Website</Label>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Info className="h-4 w-4 text-muted-foreground cursor-help" />
@@ -557,9 +560,15 @@ export const BusinessInformationStep = forwardRef<
                   </div>
                   <Input
                     id="website"
-                    type="url"
-                    {...(register("website") as any)}
-                    placeholder="https://www.example.com"
+                    {...register("website")}
+                    placeholder="www.example.com"
+                    onChange={(e) => {
+                      let value = e.target.value
+                      // Remove any existing protocol
+                      value = value.replace(/^https?:\/\//, '')
+                      // Update the field
+                      setValue("website", value ? `https://${value}` : '')
+                    }}
                     className={`transition-all duration-200 ${
                       errors.website 
                         ? "border-destructive focus:border-destructive" 
@@ -574,38 +583,38 @@ export const BusinessInformationStep = forwardRef<
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <div className="flex items-center space-x-2">
-                    <Label htmlFor="businessDescription" className="flex items-center">
-                      Business Description
-                      <span className="text-destructive ml-1">*</span>
-                    </Label>
+              <div className="grid gap-2 col-span-full">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="businessDescription" className="flex items-center">
+                    Business Description
+                    <span className="text-destructive ml-1">*</span>
+                  </Label>
+                  <TooltipProvider>
                     <Tooltip>
-                      <TooltipTrigger asChild>
+                      <TooltipTrigger>
                         <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                       </TooltipTrigger>
                       <TooltipContent>
                         <p>Describe your main business activities and services</p>
                       </TooltipContent>
                     </Tooltip>
-                  </div>
-                  <Textarea
-                    id="businessDescription"
-                    {...register("businessDescription")}
-                    placeholder="Describe your business operations, products, and services"
-                    className={`min-h-[100px] transition-all duration-200 ${
-                      errors.businessDescription 
-                        ? "border-destructive focus:border-destructive" 
-                        : "hover:border-primary/50 focus:border-primary"
-                    }`}
-                  />
-                  {errors.businessDescription && (
-                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
-                      {errors.businessDescription.message}
-                    </p>
-                  )}
+                  </TooltipProvider>
                 </div>
+                <Textarea
+                  id="businessDescription"
+                  {...register("businessDescription")}
+                  placeholder="Describe your business operations, products, and services"
+                  className={`w-full min-h-[120px] transition-all duration-200 ${
+                    errors.businessDescription 
+                      ? "border-destructive focus:border-destructive" 
+                      : "hover:border-primary/50 focus:border-primary"
+                  }`}
+                />
+                {errors.businessDescription && (
+                  <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                    {errors.businessDescription.message}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
