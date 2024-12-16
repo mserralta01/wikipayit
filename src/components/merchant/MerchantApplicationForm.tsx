@@ -165,7 +165,19 @@ export function MerchantApplicationForm({
       case 3:
         return <ProcessingHistoryStep {...stepProps} ref={processingHistoryRef} />
       case 4:
-        return <BeneficialOwnerStep {...stepProps} ref={beneficialOwnersRef} />
+        return (
+          <BeneficialOwnerStep
+            {...stepProps}
+            ref={beneficialOwnersRef}
+            initialData={{
+              beneficialOwners: formData.beneficialOwners || {
+                owners: [],
+                updatedAt: new Date().toISOString()
+              }
+            }}
+            leadId={leadId}
+          />
+        )
       case 5:
         return <BankDetailsStep {...stepProps} />
       case 6:
