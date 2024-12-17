@@ -1,14 +1,17 @@
 import { useState, useRef, useEffect } from "react"
-import { Card } from "../ui/card"
-import { Button } from "../ui/button"
-import { Progress } from "../ui/progress"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import { AuthenticationStep } from "./AuthenticationStep"
 import { BusinessInformationStep, BusinessInformationStepHandle } from "./BusinessInformationStep"
 import { ProcessingHistoryStep, ProcessingHistoryStepHandle } from "./ProcessingHistoryStep"
 import { BeneficialOwnerStep, BeneficialOwnerStepHandle } from "./BeneficialOwnerStep"
 import { DocumentationStep } from "./DocumentationStep"
 import { BankDetailsStep, BankDetailsStepHandle } from "./BankDetailsStep"
-import { useAuth } from "../../contexts/AuthContext"
+import { useAuth } from "@/contexts/AuthContext"
+import { auth } from "@/lib/firebase"
+import { createUserWithEmailAndPassword } from "firebase/auth"
+import { useToast } from "@/hooks/useToast"
 
 type Step = {
   id: number
@@ -65,6 +68,7 @@ export function MerchantApplicationForm({
   onStepChange,
 }: MerchantApplicationFormProps) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const validatedStep = Math.max(1, Math.min(currentStep, steps.length))
   const progress = (validatedStep / steps.length) * 100
   const businessInfoRef = useRef<BusinessInformationStepHandle>(null)
@@ -84,7 +88,54 @@ export function MerchantApplicationForm({
         ...stepData,
       }
       setFormData(updatedData)
-      await onStepComplete(stepData, currentStep)
+
+      // For authentication step, create user and save lead data
+      if (currentStep === 1) {
+        try {
+          // Create Firebase user
+          const userCredential = await createUserWithEmailAndPassword(
+            auth,
+            stepData.email,
+            stepData.password
+          )
+
+          // Prepare lead data with user information
+          const leadData = {
+            firstName: stepData.firstName,
+            lastName: stepData.lastName,
+            email: stepData.email,
+            uid: userCredential.user.uid,
+            status: "Lead",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            currentStep: 1,
+          }
+
+          // Save lead data
+          await onStepComplete(leadData, currentStep)
+
+          toast({
+            title: "Account created",
+            description: "Your account has been created successfully!",
+          })
+        } catch (error: any) {
+          console.error('Error creating user:', error)
+          toast({
+            title: "Error",
+            description: error.message || "There was a problem creating your account",
+            variant: "destructive",
+          })
+          throw error // Re-throw to prevent step advancement
+        }
+      } else {
+        await onStepComplete(stepData, currentStep)
+      }
+      
+      // After completing the step, move to the next one
+      const nextStep = currentStep + 1
+      if (nextStep <= steps.length) {
+        onStepChange(nextStep)
+      }
     } catch (error) {
       console.error('Error submitting step:', error)
     }
@@ -108,32 +159,24 @@ export function MerchantApplicationForm({
         case 2: // Business Information Step
           if (businessInfoRef.current) {
             await businessInfoRef.current.submit()
-            const nextStep = currentStep + 1
-            onStepChange(nextStep)
           }
           return
         
         case 3: // Processing History Step
           if (processingHistoryRef.current) {
             await processingHistoryRef.current.submit()
-            const nextStep = currentStep + 1
-            onStepChange(nextStep)
           }
           return
 
         case 4: // Beneficial Owners Step
           if (beneficialOwnersRef.current) {
             await beneficialOwnersRef.current.submit()
-            const nextStep = currentStep + 1
-            onStepChange(nextStep)
           }
           return
 
         case 5: // Bank Details Step
           if (bankDetailsRef.current) {
             await bankDetailsRef.current.submit()
-            const nextStep = currentStep + 1
-            onStepChange(nextStep)
           }
           return
 
@@ -175,7 +218,7 @@ export function MerchantApplicationForm({
 
     switch (currentStep) {
       case 1:
-        return <AuthenticationStep {...stepProps} onComplete={stepProps.onSave} />
+        return <AuthenticationStep {...stepProps} onComplete={handleStepSubmit} />
       case 2:
         return <BusinessInformationStep {...stepProps} ref={businessInfoRef} />
       case 3:
@@ -296,12 +339,14 @@ export function MerchantApplicationForm({
             >
               Previous
             </Button>
-            <Button 
-              onClick={handleNext}
-              disabled={validatedStep === steps.length}
-            >
-              {validatedStep === steps.length ? "Submit Application" : "Next Step"}
-            </Button>
+            {validatedStep !== 1 && (
+              <Button 
+                onClick={handleNext}
+                disabled={validatedStep === steps.length}
+              >
+                {validatedStep === steps.length ? "Submit Application" : "Next Step"}
+              </Button>
+            )}
           </div>
         </Card>
       </div>
