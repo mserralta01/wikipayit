@@ -12,8 +12,7 @@ import {
   Timestamp,
   serverTimestamp,
 } from "firebase/firestore"
-import { Merchant, BeneficialOwner } from "../types/merchant"
-import { Lead, LeadStatus } from "../types/lead"
+import { Merchant, BeneficialOwner, Lead } from "../types/merchant"
 import { Activity } from '../types/activity'
 import { ProcessingFormData } from "../components/merchant/ProcessingHistoryStep"
 
@@ -34,45 +33,32 @@ const getRecentActivity = async (): Promise<Activity[]> => {
 };
 
 export const merchantService = {
-  async createLead(email: string): Promise<string> {
+  async createLead(email: string, additionalData: { firstName?: string; lastName?: string } = {}) {
     try {
       const leadsRef = collection(db, "leads")
-      const leadDoc = await addDoc(leadsRef, {
+      const leadData = {
         email,
+        formData: {
+          email,
+          firstName: additionalData.firstName || '',
+          lastName: additionalData.lastName || '',
+        },
         currentStep: 1,
-        formData: { email },
-        status: "Lead" as LeadStatus,
-        pipelineStatus: "lead",
+        status: "started",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
-      })
-      return leadDoc.id
+      }
+      
+      // Check if lead already exists before creating
+      const existingLead = await this.getLeadByEmail(email)
+      if (existingLead) {
+        return existingLead.id
+      }
+      
+      const docRef = await addDoc(leadsRef, leadData)
+      return docRef.id
     } catch (error) {
       console.error("Error creating lead:", error)
-      throw error
-    }
-  },
-
-  async updateLeadStep(leadId: string, step: number, stepData: any): Promise<void> {
-    try {
-      const leadRef = doc(db, "leads", leadId)
-      const leadDoc = await getDoc(leadRef)
-      
-      if (!leadDoc.exists()) {
-        throw new Error("Lead not found")
-      }
-
-      const currentData = leadDoc.data()
-      await updateDoc(leadRef, {
-        currentStep: step,
-        formData: {
-          ...currentData.formData,
-          ...stepData
-        },
-        updatedAt: Timestamp.now(),
-      })
-    } catch (error) {
-      console.error("Error updating lead step:", error)
       throw error
     }
   },
@@ -104,32 +90,7 @@ export const merchantService = {
           ...data,
           currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
           formData: data.formData || { email },
-          status: data.status || "Lead",
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
-        } as Lead
-      }
-      return null
-    } catch (error) {
-      console.error("Error getting lead:", error)
-      throw error
-    }
-  },
-
-  async getLead(leadId: string): Promise<Lead | null> {
-    try {
-      const leadRef = doc(db, "leads", leadId)
-      const leadDoc = await getDoc(leadRef)
-      
-      if (leadDoc.exists()) {
-        const data = leadDoc.data()
-        return {
-          id: leadDoc.id,
-          ...data,
-          currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
-          formData: data.formData || {},
-          status: data.status || "Lead",
-          pipelineStatus: data.pipelineStatus || "lead",
+          status: data.status || "started",
           createdAt: data.createdAt.toDate().toISOString(),
           updatedAt: data.updatedAt.toDate().toISOString(),
         } as Lead
@@ -154,7 +115,7 @@ export const merchantService = {
           ...data,
           currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
           formData: data.formData || {},
-          status: data.status || "Lead",
+          status: data.status || "started",
           pipelineStatus: data.pipelineStatus || "lead",
           createdAt: data.createdAt.toDate().toISOString(),
           updatedAt: data.updatedAt.toDate().toISOString(),
