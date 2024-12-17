@@ -23,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { formatPhoneNumber } from "@/lib/utils"
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 
 // US States for dropdown
 const states = [
@@ -633,22 +634,28 @@ export const BusinessInformationStep = forwardRef<
           <CardContent className="space-y-6">
             <div className="grid gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="street" className="flex items-center">
+                <Label htmlFor="companyAddress.street">
                   Street Address
                   <span className="text-destructive ml-1">*</span>
                 </Label>
-                <Input
-                  id="street"
-                  {...register("companyAddress.street")}
-                  placeholder="123 Business St"
-                  className={`transition-all duration-200 ${
-                    errors.companyAddress?.street 
-                      ? "border-destructive focus:border-destructive" 
-                      : "hover:border-primary/50 focus:border-primary"
-                  }`}
+                <AddressAutocomplete
+                  defaultValue={watch("companyAddress.street")}
+                  onAddressSelect={(address) => {
+                    // Set each address field individually and trigger validation
+                    setValue("companyAddress.street", address.street, { shouldValidate: true })
+                    setValue("companyAddress.city", address.city, { shouldValidate: true })
+                    setValue("companyAddress.state", address.state, { shouldValidate: true })
+                    setValue("companyAddress.zipCode", address.zipCode, { shouldValidate: true })
+                    
+                    // Log the update to verify it's working
+                    console.log("Address selected:", address)
+                    console.log("Form values after update:", watch())
+                  }}
+                  error={!!errors.companyAddress?.street}
+                  placeholder="Enter business address"
                 />
                 {errors.companyAddress?.street && (
-                  <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                  <p className="text-sm text-destructive">
                     {errors.companyAddress.street.message}
                   </p>
                 )}
@@ -669,9 +676,10 @@ export const BusinessInformationStep = forwardRef<
                         ? "border-destructive focus:border-destructive" 
                         : "hover:border-primary/50 focus:border-primary"
                     }`}
+                    readOnly
                   />
                   {errors.companyAddress?.city && (
-                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                    <p className="text-sm text-destructive">
                       {errors.companyAddress.city.message}
                     </p>
                   )}
@@ -682,29 +690,19 @@ export const BusinessInformationStep = forwardRef<
                     State
                     <span className="text-destructive ml-1">*</span>
                   </Label>
-                  <Select
-                    onValueChange={(value) => setValue("companyAddress.state", value)}
-                    defaultValue={watch("companyAddress.state")}
-                  >
-                    <SelectTrigger
-                      className={`transition-all duration-200 ${
-                        errors.companyAddress?.state 
-                          ? "border-destructive focus:border-destructive" 
-                          : "hover:border-primary/50 focus:border-primary"
-                      }`}
-                    >
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {states.map((state) => (
-                        <SelectItem key={state.value} value={state.value}>
-                          {state.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    id="state"
+                    value={watch("companyAddress.state")}
+                    placeholder="State"
+                    className={`transition-all duration-200 ${
+                      errors.companyAddress?.state 
+                        ? "border-destructive focus:border-destructive" 
+                        : "hover:border-primary/50 focus:border-primary"
+                    }`}
+                    readOnly
+                  />
                   {errors.companyAddress?.state && (
-                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                    <p className="text-sm text-destructive">
                       {errors.companyAddress.state.message}
                     </p>
                   )}
@@ -724,9 +722,10 @@ export const BusinessInformationStep = forwardRef<
                         ? "border-destructive focus:border-destructive" 
                         : "hover:border-primary/50 focus:border-primary"
                     }`}
+                    readOnly
                   />
                   {errors.companyAddress?.zipCode && (
-                    <p className="text-sm text-destructive animate-in slide-in-from-left-1">
+                    <p className="text-sm text-destructive">
                       {errors.companyAddress.zipCode.message}
                     </p>
                   )}

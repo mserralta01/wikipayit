@@ -17,6 +17,7 @@ import {
 } from "../ui/select"
 import { auth } from "@/lib/firebase"
 import { merchantService } from "@/services/merchantService"
+import { AddressAutocomplete } from "@/components/ui/address-autocomplete"
 
 const US_STATES = [
   { value: "AL", label: "Alabama" },
@@ -527,9 +528,26 @@ export const BeneficialOwnerStep = forwardRef<
                 Address
                 <span className="text-destructive ml-1">*</span>
               </Label>
-              <Input
-                {...register(`owners.${index}.address`)}
-                placeholder="Street Address"
+              <AddressAutocomplete
+                defaultValue={watch(`owners.${index}.address`)}
+                onAddressSelect={(address) => {
+                  setValue(`owners.${index}.address`, address.street, { shouldValidate: true })
+                  setValue(`owners.${index}.city`, address.city, { shouldValidate: true })
+                  const stateValue = address.state.toUpperCase()
+                  const validState = US_STATES.find(s => s.value === stateValue)
+                  if (validState) {
+                    setValue(`owners.${index}.state`, validState.value, { shouldValidate: true })
+                  }
+                  setValue(`owners.${index}.zipCode`, address.zipCode, { shouldValidate: true })
+                  
+                  console.log("Address selected:", {
+                    ...address,
+                    state: stateValue,
+                    validState
+                  })
+                }}
+                error={!!errors.owners?.[index]?.address}
+                placeholder="Enter address"
               />
               {errors.owners?.[index]?.address && (
                 <p className="text-sm text-destructive">
@@ -562,6 +580,7 @@ export const BeneficialOwnerStep = forwardRef<
                 </Label>
                 <Select
                   onValueChange={(value) => setValue(`owners.${index}.state`, value)}
+                  value={watch(`owners.${index}.state`)}
                   defaultValue={watch(`owners.${index}.state`)}
                 >
                   <SelectTrigger>
@@ -848,9 +867,26 @@ export const BeneficialOwnerStep = forwardRef<
                         Address
                         <span className="text-destructive ml-1">*</span>
                       </Label>
-                      <Input
-                        {...register(`owners.${fields.length - 1}.address`)}
-                        placeholder="Street Address"
+                      <AddressAutocomplete
+                        defaultValue={watch(`owners.${fields.length - 1}.address`)}
+                        onAddressSelect={(address) => {
+                          setValue(`owners.${fields.length - 1}.address`, address.street, { shouldValidate: true })
+                          setValue(`owners.${fields.length - 1}.city`, address.city, { shouldValidate: true })
+                          const stateValue = address.state.toUpperCase()
+                          const validState = US_STATES.find(s => s.value === stateValue)
+                          if (validState) {
+                            setValue(`owners.${fields.length - 1}.state`, validState.value, { shouldValidate: true })
+                          }
+                          setValue(`owners.${fields.length - 1}.zipCode`, address.zipCode, { shouldValidate: true })
+                          
+                          console.log("Address selected for new owner:", {
+                            ...address,
+                            state: stateValue,
+                            validState
+                          })
+                        }}
+                        error={!!errors.owners?.[fields.length - 1]?.address}
+                        placeholder="Enter address"
                       />
                       {errors.owners?.[fields.length - 1]?.address && (
                         <p className="text-sm text-destructive">
@@ -883,6 +919,7 @@ export const BeneficialOwnerStep = forwardRef<
                         </Label>
                         <Select
                           onValueChange={(value) => setValue(`owners.${fields.length - 1}.state`, value)}
+                          value={watch(`owners.${fields.length - 1}.state`)}
                           defaultValue={watch(`owners.${fields.length - 1}.state`)}
                         >
                           <SelectTrigger>
