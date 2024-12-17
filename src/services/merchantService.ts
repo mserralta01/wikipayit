@@ -18,7 +18,7 @@ import { Activity } from '../types/activity'
 import { ProcessingFormData } from "../components/merchant/ProcessingHistoryStep"
 
 const getDashboardMetrics = async (): Promise<any> => {
-  // Implement logic to fetch dashboard metrics
+  // Implement logic to fetch dashboard metrics, nice
 };
 
 const getRecentActivity = async (): Promise<Activity[]> => {
