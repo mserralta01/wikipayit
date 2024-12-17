@@ -175,7 +175,7 @@ export function MerchantApplicationForm({
 
     switch (currentStep) {
       case 1:
-        return <AuthenticationStep {...stepProps} />
+        return <AuthenticationStep {...stepProps} onComplete={stepProps.onSave} />
       case 2:
         return <BusinessInformationStep {...stepProps} ref={businessInfoRef} />
       case 3:
