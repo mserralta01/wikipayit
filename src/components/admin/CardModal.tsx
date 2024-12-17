@@ -7,13 +7,13 @@ import {
     DialogFooter,
     DialogClose,
 } from "@/components/ui/dialog";
-import { PipelineItem, isPipelineLead, isPipelineMerchant } from "@/types/pipeline";
+import { PipelineItem, isPipelineLead, isPipelineMerchant, PipelineStatus } from "@/types/pipeline";
 import { Button } from "@/components/ui/button";
 
-interface CardModalProps {
+export interface CardModalProps {
     item: PipelineItem;
-    open: boolean;
     onClose: () => void;
+    onStatusChange: (newStatus: PipelineStatus) => Promise<void>;
 }
 
 /**
@@ -44,14 +44,14 @@ function getModalData(item: PipelineItem): { title: string; email: string } {
 /**
  * A modal component to display details of a pipeline item.
  * @param item - The pipeline item (either Merchant or Lead).
- * @param open - A boolean indicating whether the modal is open.
  * @param onClose - A function to be called when the modal is closed.
+ * @param onStatusChange - A function to be called when the status of the pipeline item is changed.
  */
-export function CardModal({ item, open, onClose }: CardModalProps) {
+export function CardModal({ item, onClose, onStatusChange }: CardModalProps) {
     const { title, email } = getModalData(item);
 
     return (
-        <Dialog open={open} onOpenChange={onClose}>
+        <Dialog open={true} onOpenChange={onClose}>
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>{title}</DialogTitle>

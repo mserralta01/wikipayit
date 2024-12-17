@@ -15,6 +15,7 @@ import {
 import { Merchant, BeneficialOwner, Lead } from "../types/merchant"
 import { Activity } from '../types/activity'
 import { ProcessingFormData } from "../components/merchant/ProcessingHistoryStep"
+import { PipelineStatus } from "../types/pipeline"
 
 const getDashboardMetrics = async (): Promise<any> => {
   // Implement logic to fetch dashboard metrics
@@ -133,6 +134,8 @@ export const merchantService = {
       const docRef = await addDoc(merchantsRef, {
         ...merchantData,
         status: "pending",
+        pipelineStatus: "lead",
+        position: 0,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       })
@@ -202,14 +205,21 @@ export const merchantService = {
 
   async updateMerchantStatus(
     merchantId: string,
-    status: "pending" | "approved" | "rejected"
+    status: "pending" | "approved" | "rejected",
+    pipelineStatus?: PipelineStatus
   ): Promise<void> {
     try {
       const merchantRef = doc(db, "merchants", merchantId)
-      await updateDoc(merchantRef, {
+      const updateData: any = {
         status,
         updatedAt: Timestamp.now(),
-      })
+      }
+      
+      if (pipelineStatus) {
+        updateData.pipelineStatus = pipelineStatus
+      }
+      
+      await updateDoc(merchantRef, updateData)
     } catch (error) {
       console.error("Error updating merchant status:", error)
       throw error
@@ -409,6 +419,22 @@ export const merchantService = {
     } catch (error) {
       console.error('Error updating processing history:', error);
       throw error;
+    }
+  },
+
+  async updateLeadStatus(
+    leadId: string,
+    pipelineStatus: PipelineStatus
+  ): Promise<void> {
+    try {
+      const leadRef = doc(db, "leads", leadId)
+      await updateDoc(leadRef, {
+        pipelineStatus,
+        updatedAt: Timestamp.now(),
+      })
+    } catch (error) {
+      console.error("Error updating lead status:", error)
+      throw error
     }
   },
 }

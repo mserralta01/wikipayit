@@ -22,7 +22,7 @@ export const createServiceItem = (item: ServiceResponse & { id: string; pipeline
       kind: 'lead',
       type: 'lead',
       id: item.id,
-      pipelineStatus: item.pipelineStatus
+      pipelineStatus: 'lead'
     } as ServiceLead
   }
   return {
@@ -30,7 +30,7 @@ export const createServiceItem = (item: ServiceResponse & { id: string; pipeline
     kind: 'merchant',
     type: 'merchant',
     id: item.id,
-    pipelineStatus: item.pipelineStatus
+    pipelineStatus: 'lead'
   } as ServiceMerchant
 }
 
@@ -79,8 +79,6 @@ export const calculateProgress = (item: ServiceItem | PipelineItem): number => {
 }
 
 export const transformToPipelineItem = (item: ServiceItem): PipelineItem => {
-  const progress = calculateProgress(item)
-  
   if (item.kind === 'lead') {
     return { ...item, pipelineStatus: 'lead' } as PipelineLead
   }
