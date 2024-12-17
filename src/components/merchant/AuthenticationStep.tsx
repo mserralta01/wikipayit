@@ -1,186 +1,170 @@
-import { useState, useEffect } from "react"
-import { Button } from "../ui/button"
-import { Input } from "../ui/input"
-import { Label } from "../ui/label"
-import { auth } from "../../lib/firebase"
-import { GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
-import { useAuth } from "../../contexts/AuthContext"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { Alert, AlertDescription } from "../ui/alert"
-import { AlertCircle } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Icons } from "@/components/ui/icons";
+import { signInWithPopup, GoogleAuthProvider, signOut } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
-type AuthenticationStepProps = {
-  onSave: (data: { email: string; firstName: string; lastName: string }) => void
-  initialData?: { email?: string; firstName?: string; lastName?: string }
+interface AuthenticationStepProps {
+  onComplete: (userData: any) => void;
+  isLoading?: boolean;
 }
 
-const signupSchema = z.object({
-  firstName: z.string().min(2, 'First name must be at least 2 characters'),
-  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email'),
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-})
-
-type SignupFormData = z.infer<typeof signupSchema>
-
-const getErrorMessage = (error: any): string => {
-  if (error?.code === 'auth/email-already-in-use') {
-    return 'This email address is already registered. Please sign in instead.'
-  }
-  if (error?.code === 'auth/invalid-email') {
-    return 'Please enter a valid email address.'
-  }
-  if (error?.code === 'auth/weak-password') {
-    return 'Please choose a stronger password. It should be at least 6 characters long.'
-  }
-  return error?.message || 'An error occurred. Please try again.'
-}
-
-export function AuthenticationStep({ onSave, initialData }: AuthenticationStepProps) {
-  const { user } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
-  const [isEmailSignup, setIsEmailSignup] = useState(false)
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<SignupFormData>({
-    resolver: zodResolver(signupSchema),
-    defaultValues: {
-      firstName: initialData?.firstName || '',
-      lastName: initialData?.lastName || '',
-      email: initialData?.email || '',
-      password: '',
-    },
-  })
-
-  // If user is already authenticated, proceed with their email and name
-  useEffect(() => {
-    if (user?.email && !initialData?.email) {
-      const names = user.displayName?.split(' ') || ['', '']
-      const timer = setTimeout(() => {
-        onSave({
-          email: user.email!,
-          firstName: names[0] || '',
-          lastName: names.slice(1).join(' ') || '',
-        })
-      }, 500)
-      return () => clearTimeout(timer)
-    }
-  }, [user, initialData, onSave])
+export function AuthenticationStep({ onComplete, isLoading = false }: AuthenticationStepProps) {
+  const [localLoading, setLocalLoading] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const [showAuthForm, setShowAuthForm] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+  });
 
   const handleGoogleSignIn = async () => {
     try {
-      setLoading(true)
-      setError("")
-      const provider = new GoogleAuthProvider()
+      setLocalLoading(true);
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
       
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      })
+      const userData = {
+        firstName: result.user.displayName?.split(' ')[0] || '',
+        lastName: result.user.displayName?.split(' ').slice(1).join(' ') || '',
+        email: result.user.email || '',
+        photoURL: result.user.photoURL,
+        uid: result.user.uid,
+      };
 
-      const result = await signInWithPopup(auth, provider)
-      
-      if (result.user?.email) {
-        const names = result.user.displayName?.split(' ') || []
-        onSave({
-          email: result.user.email,
-          firstName: names[0] || '',
-          lastName: names.slice(1).join(' ') || '',
-        })
-      }
-      
-    } catch (err: any) {
-      if (err.message?.includes('Cross-Origin-Opener-Policy')) {
-        if (auth.currentUser?.email) {
-          const names = auth.currentUser.displayName?.split(' ') || []
-          onSave({
-            email: auth.currentUser.email,
-            firstName: names[0] || '',
-            lastName: names.slice(1).join(' ') || '',
-          })
-          return
-        }
-      }
-      setError(getErrorMessage(err))
-      console.error(err)
+      onComplete(userData);
+
+      toast({
+        title: "Successfully signed in",
+        description: "Welcome! Let's continue with your application.",
+      });
+    } catch (error: any) {
+      console.error('Google sign-in error:', error);
+      toast({
+        title: "Sign in failed",
+        description: error.message || "There was a problem signing in with Google",
+        variant: "destructive",
+      });
     } finally {
-      setLoading(false)
+      setLocalLoading(false);
     }
-  }
+  };
 
-  const handleEmailSignup = async (data: SignupFormData) => {
+  const handleContinueWithCurrentAccount = () => {
+    if (!user) return;
+    
+    const userData = {
+      firstName: user.displayName?.split(' ')[0] || '',
+      lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+      email: user.email || '',
+      photoURL: user.photoURL,
+      uid: user.uid,
+    };
+    
+    onComplete(userData);
+  };
+
+  const handleSwitchAccount = async () => {
     try {
-      setLoading(true)
-      setError("")
-      
-      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password)
-      const user = userCredential.user
-      
-      // Update the user's display name
-      await updateProfile(user, {
-        displayName: `${data.firstName} ${data.lastName}`
-      })
-
-      onSave({
-        email: data.email,
-        firstName: data.firstName,
-        lastName: data.lastName,
-      })
-      
-      reset()
-    } catch (err: any) {
-      setError(getErrorMessage(err))
-      console.error(err)
-    } finally {
-      setLoading(false)
+      await signOut(auth);
+      setShowAuthForm(true);
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
-  // If user is already authenticated and we have their email in initialData,
-  // show the signed-in state
-  if (user?.email && initialData?.email === user.email) {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setLocalLoading(true);
+      onComplete(formData);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "There was a problem creating your account",
+        variant: "destructive",
+      });
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const isButtonDisabled = localLoading || isLoading;
+
+  if (user && !showAuthForm) {
     return (
-      <div className="space-y-6">
-        <div className="space-y-2">
-          <h3 className="text-lg font-medium">Signed In</h3>
+      <Card className="w-full max-w-md p-6 space-y-6 bg-white shadow-lg rounded-lg">
+        <div className="space-y-2 text-center">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Continue Your Application
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Continuing application with {user.email}
+            You're signed in as {user.email}
           </p>
         </div>
-      </div>
-    )
+
+        <div className="space-y-4">
+          <Button
+            onClick={handleContinueWithCurrentAccount}
+            className="w-full"
+            disabled={isButtonDisabled}
+          >
+            Continue with current application
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handleSwitchAccount}
+            className="w-full"
+            disabled={isButtonDisabled}
+          >
+            Switch application
+          </Button>
+        </div>
+      </Card>
+    );
   }
 
+  // Original authentication form
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <h3 className="text-lg font-medium">Sign In to Continue</h3>
+    <Card className="w-full max-w-md p-6 space-y-6 bg-white shadow-lg rounded-lg">
+      <div className="space-y-2 text-center">
+        <h1 className="text-2xl font-bold tracking-tight">
+          Let's get you ready to accept payments
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Choose how you would like to continue with your application
+          Complete your application to start processing payments
         </p>
       </div>
 
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
       <Button
-        type="button"
         variant="outline"
-        className="w-full"
+        type="button"
+        className="w-full bg-white hover:bg-gray-50 text-gray-900 border border-gray-300 transition-colors"
         onClick={handleGoogleSignIn}
-        disabled={loading}
+        disabled={isButtonDisabled}
       >
-        Continue with Google
+        <span className="flex items-center justify-center">
+          {isButtonDisabled ? (
+            <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Icons.google className="mr-2 h-4 w-4" />
+          )}
+          Continue with Google
+        </span>
       </Button>
 
       <div className="relative">
@@ -188,91 +172,75 @@ export function AuthenticationStep({ onSave, initialData }: AuthenticationStepPr
           <span className="w-full border-t" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-2 text-muted-foreground">
-            Or continue with email
+          <span className="bg-white px-2 text-muted-foreground">
+            Or continue with
           </span>
         </div>
       </div>
 
-      {isEmailSignup ? (
-        <form onSubmit={handleSubmit(handleEmailSignup)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input
-                id="firstName"
-                {...register('firstName')}
-                disabled={loading}
-              />
-              {errors.firstName && (
-                <p className="text-sm text-destructive">{errors.firstName.message}</p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input
-                id="lastName"
-                {...register('lastName')}
-                disabled={loading}
-              />
-              {errors.lastName && (
-                <p className="text-sm text-destructive">{errors.lastName.message}</p>
-              )}
-            </div>
-          </div>
-
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="firstName">First name</Label>
             <Input
-              id="email"
-              type="email"
-              {...register('email')}
-              disabled={loading}
+              id="firstName"
+              placeholder="John"
+              value={formData.firstName}
+              onChange={(e) =>
+                setFormData({ ...formData, firstName: e.target.value })
+              }
+              required
             />
-            {errors.email && (
-              <p className="text-sm text-destructive">{errors.email.message}</p>
-            )}
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="lastName">Last name</Label>
             <Input
-              id="password"
-              type="password"
-              {...register('password')}
-              disabled={loading}
+              id="lastName"
+              placeholder="Doe"
+              value={formData.lastName}
+              onChange={(e) =>
+                setFormData({ ...formData, lastName: e.target.value })
+              }
+              required
             />
-            {errors.password && (
-              <p className="text-sm text-destructive">{errors.password.message}</p>
-            )}
           </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Creating Account...' : 'Create Account'}
-          </Button>
-
-          <Button
-            type="button"
-            variant="link"
-            className="w-full"
-            onClick={() => setIsEmailSignup(false)}
-            disabled={loading}
-          >
-            Already have an account? Sign in
-          </Button>
-        </form>
-      ) : (
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="john@example.com"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            required
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={formData.password}
+            onChange={(e) =>
+              setFormData({ ...formData, password: e.target.value })
+            }
+            required
+          />
+        </div>
         <Button
-          type="button"
-          variant="link"
+          type="submit"
           className="w-full"
-          onClick={() => setIsEmailSignup(true)}
-          disabled={loading}
+          disabled={isButtonDisabled}
         >
-          Don't have an account? Sign up
+          <span className="flex items-center justify-center">
+            {isButtonDisabled && (
+              <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            Start my application
+          </span>
         </Button>
-      )}
-    </div>
-  )
+      </form>
+    </Card>
+  );
 }
