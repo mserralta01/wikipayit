@@ -349,12 +349,13 @@ export function MerchantApplicationForm({
             >
               Previous
             </Button>
-            {validatedStep !== 1 && (
+            {validatedStep !== 1 && validatedStep !== steps.length && (
               <Button 
                 onClick={handleNext}
+                className="bg-green-600 hover:bg-green-700 text-white"
                 disabled={validatedStep === steps.length}
               >
-                {validatedStep === steps.length ? "Submit Application" : "Next Step"}
+                Next Step
               </Button>
             )}
           </div>

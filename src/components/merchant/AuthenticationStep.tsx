@@ -173,7 +173,7 @@ export function AuthenticationStep({ onComplete, isLoading = false }: Authentica
         <div className="space-y-4">
           <Button
             onClick={handleContinueWithCurrentAccount}
-            className="w-full"
+            className="w-full bg-green-600 hover:bg-green-700 text-white"
             disabled={isButtonDisabled}
           >
             Continue with current application
@@ -182,7 +182,7 @@ export function AuthenticationStep({ onComplete, isLoading = false }: Authentica
           <Button
             variant="outline"
             onClick={handleSwitchAccount}
-            className="w-full"
+            className="w-full border-red-600 text-red-600 hover:bg-red-50"
             disabled={isButtonDisabled}
           >
             Switch application
