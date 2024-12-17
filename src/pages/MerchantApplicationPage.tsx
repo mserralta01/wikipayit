@@ -145,4 +145,3 @@ export default function MerchantApplicationPage() {
     </div>
   )
 }
-//great file
