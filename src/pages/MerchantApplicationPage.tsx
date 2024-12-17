@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MerchantApplicationForm } from '../components/merchant/MerchantApplicationForm'
 import {
@@ -11,16 +11,67 @@ import {
 } from "../components/ui/dialog"
 import { Button } from "../components/ui/button"
 import { CheckCircle2 } from "lucide-react"
+import { useAuth } from "../contexts/AuthContext"
+import { merchantService } from "../services/merchantService"
 
 export default function MerchantApplicationPage() {
   const [currentStep, setCurrentStep] = useState(1)
   const [formData, setFormData] = useState({})
   const [showSuccessDialog, setShowSuccessDialog] = useState(false)
+  const [leadId, setLeadId] = useState<string | null>(null)
   const navigate = useNavigate()
-  const leadId = "temporary-lead-id" // Replace with actual lead ID generation/fetching
+  const { user } = useAuth()
+
+  useEffect(() => {
+    const initializeLead = async () => {
+      if (user?.email) {
+        try {
+          // Try to get existing lead or create new one
+          const existingLead = await merchantService.getLeadByEmail(user.email)
+          if (existingLead) {
+            setLeadId(existingLead.id)
+            setFormData(existingLead.formData || {})
+            setCurrentStep(existingLead.currentStep || 1)
+          } else {
+            // Create new lead with user info
+            const newLeadId = await merchantService.createLead(user.email, {
+              firstName: user.displayName?.split(' ')[0] || '',
+              lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+            })
+            setLeadId(newLeadId)
+            // Initialize form data with user info
+            setFormData({
+              email: user.email,
+              firstName: user.displayName?.split(' ')[0] || '',
+              lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+            })
+          }
+        } catch (error) {
+          console.error('Error initializing lead:', error)
+        }
+      }
+    }
+
+    initializeLead()
+  }, [user])
 
   const handleStepComplete = async (stepData: any, step: number) => {
-    setFormData(prev => ({ ...prev, ...stepData }))
+    const updatedData = { ...formData, ...stepData }
+    setFormData(updatedData)
+    
+    // Update lead in database
+    if (leadId) {
+      try {
+        await merchantService.updateLead(leadId, {
+          formData: updatedData,
+          currentStep: step,
+          status: step === 6 ? 'completed' : 'in_progress',
+          pipelineStatus: step === 6 ? 'documents' : 'lead'
+        })
+      } catch (error) {
+        console.error('Error updating lead:', error)
+      }
+    }
     
     // Show success dialog only after completing the Documentation step (step 6)
     if (step === 6) {
@@ -28,8 +79,17 @@ export default function MerchantApplicationPage() {
     }
   }
 
-  const handleStepChange = (step: number) => {
+  const handleStepChange = async (step: number) => {
     setCurrentStep(step)
+    if (leadId) {
+      try {
+        await merchantService.updateLead(leadId, {
+          currentStep: step
+        })
+      } catch (error) {
+        console.error('Error updating lead step:', error)
+      }
+    }
   }
 
   const handleReturnHome = () => {

@@ -52,7 +52,7 @@ const steps: Step[] = [
 export type MerchantApplicationFormProps = {
   initialData: any
   currentStep: number
-  leadId: string
+  leadId: string | null
   onStepComplete: (stepData: any, step: number) => void
   onStepChange: (step: number) => void
 }
@@ -78,12 +78,16 @@ export function MerchantApplicationForm({
   }, [initialData])
 
   const handleStepSubmit = async (stepData: any) => {
-    const updatedData = {
-      ...formData,
-      ...stepData,
+    try {
+      const updatedData = {
+        ...formData,
+        ...stepData,
+      }
+      setFormData(updatedData)
+      await onStepComplete(stepData, currentStep)
+    } catch (error) {
+      console.error('Error submitting step:', error)
     }
-    setFormData(updatedData)
-    await onStepComplete(stepData, currentStep)
   }
 
   const handlePrevious = () => {
@@ -94,70 +98,57 @@ export function MerchantApplicationForm({
   const handleNext = async () => {
     try {
       switch (currentStep) {
+        case 1: // Authentication Step
+          if (user) {
+            const nextStep = currentStep + 1
+            onStepChange(nextStep)
+          }
+          return
+
         case 2: // Business Information Step
           if (businessInfoRef.current) {
-            await businessInfoRef.current.submit();
-            const nextStep = currentStep + 1;
-            onStepChange(nextStep);
+            await businessInfoRef.current.submit()
+            const nextStep = currentStep + 1
+            onStepChange(nextStep)
           }
-          return;
+          return
         
         case 3: // Processing History Step
           if (processingHistoryRef.current) {
-            try {
-              await processingHistoryRef.current.submit();
-              const nextStep = currentStep + 1;
-              onStepChange(nextStep);
-            } catch (error) {
-              console.error('Error submitting processing history:', error);
-              return;
-            }
+            await processingHistoryRef.current.submit()
+            const nextStep = currentStep + 1
+            onStepChange(nextStep)
           }
-          return;
+          return
 
         case 4: // Beneficial Owners Step
           if (beneficialOwnersRef.current) {
-            try {
-              await beneficialOwnersRef.current.submit()
-              const beneficialOwnersData = {
-                beneficialOwners: {
-                  owners: formData.beneficialOwners?.owners || [],
-                  updatedAt: new Date().toISOString()
-                }
-              }
-              await handleStepSubmit(beneficialOwnersData)
-              const nextStep = currentStep + 1
-              onStepChange(nextStep)
-            } catch (error) {
-              console.error('Error submitting beneficial owners:', error)
-              return
-            }
+            await beneficialOwnersRef.current.submit()
+            const nextStep = currentStep + 1
+            onStepChange(nextStep)
           }
           return
 
         case 5: // Bank Details Step
           if (bankDetailsRef.current) {
-            try {
-              await bankDetailsRef.current.submit()
-              const nextStep = currentStep + 1
-              onStepChange(nextStep)
-            } catch (error) {
-              console.error('Error submitting bank details:', error)
-              return
-            }
+            await bankDetailsRef.current.submit()
+            const nextStep = currentStep + 1
+            onStepChange(nextStep)
           }
           return
 
-        // ... other cases
-      }
+        case 6: // Documentation Step
+          // Final step - no next step
+          return
 
-      // Move to next step
-      const nextStep = currentStep + 1;
-      onStepChange(nextStep);
+        default:
+          const nextStep = currentStep + 1
+          onStepChange(nextStep)
+      }
     } catch (error) {
-      console.error('Error handling next step:', error);
+      console.error('Error handling next step:', error)
     }
-  };
+  }
 
   const handleStepClick = (stepId: number) => {
     if (user && formData.email) {
@@ -166,10 +157,20 @@ export function MerchantApplicationForm({
   }
 
   const renderStep = () => {
+    if (!leadId && currentStep >= 4) {
+      return (
+        <div className="h-[400px] flex items-center justify-center border-2 border-dashed rounded-lg">
+          <span className="text-muted-foreground">
+            Please complete previous steps first
+          </span>
+        </div>
+      )
+    }
+
     const stepProps = {
       onSave: handleStepSubmit,
       initialData: formData,
-      leadId,
+      leadId: leadId || '',
     }
 
     switch (currentStep) {
@@ -180,6 +181,7 @@ export function MerchantApplicationForm({
       case 3:
         return <ProcessingHistoryStep {...stepProps} ref={processingHistoryRef} />
       case 4:
+        if (!leadId) return null;
         return (
           <BeneficialOwnerStep
             {...stepProps}
@@ -196,6 +198,7 @@ export function MerchantApplicationForm({
       case 5:
         return <BankDetailsStep {...stepProps} ref={bankDetailsRef} />
       case 6:
+        if (!leadId) return null;
         return <DocumentationStep {...stepProps} leadId={leadId} />
       default:
         return (
