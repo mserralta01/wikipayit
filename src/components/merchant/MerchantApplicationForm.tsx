@@ -81,7 +81,7 @@ export function MerchantApplicationForm({
     setFormData(initialData)
   }, [initialData])
 
-  const handleStepSubmit = async (stepData: any) => {
+  const handleStepSubmit = async (stepData: any): Promise<void> => {
     try {
       const updatedData = {
         ...formData,
@@ -92,32 +92,42 @@ export function MerchantApplicationForm({
       // For authentication step, create user and save lead data
       if (currentStep === 1) {
         try {
-          // Create Firebase user
-          const userCredential = await createUserWithEmailAndPassword(
-            auth,
-            stepData.email,
-            stepData.password
-          )
+          if (!stepData.password) {
+            // User is already authenticated, just save lead data
+            await onStepComplete(stepData, currentStep)
+          } else {
+            // Create new Firebase user
+            const userCredential = await createUserWithEmailAndPassword(
+              auth,
+              stepData.email,
+              stepData.password
+            )
 
-          // Prepare lead data with user information
-          const leadData = {
-            firstName: stepData.firstName,
-            lastName: stepData.lastName,
-            email: stepData.email,
-            uid: userCredential.user.uid,
-            status: "Lead",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            currentStep: 1,
+            // Prepare lead data with user information
+            const leadData = {
+              firstName: stepData.firstName,
+              lastName: stepData.lastName,
+              email: stepData.email,
+              uid: userCredential.user.uid,
+              status: "Lead",
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+              currentStep: 1,
+            }
+
+            await onStepComplete(leadData, currentStep)
+
+            toast({
+              title: "Account created",
+              description: "Your account has been created successfully!",
+            })
           }
 
-          // Save lead data
-          await onStepComplete(leadData, currentStep)
-
-          toast({
-            title: "Account created",
-            description: "Your account has been created successfully!",
-          })
+          // Always proceed to next step after authentication
+          const nextStep = currentStep + 1
+          if (nextStep <= steps.length) {
+            onStepChange(nextStep)
+          }
         } catch (error: any) {
           console.error('Error creating user:', error)
           toast({
@@ -125,16 +135,16 @@ export function MerchantApplicationForm({
             description: error.message || "There was a problem creating your account",
             variant: "destructive",
           })
-          throw error // Re-throw to prevent step advancement
+          throw error
         }
       } else {
         await onStepComplete(stepData, currentStep)
-      }
-      
-      // After completing the step, move to the next one
-      const nextStep = currentStep + 1
-      if (nextStep <= steps.length) {
-        onStepChange(nextStep)
+        
+        // After completing the step, move to the next one
+        const nextStep = currentStep + 1
+        if (nextStep <= steps.length) {
+          onStepChange(nextStep)
+        }
       }
     } catch (error) {
       console.error('Error submitting step:', error)
@@ -218,13 +228,13 @@ export function MerchantApplicationForm({
 
     switch (currentStep) {
       case 1:
-        return <AuthenticationStep {...stepProps} onComplete={handleStepSubmit} />
+        return <AuthenticationStep onComplete={handleStepSubmit} />
       case 2:
         return <BusinessInformationStep {...stepProps} ref={businessInfoRef} />
       case 3:
         return <ProcessingHistoryStep {...stepProps} ref={processingHistoryRef} />
       case 4:
-        if (!leadId) return null;
+        if (!leadId) return null
         return (
           <BeneficialOwnerStep
             {...stepProps}
@@ -241,8 +251,8 @@ export function MerchantApplicationForm({
       case 5:
         return <BankDetailsStep {...stepProps} ref={bankDetailsRef} />
       case 6:
-        if (!leadId) return null;
-        return <DocumentationStep {...stepProps} leadId={leadId} />
+        if (!leadId) return null
+        return <DocumentationStep {...stepProps} />
       default:
         return (
           <div className="h-[400px] flex items-center justify-center border-2 border-dashed rounded-lg">

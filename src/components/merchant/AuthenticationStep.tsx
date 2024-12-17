@@ -93,6 +93,10 @@ export function AuthenticationStep({ onComplete, isLoading = false }: Authentica
       email: user.email || '',
       photoURL: user.photoURL,
       uid: user.uid,
+      status: "Lead",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      currentStep: 1,
     };
     
     onComplete(userData);
