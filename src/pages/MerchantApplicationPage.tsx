@@ -59,14 +59,14 @@ export default function MerchantApplicationPage() {
     const updatedData = { ...formData, ...stepData }
     setFormData(updatedData)
     
-    // Update lead in database
+    // Update lead in database, always keeping pipelineStatus as 'lead'
     if (leadId) {
       try {
         await merchantService.updateLead(leadId, {
           formData: updatedData,
           currentStep: step,
           status: step === 6 ? 'completed' : 'in_progress',
-          pipelineStatus: step === 6 ? 'documents' : 'lead'
+          pipelineStatus: 'lead'
         })
       } catch (error) {
         console.error('Error updating lead:', error)
