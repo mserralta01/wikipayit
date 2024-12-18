@@ -3,11 +3,11 @@ import { Card } from "../ui/card"
 import { Button } from "../ui/button"
 import { Label } from "../ui/label"
 import { Badge } from "../ui/badge"
-import { Merchant, BeneficialOwner } from "../../types/merchant"
+import { Merchant, BeneficialOwner, timestampToString } from "../../types/merchant"
 import { merchantService } from "../../services/merchantService"
-import { PipelineStatus } from '@/types/pipeline'
+import { PipelineStatus } from '../../types/pipeline'
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../ui/select"
-import { useToast } from "@/hooks/use-toast"
+import { useToast } from "../../hooks/use-toast"
 
 type MerchantDetailsProps = {
   merchant: Merchant
@@ -36,15 +36,16 @@ export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
     }
   };
 
-  const formatDate = (timestamp: string) => {
-    return new Date(timestamp).toLocaleDateString()
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString()
   }
 
-  const formatCurrency = (amount: string) => {
+  const formatCurrency = (amount: string | number) => {
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
-    }).format(parseFloat(amount))
+    }).format(numAmount)
   }
 
   const renderStatusBadge = (status: string) => {
@@ -209,7 +210,7 @@ export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
                   Monthly Volume
                 </Label>
                 <p className="font-medium">
-                  {formatCurrency(merchant.monthlyVolume)}
+                  {formatCurrency(merchant.monthlyVolume || 0)}
                 </p>
               </div>
               <div>
@@ -217,7 +218,7 @@ export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
                   Average Ticket
                 </Label>
                 <p className="font-medium">
-                  {formatCurrency(merchant.averageTicket)}
+                  {formatCurrency(merchant.averageTicket || 0)}
                 </p>
               </div>
               <div>
@@ -225,7 +226,7 @@ export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
                   High Ticket
                 </Label>
                 <p className="font-medium">
-                  {formatCurrency(merchant.highTicket)}
+                  {formatCurrency(merchant.highTicket || 0)}
                 </p>
               </div>
             </div>
@@ -251,7 +252,7 @@ export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
 
       {merchant.createdAt && (
         <p className="text-sm text-muted-foreground">
-          Application submitted on {formatDate(merchant.createdAt)}
+          Application submitted on {formatDate(timestampToString(merchant.createdAt))}
         </p>
       )}
     </div>

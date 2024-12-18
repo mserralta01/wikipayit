@@ -3,6 +3,8 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { format } from 'date-fns'
 import { Mail, Building2 } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { writeBatch, doc, Timestamp } from 'firebase/firestore'
+import { db } from '../../lib/firebase'
 import { merchantService } from '../../services/merchantService'
 import { CardModal } from './CardModal'
 import {
@@ -15,88 +17,41 @@ import {
   isPipelineLead,
   isPipelineMerchant
 } from '../../types/pipeline'
-import { Lead, Merchant } from '../../types/merchant'
+import { Lead, Merchant, timestampToString } from '../../types/merchant'
 import { Badge } from '../../components/ui/badge'
 import { Progress } from '../../components/ui/progress'
 import { cn } from '../../lib/utils'
 import { useToast } from '../../hooks/use-toast'
 
-// Define section types
-interface BaseSection {
-  weight: number;
-  required: boolean;
-}
-
-interface FieldSection extends BaseSection {
-  fields: Array<keyof BasePipelineItem>;
-  customCheck?: never;
-}
-
-interface CustomCheckSection extends BaseSection {
-  fields?: never;
-  customCheck: (data: PipelineFormData | undefined) => boolean;
-}
-
-type Section = FieldSection | CustomCheckSection;
-
-// Update Progress component usage
-interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
-  value: number;
-  className?: string;
-}
-
-const getProgressColor = (progress: number): string => {
-  if (progress <= 5) {
-    return 'bg-green-900'
-  } else if (progress <= 15) {
-    return 'bg-green-800'
-  } else if (progress <= 25) {
-    return 'bg-green-700'
-  } else if (progress <= 35) {
-    return 'bg-green-600'
-  } else if (progress <= 45) {
-    return 'bg-green-500'
-  } else if (progress <= 55) {
-    return 'bg-green-400'
-  } else if (progress <= 65) {
-    return 'bg-green-300'
-  } else if (progress <= 75) {
-    return 'bg-green-200'
-  } else if (progress <= 85) {
-    return 'bg-green-100'
-  } else if (progress <= 95) {
-    return 'bg-gray-200'
-  } else {
-    return 'bg-gray-100'
-  }
-}
-
 interface PipelineFormData {
   beneficialOwners?: {
     owners: Array<{
-      firstName: string;
-      lastName: string;
-      phone?: string;
-    }>;
-  };
-  businessName?: string;
-  dba?: string;
-  phone?: string;
-  email?: string;
+      firstName: string
+      lastName: string
+      phone?: string
+    }>
+  }
+  businessName?: string
+  dba?: string
+  phone?: string
+  email?: string
 }
 
-interface ExtendedPipelineMerchant extends PipelineMerchant {
-  formData?: PipelineFormData;
+interface Column {
+  id: PipelineStatus
+  title: string
+  items: PipelineItem[]
+  color: string
 }
 
-const sections: Record<string, Section> = {
+const sections = {
   basicInfo: {
-    fields: ['email'] as Array<keyof BasePipelineItem>,
+    fields: ['email', 'formData'] as Array<'email' | 'formData'>,
     weight: 10,
     required: true
   },
   businessDetails: {
-    fields: ['formData'] as Array<keyof BasePipelineItem>,
+    fields: ['formData'] as const,
     weight: 20,
     required: true
   },
@@ -107,62 +62,53 @@ const sections: Record<string, Section> = {
       Boolean(data?.beneficialOwners?.owners?.length)
   },
   processingInfo: {
-    fields: ['formData'],
+    fields: ['formData'] as const,
     weight: 20,
     required: true
   },
   bankDetails: {
-    fields: ['formData'],
+    fields: ['formData'] as const,
     weight: 20,
     required: true
   }
-}
-
-interface BasePipelineItem {
-  id: string;
-  email: string;
-  phone?: string;
-  formData?: PipelineFormData;
-  pipelineStatus: PipelineStatus;
-  createdAt: string;
-  updatedAt: string;
-}
+} as const
 
 function hasPipelineFormData(item: any): item is { formData: PipelineFormData } {
-  return 'formData' in item;
+  return 'formData' in item
 }
 
-function hasPhone(item: PipelineMerchant | PipelineLead): item is PipelineMerchant | PipelineLead & { phone: string } {
-  return 'phone' in item && typeof item.phone === 'string';
+function getProgressColor(progress: number): string {
+  if (progress <= 5) return 'bg-green-900'
+  if (progress <= 15) return 'bg-green-800'
+  if (progress <= 25) return 'bg-green-700'
+  if (progress <= 35) return 'bg-green-600'
+  if (progress <= 45) return 'bg-green-500'
+  if (progress <= 55) return 'bg-green-400'
+  if (progress <= 65) return 'bg-green-300'
+  if (progress <= 75) return 'bg-green-200'
+  if (progress <= 85) return 'bg-green-100'
+  if (progress <= 95) return 'bg-gray-200'
+  return 'bg-gray-100'
 }
 
-const calculateProgress = (item: PipelineMerchant | PipelineLead): { value: number; color: string } => {
+function calculateProgress(item: PipelineMerchant | PipelineLead): { value: number; color: string } {
   let completedSections = 0
   let totalWeight = 0
 
-  Object.entries(sections).forEach(([, section]) => {
+  Object.values(sections).forEach(section => {
     totalWeight += section.weight
 
     if ('fields' in section && section.fields) {
-      const hasAllFields = section.fields.every(
-        field => {
-          if (field === 'formData') {
-            return hasPipelineFormData(item);
-          }
-          switch (field) {
-            case 'id':
-            case 'email':
-            case 'pipelineStatus':
-            case 'createdAt':
-            case 'updatedAt':
-              return Boolean(item[field]);
-            case 'phone':
-              return hasPhone(item);
-            default:
-              return false;
-          }
+      const hasAllFields = section.fields.every(field => {
+        if (field === 'formData') {
+          return hasPipelineFormData(item)
         }
-      )
+        if (field === 'email') {
+          return Boolean(item.email)
+        }
+        return false
+      })
+
       if (hasAllFields) {
         completedSections += section.weight
       }
@@ -180,7 +126,7 @@ const calculateProgress = (item: PipelineMerchant | PipelineLead): { value: numb
   }
 }
 
-const getAgingInfo = (updatedAt: string) => {
+function getAgingInfo(updatedAt: string) {
   const lastUpdate = new Date(updatedAt)
   const now = new Date()
   const diffInMs = now.getTime() - lastUpdate.getTime()
@@ -207,25 +153,12 @@ const getAgingInfo = (updatedAt: string) => {
       text: `${diffInDays} days old`,
       animate: false
     }
-  } else {
-    return {
-      color: 'text-red-500',
-      text: `${diffInDays} days old`,
-      animate: true
-    }
   }
-}
-
-type DragEndEvent = {
-  active: { id: string };
-  over: { id: string } | null;
-}
-
-interface Column {
-  id: PipelineStatus;
-  title: string;
-  items: PipelineItem[];
-  color: string;
+  return {
+    color: 'text-red-500',
+    text: `${diffInDays} days old`,
+    animate: true
+  }
 }
 
 export function Pipeline() {
@@ -233,6 +166,7 @@ export function Pipeline() {
   const queryClient = useQueryClient()
   const [selectedItem, setSelectedItem] = useState<PipelineItem | null>(null)
   const [columns, setColumns] = useState<Column[]>([])
+
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['pipeline-items'],
     queryFn: async () => {
@@ -240,47 +174,61 @@ export function Pipeline() {
         merchantService.getLeads(),
         merchantService.getMerchants()
       ])
-      
+
       const initialColumns: Column[] = PIPELINE_STATUSES.map(status => ({
         ...COLUMN_CONFIGS[status],
         id: status,
         items: []
       }))
 
-      // Transform leads into pipeline items, respecting their existing pipelineStatus
+      // Convert leads to pipeline items, ensuring dates are strings
       const pipelineLeads = leads.map((lead: Lead): PipelineLead => ({
-        ...lead,
-        kind: 'lead' as const,
-        type: 'lead' as const,
-        pipelineStatus: (lead.pipelineStatus || 'lead') as PipelineStatus,
-        companyName: lead.companyName || lead.formData?.businessName || lead.formData?.dba || lead.email,
         id: lead.id || crypto.randomUUID(),
+        kind: 'lead',
+        type: 'lead',
+        email: lead.email,
+        pipelineStatus: (lead.pipelineStatus || 'lead') as PipelineStatus,
+        createdAt: timestampToString(lead.createdAt),
+        updatedAt: timestampToString(lead.updatedAt),
+        phone: lead.phone,
+        companyName: lead.companyName || 
+          lead.formData?.businessName || 
+          lead.formData?.dba || 
+          lead.email,
+        formData: lead.formData,
+        position: lead.position ?? 0
       }))
 
-      // Transform merchants into pipeline items
-      const pipelineMerchants = merchants.map((merchant: Merchant): PipelineMerchant => ({
-        id: merchant.id || crypto.randomUUID(),
+      // Convert merchants to pipeline items, ensuring dates are strings
+      const pipelineMerchants = merchants.map((m: Merchant): PipelineMerchant => ({
+        id: m.id || crypto.randomUUID(),
         kind: 'merchant',
         type: 'merchant',
-        email: merchant.email,
-        businessName: merchant.businessName,
-        pipelineStatus: merchant.pipelineStatus || 'lead',
-        createdAt: merchant.createdAt || new Date().toISOString(),
-        updatedAt: merchant.updatedAt || new Date().toISOString(),
-        status: merchant.status,
-        formData: {
-          businessName: merchant.businessName,
-          dba: merchant.dba,
-          phone: merchant.phone,
-          beneficialOwners: merchant.beneficialOwners ? {
-            owners: merchant.beneficialOwners.map(owner => ({
-              firstName: owner.firstName,
-              lastName: owner.lastName,
-              phone: owner.phone
-            }))
-          } : undefined
-        }
-      }));
+        email: m.email,
+        pipelineStatus: (m.pipelineStatus || 'lead') as PipelineStatus,
+        createdAt: timestampToString(m.createdAt),
+        updatedAt: timestampToString(m.updatedAt),
+        phone: m.phone,
+        businessName: m.businessName || m.email,
+        status: m.status,
+        position: m.position ?? 0,
+        formData: m.formData
+          ? m.formData
+          : {
+              businessName: m.businessName,
+              dba: m.dba,
+              phone: m.phone,
+              beneficialOwners: m.beneficialOwners
+                ? {
+                    owners: m.beneficialOwners.map(owner => ({
+                      firstName: owner.firstName,
+                      lastName: owner.lastName,
+                      phone: owner.phone
+                    }))
+                  }
+                : undefined
+            }
+      }))
 
       const allItems = [...pipelineLeads, ...pipelineMerchants]
       allItems.forEach(item => {
@@ -290,6 +238,11 @@ export function Pipeline() {
         } else {
           initialColumns[0].items.push({ ...item, pipelineStatus: 'lead' })
         }
+      })
+
+      // Sort items by position
+      initialColumns.forEach(col => {
+        col.items.sort((a: PipelineItem, b: PipelineItem) => (a.position ?? 0) - (b.position ?? 0))
       })
 
       return initialColumns
@@ -303,99 +256,132 @@ export function Pipeline() {
   }, [items])
 
   const handleDragEnd = async (result: DropResult) => {
-    const { source, destination } = result;
-    if (!destination) return;
+    const { source, destination } = result
+    if (!destination) return
 
-    // Same column movement
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) {
+      return
+    }
+
     if (source.droppableId === destination.droppableId) {
-      const column = columns.find(col => col.id === source.droppableId);
-      if (!column) return;
+      const column = columns.find(col => col.id === source.droppableId)
+      if (!column) return
 
-      const newItems = Array.from(column.items);
-      const [movedItem] = newItems.splice(source.index, 1);
-      newItems.splice(destination.index, 0, movedItem);
+      const newItems = [...column.items]
+      const [movedItem] = newItems.splice(source.index, 1)
+      newItems.splice(destination.index, 0, movedItem)
+
+      newItems.forEach((it, idx) => {
+        it.position = idx
+      })
 
       const newColumns = columns.map(col => {
         if (col.id === source.droppableId) {
           return {
             ...col,
             items: newItems
-          };
+          }
         }
-        return col;
-      });
+        return col
+      })
 
-      setColumns(newColumns);
-      return;
+      setColumns(newColumns)
+
+      try {
+        const batch = writeBatch(db)
+        newItems.forEach((it, idx) => {
+          const ref = it.kind === 'merchant'
+            ? doc(db, 'merchants', it.id)
+            : doc(db, 'leads', it.id)
+          batch.update(ref, {
+            position: idx
+          })
+        })
+        await batch.commit()
+      } catch (error) {
+        console.error('Error updating positions:', error)
+        toast({
+          title: 'Error',
+          description: 'Failed to update positions',
+          variant: 'destructive',
+        })
+      }
+      return
     }
 
-    // Moving between columns
-    const sourceColumn = columns.find(col => col.id === source.droppableId);
-    const destColumn = columns.find(col => col.id === destination.droppableId);
+    const sourceColumn = columns.find(col => col.id === source.droppableId)
+    const destColumn = columns.find(col => col.id === destination.droppableId)
+    if (!sourceColumn || !destColumn) return
 
-    if (!sourceColumn || !destColumn) return;
+    const sourceItems = [...sourceColumn.items]
+    const [movedItem] = sourceItems.splice(source.index, 1)
 
-    const sourceItems = Array.from(sourceColumn.items);
-    const [movedItem] = sourceItems.splice(source.index, 1);
+    const destItems = [...destColumn.items]
+    movedItem.pipelineStatus = destination.droppableId as PipelineStatus
+    destItems.splice(destination.index, 0, movedItem)
 
-    const destItems = Array.from(destColumn.items);
-    const updatedItem = {
-      ...movedItem,
-      pipelineStatus: destination.droppableId as PipelineStatus
-    } as PipelineItem;
-
-    destItems.splice(destination.index, 0, updatedItem);
+    sourceItems.forEach((it, idx) => { it.position = idx })
+    destItems.forEach((it, idx) => { it.position = idx })
 
     const newColumns = columns.map(col => {
-      if (col.id === source.droppableId) {
-        return {
-          ...col,
-          items: sourceItems
-        };
+      if (col.id === sourceColumn.id) {
+        return { ...col, items: sourceItems }
       }
-      if (col.id === destination.droppableId) {
-        return {
-          ...col,
-          items: destItems
-        };
+      if (col.id === destColumn.id) {
+        return { ...col, items: destItems }
       }
-      return col;
-    });
+      return col
+    })
 
-    setColumns(newColumns);
+    setColumns(newColumns)
 
-    // Update in database
     try {
+      const batch = writeBatch(db)
       if (isPipelineMerchant(movedItem)) {
-        await merchantService.updateMerchantStatus(
-          movedItem.id,
-          destination.droppableId as PipelineStatus
-        );
-
-        toast({
-          title: "Status updated",
-          description: `${movedItem.businessName || movedItem.email} moved to ${destColumn.title}`,
-        });
+        batch.update(doc(db, 'merchants', movedItem.id), {
+          pipelineStatus: movedItem.pipelineStatus,
+          status: movedItem.pipelineStatus,
+          position: destination.index
+        })
       } else if (isPipelineLead(movedItem)) {
-        await merchantService.updateLeadStatus(
-          movedItem.id,
-          destination.droppableId as PipelineStatus
-        );
-
-        toast({
-          title: "Status updated",
-          description: `${movedItem.companyName || movedItem.email} moved to ${destColumn.title}`,
-        });
+        batch.update(doc(db, 'leads', movedItem.id), {
+          pipelineStatus: movedItem.pipelineStatus,
+          position: destination.index
+        })
       }
+
+      sourceItems.forEach((it, idx) => {
+        const ref = it.kind === 'merchant'
+          ? doc(db, 'merchants', it.id)
+          : doc(db, 'leads', it.id)
+        batch.update(ref, { position: idx })
+      })
+      destItems.forEach((it, idx) => {
+        const ref = it.kind === 'merchant'
+          ? doc(db, 'merchants', it.id)
+          : doc(db, 'leads', it.id)
+        batch.update(ref, { position: idx })
+      })
+      await batch.commit()
+
+      toast({
+        title: "Status updated",
+        description: isPipelineMerchant(movedItem)
+          ? `${movedItem.businessName || movedItem.email} moved to ${destColumn.title}`
+          : `${movedItem.companyName || movedItem.email} moved to ${destColumn.title}`
+      })
     } catch (error) {
-      console.error('Error updating status:', error);
+      console.error('Error updating status:', error)
       toast({
         title: "Error",
-        description: "Failed to update status",
+        description: "Failed to update items",
         variant: "destructive",
-      });
+      })
     }
-  };
+  }
 
   const handleItemClick = (item: PipelineItem) => {
     setSelectedItem(item)
@@ -433,21 +419,19 @@ export function Pipeline() {
                       draggableId={item.id}
                       index={index}
                     >
-                      {(provided, snapshot) => (
+                      {(dragProvided, dragSnapshot) => (
                         <div
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
+                          ref={dragProvided.innerRef}
+                          {...dragProvided.draggableProps}
+                          {...dragProvided.dragHandleProps}
                           onClick={() => handleItemClick(item)}
                           className={`bg-white rounded-lg p-4 mb-2 cursor-move shadow-sm transition-shadow ${
-                            snapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
+                            dragSnapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
                           }`}
                         >
-                          {isPipelineLead(item) ? (
-                            <LeadCard item={item} />
-                          ) : (
-                            <MerchantCard item={item} />
-                          )}
+                          {isPipelineLead(item)
+                            ? <LeadCard item={item} />
+                            : <MerchantCard item={item} />}
                         </div>
                       )}
                     </Draggable>
@@ -467,15 +451,9 @@ export function Pipeline() {
           onStatusChange={async (newStatus: PipelineStatus) => {
             try {
               if (isPipelineMerchant(selectedItem)) {
-                await merchantService.updateMerchantStatus(
-                  selectedItem.id,
-                  newStatus
-                )
+                await merchantService.updateMerchantStatus(selectedItem.id, newStatus)
               } else {
-                await merchantService.updateLeadStatus(
-                  selectedItem.id,
-                  newStatus
-                )
+                await merchantService.updateLeadStatus(selectedItem.id, newStatus)
               }
               queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
               setSelectedItem(null)
@@ -502,13 +480,13 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   const fullName = beneficialOwner
     ? `${beneficialOwner.firstName} ${beneficialOwner.lastName}`.trim()
     : ''
-  const phoneNumber = beneficialOwner?.phone || item.formData?.phone
+  const phoneNumber = beneficialOwner?.phone || item.phone
   const agingInfo = getAgingInfo(item.updatedAt || new Date().toISOString())
 
   return (
     <div className="space-y-2.5">
       <div className="flex items-center justify-between">
-        <Badge 
+        <Badge
           variant="secondary"
           style={{ backgroundColor: config.color, color: 'white' }}
           className="truncate max-w-[200px]"
@@ -519,7 +497,7 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
           {item.createdAt ? format(new Date(item.createdAt), 'MMM d, yyyy') : 'N/A'}
         </span>
       </div>
-      
+
       {fullName && (
         <div className="flex items-center gap-2">
           <svg
@@ -550,14 +528,14 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
       </div>
       {phoneNumber && (
         <div className="flex items-center gap-2">
-          <svg 
+          <svg
             className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
             strokeLinejoin="round"
           >
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -565,12 +543,9 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
           <span className="text-sm text-gray-600">{phoneNumber}</span>
         </div>
       )}
-      <Progress 
-        value={progress.value} 
-        className={cn("h-2", progress.color)}
-      />
+      <Progress value={progress.value} className={cn("h-2", progress.color)} />
       <div className="flex items-center justify-end">
-        <span 
+        <span
           className={cn(
             "text-xs font-medium",
             agingInfo.color,
@@ -585,25 +560,25 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
 }
 
 interface MerchantCardProps {
-  item: PipelineMerchant;
+  item: PipelineMerchant
 }
 
 const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
-  const config = COLUMN_CONFIGS[item.pipelineStatus];
-  const progress = calculateProgress(item);
+  const config = COLUMN_CONFIGS[item.pipelineStatus]
+  const progress = calculateProgress(item)
 
-  const displayName = item.formData?.dba || item.businessName || item.email;
-  const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null;
+  const displayName = item.formData?.dba || item.businessName || item.email
+  const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
   const fullName = beneficialOwner
     ? `${beneficialOwner.firstName} ${beneficialOwner.lastName}`.trim()
-    : '';
-  const phoneNumber = beneficialOwner?.phone || item.phone;
-  const agingInfo = getAgingInfo(item.updatedAt);
+    : ''
+  const phoneNumber = beneficialOwner?.phone || item.phone
+  const agingInfo = getAgingInfo(item.updatedAt)
 
   return (
     <div className="space-y-2.5">
       <div className="flex items-center justify-between">
-        <Badge 
+        <Badge
           variant="secondary"
           style={{ backgroundColor: config.color, color: 'white' }}
           className="truncate max-w-[200px]"
@@ -633,7 +608,6 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
           <span className="text-sm font-medium">{fullName}</span>
         </div>
       )}
-
       {item.businessName && (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-blue-500" />
@@ -648,14 +622,14 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
 
       {phoneNumber && (
         <div className="flex items-center gap-2">
-          <svg 
+          <svg
             className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="currentColor" 
-            strokeWidth="2" 
-            strokeLinecap="round" 
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
             strokeLinejoin="round"
           >
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -663,14 +637,10 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
           <span className="text-sm text-gray-600">{phoneNumber}</span>
         </div>
       )}
-
-      <Progress 
-        value={progress.value}
-        className={cn("h-2", progress.color)}
-      />
+      <Progress value={progress.value} className={cn("h-2", progress.color)} />
 
       <div className="flex items-center justify-end">
-        <span 
+        <span
           className={cn(
             "text-xs font-medium",
             agingInfo.color,

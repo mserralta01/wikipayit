@@ -1,5 +1,5 @@
 import React from 'react'
-import { Card, CardContent } from '@/components/ui/card'
+import { Card, CardContent } from '../../components/ui/card'
 import { 
   FileText, 
   MoreVertical, 
@@ -16,30 +16,20 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+} from '../../components/ui/dropdown-menu'
+import { Button } from '../../components/ui/button'
+import { Badge } from '../../components/ui/badge'
 import { useQuery } from '@tanstack/react-query'
-import { merchantService } from '@/services/merchantService'
-import { Merchant } from '@/types/merchant'
-
-interface Application extends Merchant {
-  businessName: string;
-  contactName: string;
-  status: "pending" | "approved" | "rejected" | undefined;
-  businessType: "sole_proprietorship" | "partnership" | "llc" | "corporation" | "non_profit";
-  processingVolume: number;
-  phone: string;
-  createdAt: string;
-  id: string;
-}
+import { merchantService, ApplicationData } from '../../services/merchantService'
 
 export default function Applications() {
   const { data: applications, isLoading } = useQuery({
     queryKey: ['applications'],
-    queryFn: () => merchantService.getApplications() as Promise<Application[]>,
+    queryFn: async () => {
+      const apps = await merchantService.getApplications()
+      return apps
+    }
   })
 
   if (isLoading) {
@@ -60,7 +50,7 @@ export default function Applications() {
       </div>
 
       <div className="grid gap-6">
-        {applications?.map((application) => (
+        {applications?.map((application: ApplicationData) => (
           <Card key={application.id}>
             <CardContent className="p-6">
               <div className="flex items-start justify-between">
@@ -147,4 +137,4 @@ export default function Applications() {
       </div>
     </div>
   )
-} 
+}

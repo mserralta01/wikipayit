@@ -18,12 +18,32 @@ import { Activity } from '../types/activity'
 import { ProcessingFormData } from "../components/merchant/ProcessingHistoryStep"
 import { PipelineStatus } from "../types/pipeline"
 
+// Application specific type
+export interface ApplicationData extends Omit<Merchant, 'status'> {
+  businessName: string;
+  contactName: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  businessType: 'sole_proprietorship' | 'partnership' | 'llc' | 'corporation' | 'non_profit';
+  processingVolume: number;
+  phone: string;
+}
+
+// Helper to safely convert Firestore Timestamp or string to ISO string
+function toIsoStringOrNow(value: any): string {
+  if (value && typeof value.toDate === 'function') {
+    return value.toDate().toISOString()
+  }
+  if (typeof value === 'string') {
+    return value
+  }
+  return new Date().toISOString()
+}
+
 const getDashboardMetrics = async (): Promise<any> => {
   // Implement logic to fetch dashboard metrics
 };
 
 const getRecentActivity = async (): Promise<Activity[]> => {
-  // Implement logic to fetch recent activity
   const activitiesRef = collection(db, "activities");
   const q = query(activitiesRef, orderBy("timestamp", "desc"));
   const querySnapshot = await getDocs(q);
@@ -52,7 +72,6 @@ export const merchantService = {
         updatedAt: Timestamp.now(),
       }
       
-      // Check if lead already exists before creating
       const existingLead = await this.getLeadByEmail(email)
       if (existingLead) {
         return existingLead.id
@@ -86,16 +105,17 @@ export const merchantService = {
       const querySnapshot = await getDocs(q)
       
       if (!querySnapshot.empty) {
-        const doc = querySnapshot.docs[0]
-        const data = doc.data()
+        const docSnap = querySnapshot.docs[0]
+        const data = docSnap.data()
         return { 
-          id: doc.id, 
+          id: docSnap.id, 
           ...data,
           currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
           formData: data.formData || { email },
           status: data.status || "started",
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
+          pipelineStatus: data.pipelineStatus || "lead",
+          createdAt: toIsoStringOrNow(data.createdAt),
+          updatedAt: toIsoStringOrNow(data.updatedAt),
         } as Lead
       }
       return null
@@ -111,17 +131,17 @@ export const merchantService = {
       const q = query(leadsRef, orderBy("updatedAt", "desc"))
       const querySnapshot = await getDocs(q)
       
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data()
+      return querySnapshot.docs.map(docSnap => {
+        const data = docSnap.data()
         return {
-          id: doc.id,
+          id: docSnap.id,
           ...data,
           currentStep: typeof data.currentStep === 'number' ? data.currentStep : 1,
           formData: data.formData || {},
           status: data.status || "started",
           pipelineStatus: data.pipelineStatus || "lead",
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
+          createdAt: toIsoStringOrNow(data.createdAt),
+          updatedAt: toIsoStringOrNow(data.updatedAt),
         } as Lead
       })
     } catch (error) {
@@ -133,18 +153,16 @@ export const merchantService = {
   async createMerchant(leadId: string, merchantData: Partial<Merchant>): Promise<string> {
     try {
       const merchantsRef = collection(db, "merchants");
-      const data = {
+      const dataForDb = {
         ...merchantData,
         pipelineStatus: merchantData.pipelineStatus || "lead",
         status: merchantData.status || "lead",
         position: merchantData.position ?? 0,
-        createdAt: merchantData.createdAt || Timestamp.now().toDate().toISOString(),
-        updatedAt: merchantData.updatedAt || Timestamp.now().toDate().toISOString(),
+        createdAt: merchantData.createdAt || Timestamp.now(),
+        updatedAt: merchantData.updatedAt || Timestamp.now(),
       };
       
-      console.log('Creating merchant with data:', data);
-      
-      const docRef = await addDoc(merchantsRef, data);
+      const docRef = await addDoc(merchantsRef, dataForDb);
       return docRef.id;
     } catch (error) {
       console.error("Error creating merchant:", error);
@@ -177,8 +195,8 @@ export const merchantService = {
         return { 
           id: merchantDoc.id, 
           ...data,
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
+          createdAt: toIsoStringOrNow(data.createdAt),
+          updatedAt: toIsoStringOrNow(data.updatedAt),
         } as Merchant
       }
       return null
@@ -194,13 +212,16 @@ export const merchantService = {
       const q = query(merchantsRef, orderBy("createdAt", "desc"))
       const querySnapshot = await getDocs(q)
       
-      return querySnapshot.docs.map(doc => {
-        const data = doc.data()
+      return querySnapshot.docs.map(docSnap => {
+        const data = docSnap.data()
         return { 
-          id: doc.id, 
+          id: docSnap.id, 
           ...data,
-          createdAt: data.createdAt.toDate().toISOString(),
-          updatedAt: data.updatedAt.toDate().toISOString(),
+          createdAt: toIsoStringOrNow(data.createdAt),
+          updatedAt: toIsoStringOrNow(data.updatedAt),
+          pipelineStatus: data.pipelineStatus || "lead",
+          status: data.status || "lead",
+          position: typeof data.position === 'number' ? data.position : 0,
         } as Merchant
       })
     } catch (error) {
@@ -218,7 +239,7 @@ export const merchantService = {
       await updateDoc(merchantRef, {
         pipelineStatus: newStatus,
         status: newStatus,
-        updatedAt: new Date().toISOString()
+        updatedAt: Timestamp.now()
       });
     } catch (error) {
       console.error("Error updating merchant status:", error);
@@ -364,16 +385,37 @@ export const merchantService = {
     }
   },
 
-  async getApplications() {
-    const applicationsRef = collection(db, 'merchants')
-    const q = query(applicationsRef, orderBy('createdAt', 'desc'))
-    const snapshot = await getDocs(q)
-    
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate?.().toISOString() || new Date().toISOString()
-    }))
+  async getApplications(): Promise<ApplicationData[]> {
+    try {
+      const applicationsRef = collection(db, 'merchants')
+      const q = query(applicationsRef, orderBy('createdAt', 'desc'))
+      const snapshot = await getDocs(q)
+      
+      return snapshot.docs.map(docSnap => {
+        const data = docSnap.data()
+        return {
+          id: docSnap.id,
+          ...data,
+          createdAt: toIsoStringOrNow(data.createdAt),
+          updatedAt: toIsoStringOrNow(data.updatedAt),
+          businessName: data.businessName || data.formData?.businessName || '',
+          contactName: data.formData?.firstName && data.formData?.lastName 
+            ? `${data.formData.firstName} ${data.formData.lastName}`
+            : '',
+          businessType: (data.formData?.businessType || 'llc') as ApplicationData['businessType'],
+          processingVolume: data.formData?.monthlyVolume 
+            ? Number(data.formData.monthlyVolume) 
+            : 0,
+          phone: data.phone || data.formData?.phone || '',
+          status: (data.status === 'approved' || data.status === 'rejected' || data.status === 'pending')
+            ? data.status
+            : 'pending'
+        } as ApplicationData
+      })
+    } catch (error) {
+      console.error("Error getting applications:", error)
+      throw error
+    }
   },
 
   getDashboardMetrics,
@@ -383,7 +425,6 @@ export const merchantService = {
     try {
       const merchantRef = doc(db, 'merchants', leadId);
       
-      // Validate required fields before saving
       const requiredFields = [
         'isCurrentlyProcessing',
         'monthlyVolume',
@@ -395,14 +436,13 @@ export const merchantService = {
       ] as const;
 
       const missingFields = requiredFields.filter(
-        field => !processingHistory[field as keyof ProcessingFormData]
+        field => !processingHistory[field]
       );
 
       if (missingFields.length > 0) {
         throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
       }
 
-      // Format the data before saving
       const formattedData = {
         processingHistory: {
           ...processingHistory,
@@ -430,7 +470,7 @@ export const merchantService = {
       const leadRef = doc(db, "leads", leadId);
       await updateDoc(leadRef, {
         pipelineStatus,
-        updatedAt: new Date()
+        updatedAt: Timestamp.now()
       });
     } catch (error) {
       console.error("Error updating lead status:", error);
@@ -443,12 +483,11 @@ export const merchantService = {
     const snapshot = await getDocs(merchantsRef);
     const batch = writeBatch(db);
     
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      // Update status to pipelineStatus if it exists
+    snapshot.forEach((docSnap) => {
+      const data = docSnap.data();
       if (data.status && !data.pipelineStatus) {
-        batch.update(doc.ref, {
-          pipelineStatus: data.status.toLowerCase(), // Convert to lowercase to match enum
+        batch.update(docSnap.ref, {
+          pipelineStatus: data.status.toLowerCase(),
           position: data.position || 0,
           updatedAt: new Date()
         });

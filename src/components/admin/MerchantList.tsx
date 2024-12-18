@@ -29,16 +29,17 @@ import {
   Trash2
 } from 'lucide-react'
 import { merchantService } from '../../services/merchantService'
-import { Merchant } from '../../types/merchant'
+import { Merchant, timestampToString } from '../../types/merchant'
+import { PipelineStatus } from '../../types/pipeline'
 
-const statusColors = {
+const statusColors: Record<PipelineStatus, string> = {
   lead: 'bg-blue-100 text-blue-800',
   phone: 'bg-purple-100 text-purple-800',
   offer: 'bg-yellow-100 text-yellow-800',
   underwriting: 'bg-orange-100 text-orange-800',
   documents: 'bg-indigo-100 text-indigo-800',
   approved: 'bg-green-100 text-green-800'
-} as const
+}
 
 export default function MerchantList() {
   const { data: merchants, isLoading } = useQuery<Merchant[], Error>({
@@ -46,11 +47,26 @@ export default function MerchantList() {
     queryFn: () => merchantService.getMerchants()
   })
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount: number | string | undefined) => {
+    if (!amount) return 'N/A'
+    const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
-    }).format(amount)
+    }).format(numAmount)
+  }
+
+  const formatDate = (date: string | undefined) => {
+    if (!date) return 'N/A'
+    return new Date(date).toLocaleDateString()
+  }
+
+  const getContactName = (merchant: Merchant) => {
+    if (merchant.beneficialOwners?.[0]) {
+      const owner = merchant.beneficialOwners[0]
+      return `${owner.firstName} ${owner.lastName}`
+    }
+    return 'N/A'
   }
 
   if (isLoading) {
@@ -84,7 +100,6 @@ export default function MerchantList() {
                 className="pl-10"
               />
             </div>
-            {/* Add filters here if needed */}
           </div>
         </div>
 
@@ -100,65 +115,69 @@ export default function MerchantList() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {merchants?.map((merchant: Merchant) => (
-              <TableRow key={merchant.id}>
-                <TableCell className="font-medium">
-                  {merchant.businessName}
-                </TableCell>
-                <TableCell>
-                  <div>
-                    <div>{merchant.contactName}</div>
-                    <div className="text-sm text-gray-500">{merchant.email}</div>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant="secondary" className={statusColors[merchant.status as keyof typeof statusColors]}>
-                    {merchant.status?.charAt(0).toUpperCase() + (merchant.status?.slice(1) || '')}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {merchant.processingVolume ? 
-                    formatCurrency(merchant.processingVolume) : 
-                    'N/A'
-                  }
-                </TableCell>
-                <TableCell>
-                  {merchant.createdAt ? new Date(merchant.createdAt).toLocaleDateString() : 'N/A'}
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem>
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Mail className="mr-2 h-4 w-4" />
-                        Send Email
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <FileText className="mr-2 h-4 w-4" />
-                        View Documents
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem className="text-red-600">
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              </TableRow>
-            ))}
+            {merchants?.map((merchant: Merchant) => {
+              const status = merchant.pipelineStatus || merchant.status || 'lead'
+              const statusColor = statusColors[status as PipelineStatus] || 'bg-gray-100 text-gray-800'
+              const createdDate = timestampToString(merchant.createdAt)
+              const contactName = getContactName(merchant)
+              
+              return (
+                <TableRow key={merchant.id}>
+                  <TableCell className="font-medium">
+                    {merchant.businessName}
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div>{contactName}</div>
+                      <div className="text-sm text-gray-500">{merchant.email}</div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="secondary" className={statusColor}>
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {formatCurrency(merchant.formData?.monthlyVolume)}
+                  </TableCell>
+                  <TableCell>
+                    {formatDate(createdDate)}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem>
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <Mail className="mr-2 h-4 w-4" />
+                          Send Email
+                        </DropdownMenuItem>
+                        <DropdownMenuItem>
+                          <FileText className="mr-2 h-4 w-4" />
+                          View Documents
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem className="text-red-600">
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </div>
     </div>
   )
-} 
+}

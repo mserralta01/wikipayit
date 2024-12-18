@@ -7,19 +7,20 @@ export type PipelineStatus =
   | 'underwriting'
   | 'documents'
   | 'approved';
-export type ServiceStatus = 'lead' | 'approved'
+
+export type ServiceStatus = 'lead' | 'approved';
 
 // Base types with discriminators
 export interface BaseMerchant extends Omit<Merchant, 'id'> {
-  id: string
-  kind: 'merchant'
-  type: 'merchant'
+  id: string;
+  kind: 'merchant';
+  type: 'merchant';
 }
 
 export interface BaseLead extends Omit<Lead, 'id'> {
-  id: string
-  kind: 'lead'
-  type: 'lead'
+  id: string;
+  kind: 'lead';
+  type: 'lead';
 }
 
 // Add BasePipelineItem interface
@@ -32,6 +33,7 @@ export interface BasePipelineItem {
   createdAt: string;
   updatedAt: string;
   phone?: string;
+  position?: number; // <-- Added position here to unify usage across all PipelineItems
   formData?: {
     businessName?: string;
     dba?: string;
@@ -58,8 +60,6 @@ export interface PipelineMerchant extends BasePipelineItem {
   type: 'merchant';
   businessName?: string;
   status?: string;
-  position?: number;
-  email: string;
   displayName?: string;
 }
 
@@ -69,7 +69,7 @@ export interface PipelineLead extends BasePipelineItem {
   companyName: string;
 }
 
-export type PipelineItem = PipelineMerchant | PipelineLead
+export type PipelineItem = PipelineMerchant | PipelineLead;
 
 // Service types
 export interface ServiceMerchant extends BaseMerchant {
@@ -95,23 +95,22 @@ export interface ServiceMerchant extends BaseMerchant {
 }
 
 export interface ServiceLead extends BaseLead {
-  pipelineStatus: ServiceStatus
+  pipelineStatus: ServiceStatus;
 }
 
-export type ServiceItem = ServiceMerchant | ServiceLead
+export type ServiceItem = ServiceMerchant | ServiceLead;
 
-// Response type
 export type ServiceResponse = (
   | (Omit<Merchant, 'id'> & { id?: string; pipelineStatus?: ServiceStatus })
   | (Omit<Lead, 'id'> & { id?: string; pipelineStatus?: ServiceStatus })
-)
+);
 
 // Column types
 export interface Column {
-  id: PipelineStatus
-  title: string
-  color: string
-  items: PipelineItem[]
+  id: PipelineStatus;
+  title: string;
+  color: string;
+  items: PipelineItem[];
 }
 
 export interface ColumnConfig {
@@ -128,7 +127,7 @@ export const PIPELINE_STATUSES: readonly PipelineStatus[] = [
   'underwriting',
   'documents',
   'approved'
-] as const
+] as const;
 
 export const COLUMN_CONFIGS: Record<PipelineStatus, Omit<ColumnConfig, 'id'>> = {
   lead: {
@@ -155,21 +154,21 @@ export const COLUMN_CONFIGS: Record<PipelineStatus, Omit<ColumnConfig, 'id'>> = 
     title: 'Approved',
     color: '#4caf50'
   }
-} as const
+} as const;
 
 // Type guards
 export const isPipelineMerchant = (item: PipelineItem): item is PipelineMerchant => {
-  return item.kind === 'merchant'
-}
+  return item.kind === 'merchant';
+};
 
 export const isPipelineLead = (item: PipelineItem): item is PipelineLead => {
-  return item.kind === 'lead'
-}
+  return item.kind === 'lead';
+};
 
 export const isServiceMerchant = (item: ServiceItem): item is ServiceMerchant => {
-  return item.kind === 'merchant'
-}
+  return item.kind === 'merchant';
+};
 
 export const isServiceLead = (item: ServiceItem): item is ServiceLead => {
-  return item.kind === 'lead'
-}
+  return item.kind === 'lead';
+};
