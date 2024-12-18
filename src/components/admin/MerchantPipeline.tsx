@@ -6,13 +6,23 @@ import {
   closestCorners,
   PointerSensor,
   useSensor,
-  useSensors
+  useSensors,
+  DragStartEvent,
+  UniqueIdentifier,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+  DragOverlay as DndDragOverlay
 } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+  sortableKeyboardCoordinates
+} from "@dnd-kit/sortable";
 import { useToast } from "@/hooks/use-toast";
 import { MerchantCard } from "./MerchantCard";
-import { PipelineColumn } from "./PipelineColumn";
-import { PipelineMerchant, Column, MerchantStatus } from "@/types/merchant";
+import { PipelineColumn as PipelineColumnComponent } from "./PipelineColumn";
+import { PipelineMerchant, PipelineStatus, Column as PipelineColumn, PIPELINE_STATUSES, COLUMN_CONFIGS } from "@/types/pipeline";
 import { db } from "@/lib/firebase";
 import { 
   collection,
@@ -23,19 +33,26 @@ import {
   orderBy
 } from "firebase/firestore";
 
-const COLUMN_TITLES: MerchantStatus[] = [
-  'Lead',
-  'Phone Calls',
-  'Offer Sent',
-  'Underwriting',
-  'Documents',
-  'Approved'
-];
+interface LocalColumn {
+  id: PipelineStatus;
+  title: PipelineStatus;
+  merchantIds: string[];
+  color: string;
+  items: PipelineMerchant[];
+}
+
+const getValidPipelineStatus = (status: string | undefined): PipelineStatus => {
+  const validStatuses: PipelineStatus[] = ['lead', 'phone', 'offer', 'underwriting', 'documents', 'approved'];
+  const normalizedStatus = (status || 'lead').toLowerCase() as PipelineStatus;
+  return validStatuses.includes(normalizedStatus) ? normalizedStatus : 'lead';
+};
 
 export function MerchantPipeline() {
   const { toast } = useToast();
+  const [columns, setColumns] = useState<LocalColumn[]>([]);
   const [merchants, setMerchants] = useState<PipelineMerchant[]>([]);
-  const [columns, setColumns] = useState<Column[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeMerchant, setActiveMerchant] = useState<PipelineMerchant | null>(null);
   
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -46,85 +63,102 @@ export function MerchantPipeline() {
   );
 
   useEffect(() => {
-    // Initialize columns
-    const initialColumns = COLUMN_TITLES.map((title) => ({
-      id: title.toLowerCase().replace(' ', '-'),
-      title,
+    const initialColumns: LocalColumn[] = PIPELINE_STATUSES.map(status => ({
+      id: status,
+      title: status,
       merchantIds: [],
+      color: COLUMN_CONFIGS[status].color,
+      items: []
     }));
     setColumns(initialColumns);
+  }, []);
 
-    // Subscribe to merchants collection
+  useEffect(() => {
     const merchantsQuery = query(
       collection(db, 'merchants'),
+      orderBy('pipelineStatus'),
       orderBy('position')
     );
 
     const unsubscribe = onSnapshot(merchantsQuery, (snapshot) => {
       const merchantsList: PipelineMerchant[] = [];
       snapshot.forEach((doc) => {
-        merchantsList.push({ id: doc.id, ...doc.data() } as PipelineMerchant);
+        const data = doc.data();
+        
+        // Use pipelineStatus if available, fallback to status, then default to 'lead'
+        const status = data.pipelineStatus || data.status || 'lead';
+        const pipelineStatus = getValidPipelineStatus(status);
+        
+        merchantsList.push({ 
+          id: doc.id, 
+          ...data,
+          kind: 'merchant',
+          type: 'merchant',
+          pipelineStatus,
+          status: pipelineStatus, // Ensure both fields are synchronized
+          position: data.position || 0,
+          email: data.email,
+          displayName: data.businessName || data.email,
+        } as PipelineMerchant);
       });
-      setMerchants(merchantsList);
-      
-      // Update columns with merchant IDs
-      setColumns(initialColumns.map(column => ({
-        ...column,
-        merchantIds: merchantsList
-          .filter(m => m.status === column.title)
-          .map(m => m.id)
-      })));
+
+      const sortedMerchants = merchantsList.sort((a, b) => {
+        if (a.pipelineStatus === b.pipelineStatus) {
+          return (a.position || 0) - (b.position || 0);
+        }
+        return 0;
+      });
+
+      setMerchants(sortedMerchants);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    
-    if (!over) return;
+  useEffect(() => {
+    setColumns(prevColumns => 
+      prevColumns.map(column => {
+        const columnMerchants = merchants.filter(merchant => 
+          merchant.pipelineStatus === column.id || 
+          (merchant.status === column.id && !merchant.pipelineStatus)
+        );
+        
+        return {
+          ...column,
+          merchantIds: columnMerchants.map(m => m.id),
+          items: columnMerchants
+        };
+      })
+    );
+  }, [merchants]);
 
-    const activeMerchant = merchants.find(m => m.id === active.id);
-    const overColumn = columns.find(c => c.id === over.id);
+  const transformMerchant = (merchant: any): PipelineMerchant => ({
+    ...merchant,
+    kind: 'merchant',
+    type: 'merchant',
+    pipelineStatus: merchant.pipelineStatus || 'lead',
+    position: merchant.position || 0,
+    displayName: merchant.businessName || merchant.email,
+    email: merchant.email,
+    formData: {
+      businessName: merchant.businessName,
+      dba: merchant.dba,
+      phone: merchant.phone,
+    }
+  });
 
-    if (!activeMerchant || !overColumn) return;
+  const getColumnMerchants = (column: LocalColumn) => {
+    return merchants
+      .filter(m => column.merchantIds.includes(m.id))
+      .map(transformMerchant);
+  };
 
-    try {
-      const batch = writeBatch(db);
-      const merchantRef = doc(db, 'merchants', activeMerchant.id);
-
-      // Update merchant status and position
-      const updatedMerchant: Partial<PipelineMerchant> = {
-        status: overColumn.title,
-        position: overColumn.merchantIds.length,
-        updatedAt: new Date(),
-      };
-
-      batch.update(merchantRef, updatedMerchant);
-      await batch.commit();
-
-      // Send email notification
-      await fetch('/api/notify-status-change', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          merchantId: activeMerchant.id,
-          newStatus: overColumn.title,
-          oldStatus: activeMerchant.status,
-        }),
-      });
-
-      toast({
-        title: "Status updated",
-        description: `${activeMerchant.name} moved to ${overColumn.title}`,
-      });
-    } catch (error) {
-      console.error('Error updating merchant:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update merchant status",
-        variant: "destructive",
-      });
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const draggedMerchant = merchants.find(m => m.id === active.id);
+    if (draggedMerchant) {
+      setActiveId(active.id.toString());
+      setActiveMerchant(draggedMerchant);
     }
   };
 
@@ -132,48 +166,163 @@ export function MerchantPipeline() {
     const { active, over } = event;
     if (!over) return;
 
-    const activeColumn = columns.find(c => 
-      c.merchantIds.includes(active.id as string)
-    );
-    const overColumn = columns.find(c => c.id === over.id);
+    const activeColumn = columns.find(col => col.id === active.id);
+    const overColumn = columns.find(col => col.id === over.id);
 
-    if (!activeColumn || !overColumn || activeColumn === overColumn) return;
+    if (!activeColumn || !overColumn || activeColumn.id === overColumn.id) return;
 
-    setColumns(columns.map(col => {
-      if (col.id === activeColumn.id) {
-        return {
-          ...col,
-          merchantIds: col.merchantIds.filter((id: string) => id !== active.id),
-        };
+    setColumns(prevColumns => {
+      const activeItems = [...activeColumn.merchantIds];
+      const overItems = [...overColumn.merchantIds];
+
+      const activeIndex = activeItems.indexOf(active.id as string);
+      const overIndex = over.id in overItems ? overItems.indexOf(over.id as string) : overItems.length;
+
+      return prevColumns.map(col => {
+        if (col.id === activeColumn.id) {
+          return {
+            ...col,
+            merchantIds: activeItems.filter(id => id !== active.id)
+          };
+        }
+        if (col.id === overColumn.id) {
+          const newMerchantIds = [...overItems];
+          newMerchantIds.splice(overIndex, 0, active.id as string);
+          return {
+            ...col,
+            merchantIds: newMerchantIds
+          };
+        }
+        return col;
+      });
+    });
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    
+    if (!over || !active) {
+      setActiveId(null);
+      setActiveMerchant(null);
+      return;
+    }
+
+    const activeMerchant = merchants.find(m => m.id === active.id);
+    if (!activeMerchant) {
+      setActiveId(null);
+      setActiveMerchant(null);
+      return;
+    }
+
+    try {
+      const batch = writeBatch(db);
+      const oldStatus = activeMerchant.pipelineStatus;
+      const targetColumn = columns.find(col => col.id === over.id);
+      
+      if (!targetColumn) {
+        setActiveId(null);
+        setActiveMerchant(null);
+        return;
       }
-      if (col.id === overColumn.id) {
-        return {
-          ...col,
-          merchantIds: [...col.merchantIds, active.id as string],
-        };
+
+      const newStatus = targetColumn.title;
+      const sourceColumn = columns.find(col => col.title === oldStatus);
+      
+      if (!sourceColumn) {
+        setActiveId(null);
+        setActiveMerchant(null);
+        return;
       }
-      return col;
-    }));
+
+      // Calculate new position
+      const overMerchantId = over.id as string;
+      const isOverColumn = targetColumn.id === over.id;
+      const newPosition = isOverColumn
+        ? targetColumn.merchantIds.length
+        : targetColumn.merchantIds.indexOf(overMerchantId);
+
+      // Update the active merchant with new status and position
+      batch.update(doc(db, 'merchants', activeMerchant.id), {
+        pipelineStatus: newStatus,
+        status: newStatus,
+        position: newPosition,
+        updatedAt: new Date()
+      });
+
+      // Update positions for all affected merchants
+      const sourceUpdates = sourceColumn.merchantIds
+        .filter(id => id !== activeMerchant.id)
+        .map((id, index) => ({
+          id,
+          position: index
+        }));
+
+      const targetUpdates = targetColumn.merchantIds
+        .filter(id => id !== activeMerchant.id)
+        .map((id, index) => {
+          const position = index >= newPosition ? index + 1 : index;
+          return { id, position };
+        });
+
+      // Apply all position updates in the batch
+      [...sourceUpdates, ...targetUpdates].forEach(update => {
+        batch.update(doc(db, 'merchants', update.id), {
+          position: update.position,
+          updatedAt: new Date()
+        });
+      });
+
+      await batch.commit();
+
+      if (oldStatus !== newStatus) {
+        await fetch('/api/notify-status-change', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            merchantId: activeMerchant.id,
+            newStatus,
+            oldStatus,
+          }),
+        });
+
+        toast({
+          title: "Status updated",
+          description: `${activeMerchant.displayName || activeMerchant.email} moved to ${newStatus}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating merchant:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update merchant status and position",
+        variant: "destructive",
+      });
+    } finally {
+      setActiveId(null);
+      setActiveMerchant(null);
+    }
   };
 
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
       onDragOver={handleDragOver}
     >
       <div className="flex gap-4 p-4 overflow-x-auto min-h-screen">
         {columns.map((column) => (
-          <PipelineColumn
+          <PipelineColumnComponent
             key={column.id}
             column={column}
-            merchants={merchants.filter(m => 
-              column.merchantIds.includes(m.id)
-            )}
+            merchants={getColumnMerchants(column)}
           />
         ))}
       </div>
+      <DragOverlay>
+        {activeMerchant ? <MerchantCard merchant={transformMerchant(activeMerchant)} /> : null}
+      </DragOverlay>
     </DndContext>
   );
 } 

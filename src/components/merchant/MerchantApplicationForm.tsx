@@ -12,6 +12,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { auth } from "@/lib/firebase"
 import { createUserWithEmailAndPassword } from "firebase/auth"
 import { useToast } from "@/hooks/useToast"
+import { merchantService } from "@/services/merchantService"
+import { Merchant, MerchantStatus } from "@/types/merchant"
 
 type Step = {
   id: number
@@ -270,6 +272,43 @@ export function MerchantApplicationForm({
   }
 
   const currentStepData = steps[validatedStep - 1]
+
+  const handleSubmit = async (data: FormData) => {
+    try {
+      if (!leadId) {
+        toast({
+          title: "Error",
+          description: "No lead ID found. Please try again.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const merchantData: Partial<Merchant> = {
+        ...data,
+        pipelineStatus: "lead" as MerchantStatus,
+        status: "lead" as MerchantStatus,
+        position: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      await merchantService.createMerchant(leadId, merchantData);
+      
+      toast({
+        title: "Success",
+        description: "Application submitted successfully",
+      });
+      
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      toast({
+        title: "Error",
+        description: "Failed to submit application. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-8">

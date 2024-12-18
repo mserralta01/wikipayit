@@ -24,21 +24,14 @@ export interface CardModalProps {
 function getModalData(item: PipelineItem): { title: string; email: string } {
     if (isPipelineMerchant(item)) {
         return {
-            title: item.businessName,
-            email: item.email,
-        };
-    } else if (isPipelineLead(item)) {
-        return {
-            title: item.companyName,
-            email: item.email,
-        };
-    } else {
-        // This should never happen if the type guards are used correctly
-        return {
-            title: "Unknown",
-            email: "Unknown",
+            title: item.businessName || item.formData?.businessName || item.email,
+            email: item.email
         };
     }
+    return {
+        title: item.companyName || item.email,
+        email: item.email
+    };
 }
 
 /**

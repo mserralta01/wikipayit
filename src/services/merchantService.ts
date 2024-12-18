@@ -11,8 +11,9 @@ import {
   orderBy,
   Timestamp,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore"
-import { Merchant, BeneficialOwner, Lead } from "../types/merchant"
+import { Merchant, BeneficialOwner, Lead, MerchantStatus } from "../types/merchant"
 import { Activity } from '../types/activity'
 import { ProcessingFormData } from "../components/merchant/ProcessingHistoryStep"
 import { PipelineStatus } from "../types/pipeline"
@@ -46,6 +47,7 @@ export const merchantService = {
         },
         currentStep: 1,
         status: "started",
+        pipelineStatus: "lead",
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       }
@@ -128,21 +130,25 @@ export const merchantService = {
     }
   },
 
-  async createMerchant(merchantData: Merchant): Promise<string> {
+  async createMerchant(leadId: string, merchantData: Partial<Merchant>): Promise<string> {
     try {
-      const merchantsRef = collection(db, "merchants")
-      const docRef = await addDoc(merchantsRef, {
+      const merchantsRef = collection(db, "merchants");
+      const data = {
         ...merchantData,
-        status: "pending",
-        pipelineStatus: "lead",
-        position: 0,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-      })
-      return docRef.id
+        pipelineStatus: merchantData.pipelineStatus || "lead",
+        status: merchantData.status || "lead",
+        position: merchantData.position ?? 0,
+        createdAt: merchantData.createdAt || Timestamp.now().toDate().toISOString(),
+        updatedAt: merchantData.updatedAt || Timestamp.now().toDate().toISOString(),
+      };
+      
+      console.log('Creating merchant with data:', data);
+      
+      const docRef = await addDoc(merchantsRef, data);
+      return docRef.id;
     } catch (error) {
-      console.error("Error creating merchant:", error)
-      throw error
+      console.error("Error creating merchant:", error);
+      throw error;
     }
   },
 
@@ -205,24 +211,18 @@ export const merchantService = {
 
   async updateMerchantStatus(
     merchantId: string,
-    status: "pending" | "approved" | "rejected",
-    pipelineStatus?: PipelineStatus
+    newStatus: MerchantStatus
   ): Promise<void> {
     try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      const updateData: any = {
-        status,
-        updatedAt: Timestamp.now(),
-      }
-      
-      if (pipelineStatus) {
-        updateData.pipelineStatus = pipelineStatus
-      }
-      
-      await updateDoc(merchantRef, updateData)
+      const merchantRef = doc(db, "merchants", merchantId);
+      await updateDoc(merchantRef, {
+        pipelineStatus: newStatus,
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      });
     } catch (error) {
-      console.error("Error updating merchant status:", error)
-      throw error
+      console.error("Error updating merchant status:", error);
+      throw error;
     }
   },
 
@@ -349,12 +349,12 @@ export const merchantService = {
 
       const merchantItems = merchants.map(merchant => ({
         ...merchant,
-        pipelineStatus: merchant.status === 'approved' ? 'approved' as const : 'lead' as const
+        pipelineStatus: merchant.pipelineStatus || 'lead',
       }))
 
       const leadItems = leads.map(lead => ({
         ...lead,
-        pipelineStatus: 'lead' as const
+        pipelineStatus: lead.pipelineStatus || 'lead',
       }))
 
       return [...merchantItems, ...leadItems]
@@ -427,14 +427,34 @@ export const merchantService = {
     pipelineStatus: PipelineStatus
   ): Promise<void> {
     try {
-      const leadRef = doc(db, "leads", leadId)
+      const leadRef = doc(db, "leads", leadId);
       await updateDoc(leadRef, {
         pipelineStatus,
-        updatedAt: Timestamp.now(),
-      })
+        updatedAt: new Date()
+      });
     } catch (error) {
-      console.error("Error updating lead status:", error)
-      throw error
+      console.error("Error updating lead status:", error);
+      throw error;
     }
+  },
+
+  async migrateMerchantStatuses() {
+    const merchantsRef = collection(db, 'merchants');
+    const snapshot = await getDocs(merchantsRef);
+    const batch = writeBatch(db);
+    
+    snapshot.forEach((doc) => {
+      const data = doc.data();
+      // Update status to pipelineStatus if it exists
+      if (data.status && !data.pipelineStatus) {
+        batch.update(doc.ref, {
+          pipelineStatus: data.status.toLowerCase(), // Convert to lowercase to match enum
+          position: data.position || 0,
+          updatedAt: new Date()
+        });
+      }
+    });
+    
+    await batch.commit();
   },
 }

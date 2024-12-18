@@ -131,8 +131,8 @@ export const merchantSchema = z.object({
     voidedCheck: z.array(z.string().url("Invalid voided check URL")).optional(),
     bankStatements: z.array(z.string().url("Invalid bank statement URL")).optional(),
   }).optional(),
-  status: z.enum(["pending", "approved", "rejected"]).optional(),
-  pipelineStatus: z.enum(["lead", "phone", "offer", "underwriting", "documents", "approved"]).default("lead"),
+  status: z.enum(['lead', 'phone', 'offer', 'underwriting', 'documents', 'approved'] as const).optional(),
+  pipelineStatus: z.enum(['lead', 'phone', 'offer', 'underwriting', 'documents', 'approved'] as const).optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 }).refine((data) => {
@@ -170,10 +170,17 @@ export const merchantSchema = z.object({
 
 export type BeneficialOwner = z.infer<typeof beneficialOwnerSchema>
 export type BankDetails = z.infer<typeof bankDetailsSchema>
+
+export type MerchantStatus = 'lead' | 'phone' | 'offer' | 'underwriting' | 'documents' | 'approved';
+
 export type Merchant = z.infer<typeof merchantSchema> & {
   contactName: string;
   processingVolume: number;
   createdAt: string;
+  updatedAt: string;
+  position?: number;
+  pipelineStatus?: MerchantStatus;
+  status?: MerchantStatus;
 };
 
 // Lead type for tracking application progress
@@ -191,14 +198,6 @@ export const leadSchema = z.object({
 export type Lead = z.infer<typeof leadSchema> & {
   companyName: string;
 };
-
-export type MerchantStatus = 
-  | 'Lead'
-  | 'Phone Calls'
-  | 'Offer Sent'
-  | 'Underwriting'
-  | 'Documents'
-  | 'Approved';
 
 export interface PipelineMerchant {
   id: string;

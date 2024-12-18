@@ -1,6 +1,12 @@
 import { Merchant, Lead } from './merchant'
 
-export type PipelineStatus = 'lead' | 'phone' | 'offer' | 'underwriting' | 'documents' | 'approved'
+export type PipelineStatus = 
+  | 'lead'
+  | 'phone'
+  | 'offer'
+  | 'underwriting'
+  | 'documents'
+  | 'approved';
 export type ServiceStatus = 'lead' | 'approved'
 
 // Base types with discriminators
@@ -16,22 +22,76 @@ export interface BaseLead extends Omit<Lead, 'id'> {
   type: 'lead'
 }
 
-// Pipeline types
-export interface PipelineMerchant extends BaseMerchant {
-  pipelineStatus: PipelineStatus
+// Add BasePipelineItem interface
+export interface BasePipelineItem {
+  id: string;
+  kind: 'merchant' | 'lead';
+  type: 'merchant' | 'lead';
+  email: string;
+  pipelineStatus: PipelineStatus;
+  createdAt: string;
+  updatedAt: string;
+  phone?: string;
+  formData?: {
+    businessName?: string;
+    dba?: string;
+    phone?: string;
+    taxId?: string;
+    businessType?: string;
+    yearEstablished?: string;
+    monthlyVolume?: string;
+    averageTicket?: string;
+    beneficialOwners?: {
+      owners: Array<{
+        firstName: string;
+        lastName: string;
+        phone?: string;
+      }>;
+    };
+    bankDetails?: any;
+  };
 }
 
-export interface PipelineLead extends BaseLead {
-  pipelineStatus: PipelineStatus;
+// Pipeline types
+export interface PipelineMerchant extends BasePipelineItem {
+  kind: 'merchant';
+  type: 'merchant';
+  businessName?: string;
+  status?: string;
+  position?: number;
+  email: string;
+  displayName?: string;
+}
+
+export interface PipelineLead extends BasePipelineItem {
+  kind: 'lead';
+  type: 'lead';
   companyName: string;
-  id: string;
 }
 
 export type PipelineItem = PipelineMerchant | PipelineLead
 
 // Service types
 export interface ServiceMerchant extends BaseMerchant {
-  pipelineStatus: ServiceStatus
+  pipelineStatus: ServiceStatus;
+  formData?: {
+    businessName?: string;
+    dba?: string;
+    phone?: string;
+    taxId?: string;
+    businessType?: string;
+    yearEstablished?: string;
+    monthlyVolume?: string;
+    averageTicket?: string;
+    beneficialOwners?: {
+      owners: Array<{
+        firstName: string;
+        lastName: string;
+        phone?: string;
+      }>;
+    };
+    bankDetails?: any;
+  };
 }
 
 export interface ServiceLead extends BaseLead {

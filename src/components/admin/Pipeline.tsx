@@ -10,17 +10,16 @@ import {
   PipelineItem,
   PipelineLead,
   PipelineMerchant,
-  Column,
   PIPELINE_STATUSES,
   COLUMN_CONFIGS,
   isPipelineLead,
   isPipelineMerchant
 } from '../../types/pipeline'
 import { Lead, Merchant } from '../../types/merchant'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { cn } from '@/lib/utils'
-import { useToast } from '@/hooks/use-toast'
+import { Badge } from '../../components/ui/badge'
+import { Progress } from '../../components/ui/progress'
+import { cn } from '../../lib/utils'
+import { useToast } from '../../hooks/use-toast'
 
 // Define section types
 interface BaseSection {
@@ -47,33 +46,31 @@ interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const getProgressColor = (progress: number): string => {
-  // Define more granular color stops for a smoother gradient from dark to light
   if (progress <= 5) {
-    return 'bg-green-900'       // Darkest green
+    return 'bg-green-900'
   } else if (progress <= 15) {
-    return 'bg-green-800'       // Darker green
+    return 'bg-green-800'
   } else if (progress <= 25) {
-    return 'bg-green-700'       // Dark green
+    return 'bg-green-700'
   } else if (progress <= 35) {
-    return 'bg-green-600'       // Medium dark green
+    return 'bg-green-600'
   } else if (progress <= 45) {
-    return 'bg-green-500'       // Medium green
+    return 'bg-green-500'
   } else if (progress <= 55) {
-    return 'bg-green-400'       // Light medium green
+    return 'bg-green-400'
   } else if (progress <= 65) {
-    return 'bg-green-300'       // Lighter green
+    return 'bg-green-300'
   } else if (progress <= 75) {
-    return 'bg-green-200'       // Light green
+    return 'bg-green-200'
   } else if (progress <= 85) {
-    return 'bg-green-100'       // Very light green
+    return 'bg-green-100'
   } else if (progress <= 95) {
-    return 'bg-gray-200'        // Very light gray
+    return 'bg-gray-200'
   } else {
-    return 'bg-gray-100'        // Almost white
+    return 'bg-gray-100'
   }
 }
 
-// Add these type definitions at the top of the file
 interface PipelineFormData {
   beneficialOwners?: {
     owners: Array<{
@@ -88,12 +85,10 @@ interface PipelineFormData {
   email?: string;
 }
 
-// Update the PipelineMerchant interface to include formData
 interface ExtendedPipelineMerchant extends PipelineMerchant {
   formData?: PipelineFormData;
 }
 
-// Add this after the ExtendedPipelineMerchant interface
 const sections: Record<string, Section> = {
   basicInfo: {
     fields: ['email'] as Array<keyof BasePipelineItem>,
@@ -108,7 +103,7 @@ const sections: Record<string, Section> = {
   beneficialOwners: {
     weight: 30,
     required: true,
-    customCheck: (data: PipelineFormData | undefined) => 
+    customCheck: (data: PipelineFormData | undefined) =>
       Boolean(data?.beneficialOwners?.owners?.length)
   },
   processingInfo: {
@@ -123,7 +118,6 @@ const sections: Record<string, Section> = {
   }
 }
 
-// Update the base interface for both types
 interface BasePipelineItem {
   id: string;
   email: string;
@@ -155,7 +149,6 @@ const calculateProgress = (item: PipelineMerchant | PipelineLead): { value: numb
           if (field === 'formData') {
             return hasPipelineFormData(item);
           }
-          // Handle each field explicitly
           switch (field) {
             case 'id':
             case 'email':
@@ -190,25 +183,18 @@ const calculateProgress = (item: PipelineMerchant | PipelineLead): { value: numb
 const getAgingInfo = (updatedAt: string) => {
   const lastUpdate = new Date(updatedAt)
   const now = new Date()
-  
-  // Calculate the difference in milliseconds
   const diffInMs = now.getTime() - lastUpdate.getTime()
-  
-  // Convert to hours for more precise aging
   const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
-  
+
   if (diffInHours < 24) {
-    // Less than 1 day
     return {
       color: 'text-green-500',
       text: diffInHours === 0 ? 'Just now' : `${diffInHours}h old`,
       animate: false
     }
   }
-  
-  // Calculate days
+
   const diffInDays = Math.floor(diffInHours / 24)
-  
   if (diffInDays <= 2) {
     return {
       color: 'text-green-500',
@@ -230,12 +216,23 @@ const getAgingInfo = (updatedAt: string) => {
   }
 }
 
-const Pipeline: React.FC = () => {
+type DragEndEvent = {
+  active: { id: string };
+  over: { id: string } | null;
+}
+
+interface Column {
+  id: PipelineStatus;
+  title: string;
+  items: PipelineItem[];
+  color: string;
+}
+
+export function Pipeline() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [selectedItem, setSelectedItem] = useState<PipelineItem | null>(null)
   const [columns, setColumns] = useState<Column[]>([])
-
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['pipeline-items'],
     queryFn: async () => {
@@ -244,40 +241,53 @@ const Pipeline: React.FC = () => {
         merchantService.getMerchants()
       ])
       
-      // Initialize columns with empty arrays
       const initialColumns: Column[] = PIPELINE_STATUSES.map(status => ({
         ...COLUMN_CONFIGS[status],
         id: status,
-        items: [] as PipelineItem[]
+        items: []
       }))
 
-      // Transform leads into pipeline items
+      // Transform leads into pipeline items, respecting their existing pipelineStatus
       const pipelineLeads = leads.map((lead: Lead): PipelineLead => ({
         ...lead,
         kind: 'lead' as const,
         type: 'lead' as const,
-        pipelineStatus: 'lead', // Always start as lead
+        pipelineStatus: (lead.pipelineStatus || 'lead') as PipelineStatus,
         companyName: lead.companyName || lead.formData?.businessName || lead.formData?.dba || lead.email,
         id: lead.id || crypto.randomUUID(),
       }))
 
       // Transform merchants into pipeline items
-      const pipelineMerchants = merchants.map((merchant: Merchant): ExtendedPipelineMerchant => ({
-        ...merchant,
-        kind: 'merchant' as const,
-        type: 'merchant' as const,
-        pipelineStatus: merchant.pipelineStatus || 'lead', // Default to lead if not set
+      const pipelineMerchants = merchants.map((merchant: Merchant): PipelineMerchant => ({
         id: merchant.id || crypto.randomUUID(),
-      }))
+        kind: 'merchant',
+        type: 'merchant',
+        email: merchant.email,
+        businessName: merchant.businessName,
+        pipelineStatus: merchant.pipelineStatus || 'lead',
+        createdAt: merchant.createdAt || new Date().toISOString(),
+        updatedAt: merchant.updatedAt || new Date().toISOString(),
+        status: merchant.status,
+        formData: {
+          businessName: merchant.businessName,
+          dba: merchant.dba,
+          phone: merchant.phone,
+          beneficialOwners: merchant.beneficialOwners ? {
+            owners: merchant.beneficialOwners.map(owner => ({
+              firstName: owner.firstName,
+              lastName: owner.lastName,
+              phone: owner.phone
+            }))
+          } : undefined
+        }
+      }));
 
-      // Distribute items to columns
       const allItems = [...pipelineLeads, ...pipelineMerchants]
       allItems.forEach(item => {
         const column = initialColumns.find(col => col.id === item.pipelineStatus)
         if (column) {
           column.items.push(item)
         } else {
-          // If no pipeline status or invalid status, put in leads column
           initialColumns[0].items.push({ ...item, pipelineStatus: 'lead' })
         }
       })
@@ -292,92 +302,100 @@ const Pipeline: React.FC = () => {
     }
   }, [items])
 
-  const onDragEnd = async (result: DropResult) => {
-    if (!result.destination) return
-    
-    const { source, destination, draggableId } = result
+  const handleDragEnd = async (result: DropResult) => {
+    const { source, destination } = result;
+    if (!destination) return;
 
-    const sourceColumn = columns.find(col => col.id === source.droppableId)
-    const destColumn = columns.find(col => col.id === destination.droppableId)
+    // Same column movement
+    if (source.droppableId === destination.droppableId) {
+      const column = columns.find(col => col.id === source.droppableId);
+      if (!column) return;
 
-    if (!sourceColumn || !destColumn) return
+      const newItems = Array.from(column.items);
+      const [movedItem] = newItems.splice(source.index, 1);
+      newItems.splice(destination.index, 0, movedItem);
 
-    const item = sourceColumn.items.find(i => i.id === draggableId)
-    if (!item) return
-
-    try {
-      // Create new columns array to maintain immutability
       const newColumns = columns.map(col => {
-        if (col.id === sourceColumn.id) {
+        if (col.id === source.droppableId) {
           return {
             ...col,
-            items: col.items.filter(i => i.id !== draggableId)
-          }
+            items: newItems
+          };
         }
-        if (col.id === destColumn.id) {
-          const updatedItem = { ...item, pipelineStatus: destColumn.id as PipelineStatus }
-          return {
-            ...col,
-            items: [
-              ...col.items.slice(0, destination.index),
-              updatedItem,
-              ...col.items.slice(destination.index)
-            ]
-          }
-        }
-        return col
-      })
+        return col;
+      });
 
-      setColumns(newColumns)
-
-      // Update in database
-      if (isPipelineMerchant(item)) {
-        await merchantService.updateMerchantStatus(
-          item.id,
-          item.status || 'pending',
-          destColumn.id as PipelineStatus
-        )
-      } else {
-        await merchantService.updateLeadStatus(
-          item.id,
-          destColumn.id as PipelineStatus
-        )
-      }
-
-      // Send email notification
-      await fetch('/api/notify-status-change', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          itemId: item.id,
-          itemType: item.kind,
-          newStatus: destColumn.id,
-          oldStatus: sourceColumn.id,
-          name: isPipelineMerchant(item) ? item.businessName : item.companyName
-        }),
-      })
-
-      toast({
-        title: 'Status Updated',
-        description: `${isPipelineMerchant(item) ? item.businessName : item.companyName} moved to ${destColumn.title}`,
-      })
-
-      // Refresh data
-      queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
-    } catch (error) {
-      console.error('Error updating status:', error)
-      toast({
-        title: 'Error',
-        description: 'Failed to update status',
-        variant: 'destructive',
-      })
-
-      // Revert columns on error
-      if (items) {
-        setColumns(items)
-      }
+      setColumns(newColumns);
+      return;
     }
-  }
+
+    // Moving between columns
+    const sourceColumn = columns.find(col => col.id === source.droppableId);
+    const destColumn = columns.find(col => col.id === destination.droppableId);
+
+    if (!sourceColumn || !destColumn) return;
+
+    const sourceItems = Array.from(sourceColumn.items);
+    const [movedItem] = sourceItems.splice(source.index, 1);
+
+    const destItems = Array.from(destColumn.items);
+    const updatedItem = {
+      ...movedItem,
+      pipelineStatus: destination.droppableId as PipelineStatus
+    } as PipelineItem;
+
+    destItems.splice(destination.index, 0, updatedItem);
+
+    const newColumns = columns.map(col => {
+      if (col.id === source.droppableId) {
+        return {
+          ...col,
+          items: sourceItems
+        };
+      }
+      if (col.id === destination.droppableId) {
+        return {
+          ...col,
+          items: destItems
+        };
+      }
+      return col;
+    });
+
+    setColumns(newColumns);
+
+    // Update in database
+    try {
+      if (isPipelineMerchant(movedItem)) {
+        await merchantService.updateMerchantStatus(
+          movedItem.id,
+          destination.droppableId as PipelineStatus
+        );
+
+        toast({
+          title: "Status updated",
+          description: `${movedItem.businessName || movedItem.email} moved to ${destColumn.title}`,
+        });
+      } else if (isPipelineLead(movedItem)) {
+        await merchantService.updateLeadStatus(
+          movedItem.id,
+          destination.droppableId as PipelineStatus
+        );
+
+        toast({
+          title: "Status updated",
+          description: `${movedItem.companyName || movedItem.email} moved to ${destColumn.title}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update status",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleItemClick = (item: PipelineItem) => {
     setSelectedItem(item)
@@ -389,15 +407,17 @@ const Pipeline: React.FC = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex p-2 overflow-auto">
           {columns.map(column => (
             <Droppable key={column.id} droppableId={column.id}>
-              {(provided) => (
+              {(provided, snapshot) => (
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className="w-80 bg-white rounded-lg p-4 m-2 min-h-[calc(100vh-200px)] shadow-sm"
+                  className={`w-80 bg-white rounded-lg p-4 m-2 min-h-[calc(100vh-200px)] shadow-sm ${
+                    snapshot.isDraggingOver ? 'bg-gray-50' : ''
+                  }`}
                 >
                   <div className="mb-4">
                     <h3 className="text-lg font-semibold text-gray-700">
@@ -413,13 +433,15 @@ const Pipeline: React.FC = () => {
                       draggableId={item.id}
                       index={index}
                     >
-                      {(provided) => (
+                      {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
                           {...provided.dragHandleProps}
                           onClick={() => handleItemClick(item)}
-                          className="bg-white rounded-lg p-4 mb-2 cursor-move shadow-sm hover:shadow-md transition-shadow"
+                          className={`bg-white rounded-lg p-4 mb-2 cursor-move shadow-sm transition-shadow ${
+                            snapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
+                          }`}
                         >
                           {isPipelineLead(item) ? (
                             <LeadCard item={item} />
@@ -447,7 +469,6 @@ const Pipeline: React.FC = () => {
               if (isPipelineMerchant(selectedItem)) {
                 await merchantService.updateMerchantStatus(
                   selectedItem.id,
-                  selectedItem.status || 'pending',
                   newStatus
                 )
               } else {
@@ -476,20 +497,12 @@ const Pipeline: React.FC = () => {
 const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   const config = COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
-
-  // Get the display name in order of preference: DBA > Company Name > Email
   const displayName = item.formData?.dba || item.companyName || item.email
-  
-  // Get the beneficial owner information from the correct path
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
-
   const fullName = beneficialOwner
     ? `${beneficialOwner.firstName} ${beneficialOwner.lastName}`.trim()
     : ''
-
-  // Get phone number from the correct path in beneficial owners
   const phoneNumber = beneficialOwner?.phone || item.formData?.phone
-
   const agingInfo = getAgingInfo(item.updatedAt || new Date().toISOString())
 
   return (
@@ -507,7 +520,6 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
         </span>
       </div>
       
-      {/* Beneficial Owner Name */}
       {fullName && (
         <div className="flex items-center gap-2">
           <svg
@@ -526,22 +538,16 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
           <span className="text-sm font-medium">{fullName}</span>
         </div>
       )}
-
-      {/* Company Name */}
       {item.companyName && (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-blue-500" />
           <span className="text-sm text-gray-700">{item.companyName}</span>
         </div>
       )}
-
-      {/* Email */}
       <div className="flex items-center gap-2">
         <Mail className="h-4 w-4 text-blue-500" />
         <span className="text-sm text-gray-600">{item.email}</span>
       </div>
-
-      {/* Phone Number */}
       {phoneNumber && (
         <div className="flex items-center gap-2">
           <svg 
@@ -559,13 +565,10 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
           <span className="text-sm text-gray-600">{phoneNumber}</span>
         </div>
       )}
-
       <Progress 
         value={progress.value} 
         className={cn("h-2", progress.color)}
       />
-      
-      {/* Aging Indicator */}
       <div className="flex items-center justify-end">
         <span 
           className={cn(
@@ -581,33 +584,21 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   )
 }
 
-// Update the MerchantCard component props type
 interface MerchantCardProps {
-  item: (PipelineMerchant | PipelineLead) & {
-    formData?: PipelineFormData;
-    dba?: string;
-    businessName?: string;
-  };
+  item: PipelineMerchant;
 }
 
 const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
-  const config = COLUMN_CONFIGS[item.pipelineStatus]
-  const progress = calculateProgress(item)
+  const config = COLUMN_CONFIGS[item.pipelineStatus];
+  const progress = calculateProgress(item);
 
-  // Get the display name in order of preference: DBA > Business Name > Email
-  const displayName = item.dba || item.businessName || item.email
-
-  // Get the beneficial owner information from the correct path
-  const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
-
+  const displayName = item.formData?.dba || item.businessName || item.email;
+  const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null;
   const fullName = beneficialOwner
     ? `${beneficialOwner.firstName} ${beneficialOwner.lastName}`.trim()
-    : ''
-
-  // Get phone number from the correct path in beneficial owners
-  const phoneNumber = beneficialOwner?.phone || (hasPhone(item) ? item.phone : undefined);
-
-  const agingInfo = getAgingInfo(item.updatedAt || new Date().toISOString())
+    : '';
+  const phoneNumber = beneficialOwner?.phone || item.phone;
+  const agingInfo = getAgingInfo(item.updatedAt);
 
   return (
     <div className="space-y-2.5">
@@ -624,7 +615,6 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
         </span>
       </div>
 
-      {/* Beneficial Owner Name */}
       {fullName && (
         <div className="flex items-center gap-2">
           <svg
@@ -644,7 +634,6 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
         </div>
       )}
 
-      {/* Company Name */}
       {item.businessName && (
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-blue-500" />
@@ -652,13 +641,11 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
         </div>
       )}
 
-      {/* Email */}
       <div className="flex items-center gap-2">
         <Mail className="h-4 w-4 text-blue-500" />
         <span className="text-sm text-gray-600">{item.email}</span>
       </div>
 
-      {/* Phone Number */}
       {phoneNumber && (
         <div className="flex items-center gap-2">
           <svg 
@@ -678,11 +665,10 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
       )}
 
       <Progress 
-        value={progress.value} 
+        value={progress.value}
         className={cn("h-2", progress.color)}
       />
-      
-      {/* Aging Indicator */}
+
       <div className="flex items-center justify-end">
         <span 
           className={cn(

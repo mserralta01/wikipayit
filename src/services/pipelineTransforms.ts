@@ -42,13 +42,26 @@ export const calculatePipelineStatus = (progress: number): PipelineStatus => {
   return 'lead'
 }
 
-export const calculateLeadProgress = (item: ServiceLead | PipelineLead): number => {
-  const formData = item.formData || {}
-  const totalFields = 20
-  const filledFields = Object.keys(formData).filter(key => 
-    formData[key] !== undefined && formData[key] !== null && formData[key] !== ''
-  ).length
-  return Math.round((filledFields / totalFields) * 100)
+export const calculateLeadProgress = (item: PipelineLead | ServiceLead): number => {
+  const formFields = item.formData || {};
+  const totalFields = 20;
+  const filledFields = Object.keys(formFields).filter(key => 
+    formFields[key as keyof typeof formFields] !== undefined && 
+    formFields[key as keyof typeof formFields] !== null && 
+    formFields[key as keyof typeof formFields] !== ''
+  ).length;
+  return Math.round((filledFields / totalFields) * 100);
+}
+
+interface RequiredMerchantFields {
+  businessName?: string;
+  taxId?: string;
+  businessType?: string;
+  yearEstablished?: string;
+  monthlyVolume?: string;
+  averageTicket?: string;
+  beneficialOwners?: any[];
+  bankDetails?: any;
 }
 
 export const calculateMerchantProgress = (item: ServiceMerchant | PipelineMerchant): number => {
@@ -61,15 +74,17 @@ export const calculateMerchantProgress = (item: ServiceMerchant | PipelineMercha
     'averageTicket',
     'beneficialOwners',
     'bankDetails'
-  ] as const
+  ] as const;
+  
+  const formData = ('formData' in item ? item.formData : {}) as RequiredMerchantFields;
   
   const filledFields = requiredFields.filter(field => {
-    const value = item[field]
-    return value !== undefined && value !== null && value !== ''
-  }).length
+    const value = formData[field as keyof RequiredMerchantFields];
+    return value !== undefined && value !== null && value !== '';
+  }).length;
   
-  return Math.round((filledFields / requiredFields.length) * 100)
-}
+  return Math.round((filledFields / requiredFields.length) * 100);
+};
 
 export const calculateProgress = (item: ServiceItem | PipelineItem): number => {
   if (item.kind === 'lead') {
@@ -79,10 +94,17 @@ export const calculateProgress = (item: ServiceItem | PipelineItem): number => {
 }
 
 export const transformToPipelineItem = (item: ServiceItem): PipelineItem => {
+  // Preserve the pipelineStatus rather than forcing 'lead'
   if (item.kind === 'lead') {
-    return { ...item, pipelineStatus: 'lead' } as PipelineLead
+    return { 
+      ...item, 
+      pipelineStatus: item.pipelineStatus || 'lead' 
+    } as PipelineLead
   }
-  return { ...item, pipelineStatus: 'lead' } as PipelineMerchant
+  return { 
+    ...item, 
+    pipelineStatus: item.pipelineStatus || 'lead' 
+  } as PipelineMerchant
 }
 
 export const transformServiceResponse = (items: ServiceResponse[]): PipelineItem[] => {
@@ -91,3 +113,12 @@ export const transformServiceResponse = (items: ServiceResponse[]): PipelineItem
     .map(createServiceItem)
     .map(transformToPipelineItem)
 }
+
+export const validatePipelineItem = (item: PipelineMerchant | ServiceMerchant): boolean => {
+  const requiredFields = ['businessName', 'taxId', 'businessType'] as const;
+  const formData = ('formData' in item ? item.formData : {}) as RequiredMerchantFields;
+  
+  return requiredFields.every(field => 
+    formData[field as keyof RequiredMerchantFields] !== undefined
+  );
+};

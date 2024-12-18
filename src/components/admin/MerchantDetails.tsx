@@ -5,6 +5,9 @@ import { Label } from "../ui/label"
 import { Badge } from "../ui/badge"
 import { Merchant, BeneficialOwner } from "../../types/merchant"
 import { merchantService } from "../../services/merchantService"
+import { PipelineStatus } from '@/types/pipeline'
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../ui/select"
+import { useToast } from "@/hooks/use-toast"
 
 type MerchantDetailsProps = {
   merchant: Merchant
@@ -12,19 +15,26 @@ type MerchantDetailsProps = {
 }
 
 export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
+  const { toast } = useToast()
   const [isUpdating, setIsUpdating] = useState(false)
 
-  const handleStatusUpdate = async (status: "approved" | "rejected") => {
+  const handleStatusChange = async (status: PipelineStatus) => {
+    if (!merchant.id) return;
+    
     try {
-      setIsUpdating(true)
-      await merchantService.updateMerchantStatus(merchant.id!, status)
-      onUpdate()
+      await merchantService.updateMerchantStatus(merchant.id, status);
+      onUpdate?.();
+      toast({
+        description: `Merchant status updated to ${status}`,
+      });
     } catch (error) {
-      console.error("Error updating merchant status:", error)
-    } finally {
-      setIsUpdating(false)
+      console.error('Error updating merchant status:', error);
+      toast({
+        description: "Failed to update merchant status",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   const formatDate = (timestamp: string) => {
     return new Date(timestamp).toLocaleDateString()
@@ -103,23 +113,22 @@ export function MerchantDetails({ merchant, onUpdate }: MerchantDetailsProps) {
         </div>
         <div className="flex items-center gap-4">
           {renderStatusBadge(merchant.status || "pending")}
-          {merchant.status === "pending" && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => handleStatusUpdate("rejected")}
-                disabled={isUpdating}
-              >
-                Reject
-              </Button>
-              <Button
-                onClick={() => handleStatusUpdate("approved")}
-                disabled={isUpdating}
-              >
-                Approve
-              </Button>
-            </div>
-          )}
+          <Select
+            value={merchant.status}
+            onValueChange={handleStatusChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="lead">Lead</SelectItem>
+              <SelectItem value="phone">Phone Call</SelectItem>
+              <SelectItem value="offer">Offer Sent</SelectItem>
+              <SelectItem value="underwriting">Underwriting</SelectItem>
+              <SelectItem value="documents">Documents</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
