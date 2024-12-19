@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { MailDataRequired } from '@sendgrid/mail';
 import sgMail from '@sendgrid/mail';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -37,13 +38,16 @@ export async function POST(request: Request) {
     // Configure SendGrid
     sgMail.setApiKey(settings.apiKey);
 
-    // Send email
-    await sgMail.send({
+    // Prepare email data with proper typing
+    const msg: MailDataRequired = {
       to,
       from: settings.fromEmail,
       subject,
       text
-    });
+    };
+
+    // Send email
+    await sgMail.send(msg);
 
     return NextResponse.json({
       success: true,
