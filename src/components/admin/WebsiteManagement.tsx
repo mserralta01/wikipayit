@@ -19,6 +19,7 @@ import { Switch } from '@/components/ui/switch'
 import { SortableSection } from './SortableSection'
 import { websiteService, type Section } from '../../services/websiteService'
 import { apiSettingsService, type APISettings } from '../../services/apiSettingsService'
+import { sendgridService, type SendGridSettings } from '../../services/sendgridService'
 import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { useToast } from '@/hooks/useToast'
 import {
@@ -30,7 +31,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils'
 
@@ -39,9 +46,12 @@ export default function WebsiteManagement() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [apiSettings, setApiSettings] = useState<APISettings>({})
+  const [sendgridSettings, setSendgridSettings] = useState<SendGridSettings>({})
   const [showApiKey, setShowApiKey] = useState(false)
   const [validatingKey, setValidatingKey] = useState(false)
   const [keyStatus, setKeyStatus] = useState<'valid' | 'invalid' | 'unknown'>('unknown')
+  const [testEmail, setTestEmail] = useState('')
+  const [sendingTest, setSendingTest] = useState(false)
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -67,18 +77,21 @@ export default function WebsiteManagement() {
 
   const loadApiSettings = async () => {
     try {
-      const settings = await apiSettingsService.getSettings()
-      console.log('Loaded API settings:', settings)
-      setApiSettings(settings)
+      const [settings, sgSettings] = await Promise.all([
+        apiSettingsService.getSettings(),
+        sendgridService.getSettings()
+      ]);
+      setApiSettings(settings);
+      setSendgridSettings(sgSettings);
     } catch (error) {
-      console.error('Error loading API settings:', error)
+      console.error('Error loading API settings:', error);
       toast({
         title: 'Error',
         description: 'Failed to load API settings',
         variant: 'destructive',
-      })
+      });
     }
-  }
+  };
 
   const loadSections = async () => {
     try {
@@ -217,54 +230,119 @@ export default function WebsiteManagement() {
     }))
   }
 
-  const handleSaveApiSettings = async () => {
+  const validateSendGridKey = async (key: string) => {
+    if (!key) {
+      setKeyStatus('unknown');
+      return false;
+    }
+
+    setValidatingKey(true);
     try {
-      setSaving(true)
+      const result = await sendgridService.validateApiKey(key);
+      const isValid = result.success;
+      setKeyStatus(isValid ? 'valid' : 'invalid');
       
-      // Validate API key before saving if it exists and has changed
-      if (apiSettings.mapbox?.apiKey) {
-        const isValid = await validateMapboxKey(apiSettings.mapbox.apiKey)
-        if (!isValid) {
-          return // Don't save if the key is invalid
-        }
+      if (!isValid) {
+        toast({
+          title: 'Invalid API Key',
+          description: result.message,
+          variant: 'destructive',
+        });
       }
-
-      // Create settings object with only the mapbox settings
-      const settingsToSave: Partial<APISettings> = {
-        mapbox: {
-          enabled: apiSettings.mapbox?.enabled,
-          ...(apiSettings.mapbox?.apiKey && { apiKey: apiSettings.mapbox.apiKey }),
-          ...(apiSettings.mapbox?.geocodingEndpoint && { 
-            geocodingEndpoint: apiSettings.mapbox.geocodingEndpoint 
-          })
-        }
-      }
-
-      // Remove empty objects
-      if (Object.keys(settingsToSave.mapbox || {}).length === 0) {
-        delete settingsToSave.mapbox;
-      }
-
-      await apiSettingsService.updateSettings(settingsToSave)
       
-      // Reload settings
-      await loadApiSettings()
+      return isValid;
+    } catch (error) {
+      console.error('Error validating SendGrid key:', error);
+      setKeyStatus('invalid');
+      toast({
+        title: 'Validation Error',
+        description: 'Failed to validate the API key',
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setValidatingKey(false);
+    }
+  };
+
+  const updateSendGridSettings = async (key: string, value: string | boolean) => {
+    if (key === 'apiKey' && typeof value === 'string') {
+      setKeyStatus('unknown');
+    }
+
+    setSendgridSettings(prev => ({
+      ...prev,
+      [key]: typeof value === 'string' ? (value.trim() || undefined) : value
+    }));
+  };
+
+  const handleSendTestEmail = async () => {
+    if (!sendgridSettings.apiKey || !sendgridSettings.fromEmail || !testEmail) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please provide API key, from email, and test email address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSendingTest(true);
+    try {
+      const result = await sendgridService.sendTestEmail(
+        sendgridSettings.apiKey,
+        testEmail,
+        sendgridSettings.fromEmail
+      );
 
       toast({
-        title: 'Success',
-        description: 'API settings saved successfully',
-      })
+        title: result.success ? 'Success' : 'Error',
+        description: result.message,
+        variant: result.success ? 'default' : 'destructive',
+      });
     } catch (error) {
-      console.error('Error saving API settings:', error)
       toast({
         title: 'Error',
-        description: 'Failed to save API settings. Please try again.',
+        description: 'Failed to send test email',
         variant: 'destructive',
-      })
+      });
     } finally {
-      setSaving(false)
+      setSendingTest(false);
     }
-  }
+  };
+
+  const handleSaveApiSettings = async () => {
+    try {
+      setSaving(true);
+      
+      // Save settings without waiting for validation
+      const result = await sendgridService.updateSettings(sendgridSettings);
+      
+      if (result.success) {
+        toast({
+          title: 'Success',
+          description: 'API settings saved successfully',
+        });
+      } else {
+        toast({
+          title: 'Warning',
+          description: result.message || 'Settings saved but validation failed',
+          variant: 'destructive',
+        });
+      }
+
+      // Reload settings to get updated validation status
+      await loadApiSettings();
+    } catch (error) {
+      console.error('Error saving API settings:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save API settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -338,9 +416,10 @@ export default function WebsiteManagement() {
               <Tabs defaultValue="mapbox" className="w-full">
                 <TabsList>
                   <TabsTrigger value="mapbox">Mapbox</TabsTrigger>
+                  <TabsTrigger value="sendgrid">SendGrid</TabsTrigger>
                   <TabsTrigger value="stripe">Stripe</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="mapbox">
                   <Card>
                     <CardHeader>
@@ -440,6 +519,132 @@ export default function WebsiteManagement() {
                           <p className="mt-1 text-sm text-gray-600">
                             The free tier includes 100,000 geocoding requests per month. For most small to medium-sized businesses, 
                             this is more than sufficient. You can monitor your usage in the Mapbox dashboard.
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="sendgrid">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle>SendGrid Configuration</CardTitle>
+                          <CardDescription>
+                            Configure your SendGrid API settings for email functionality
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Label htmlFor="sendgrid-enabled">Enable SendGrid</Label>
+                          <Switch
+                            id="sendgrid-enabled"
+                            checked={sendgridSettings.enabled || false}
+                            onCheckedChange={(checked) => updateSendGridSettings('enabled', checked)}
+                          />
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="sendgrid-key">API Key</Label>
+                        <div className="relative">
+                          <Input
+                            id="sendgrid-key"
+                            type={showApiKey ? "text" : "password"}
+                            placeholder="Enter your SendGrid API key"
+                            value={sendgridSettings.apiKey || ''}
+                            onChange={(e) => updateSendGridSettings('apiKey', e.target.value)}
+                            className={cn(
+                              "pr-20",
+                              keyStatus === 'valid' && "border-green-500",
+                              keyStatus === 'invalid' && "border-red-500"
+                            )}
+                          />
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-2">
+                            {validatingKey ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                            ) : keyStatus === 'valid' ? (
+                              <div className="text-green-500 text-xs">Valid</div>
+                            ) : keyStatus === 'invalid' ? (
+                              <div className="text-red-500 text-xs">Invalid</div>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => setShowApiKey(!showApiKey)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              {showApiKey ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="from-email">From Email Address</Label>
+                        <Input
+                          id="from-email"
+                          type="email"
+                          placeholder="noreply@yourdomain.com"
+                          value={sendgridSettings.fromEmail || ''}
+                          onChange={(e) => updateSendGridSettings('fromEmail', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="test-email">Test Email</Label>
+                        <div className="flex space-x-2">
+                          <Input
+                            id="test-email"
+                            type="email"
+                            placeholder="Enter email for testing"
+                            value={testEmail}
+                            onChange={(e) => setTestEmail(e.target.value)}
+                          />
+                          <Button
+                            onClick={handleSendTestEmail}
+                            disabled={sendingTest || !sendgridSettings.apiKey || !sendgridSettings.fromEmail || !testEmail}
+                          >
+                            {sendingTest && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Send Test
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="mt-6 space-y-4 bg-gray-50 p-4 rounded-lg">
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900">What is SendGrid?</h4>
+                          <p className="mt-1 text-sm text-gray-600">
+                            SendGrid is a cloud-based email service that provides reliable email delivery
+                            for transactional and marketing emails. It helps ensure your emails reach your
+                            customers' inboxes and provides analytics for tracking email performance.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900">Getting Started</h4>
+                          <ol className="mt-1 text-sm text-gray-600 list-decimal list-inside space-y-1">
+                            <li>Sign up for a SendGrid account at <a href="https://signup.sendgrid.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">SendGrid.com</a></li>
+                            <li>Navigate to Settings {'->'} API Keys</li>
+                            <li>Create a new API key with "Full Access" or "Restricted Access" to "Mail Send"</li>
+                            <li>Copy your API key and paste it in the field above</li>
+                            <li>Enter your verified sender email address</li>
+                            <li>Enable SendGrid using the toggle switch</li>
+                            <li>Save your settings and send a test email to verify the integration</li>
+                          </ol>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900">Note</h4>
+                          <p className="mt-1 text-sm text-gray-600">
+                            Make sure to verify your sender email address in SendGrid before using it.
+                            The free tier includes 100 emails per day. For production use, consider
+                            upgrading to a paid plan based on your email volume needs.
                           </p>
                         </div>
                       </div>
