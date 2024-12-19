@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       }
     }, { status: response.status });
   } catch (error) {
-    console.error('Error in SendGrid send email route:', error);
+    console.error('Error in SendGrid send route:', error);
     return NextResponse.json({
       success: false,
       message: 'Server error sending email',

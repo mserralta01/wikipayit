@@ -42,6 +42,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils'
 import { doc, setDoc, getDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { apiRequest } from '@/lib/api'
 
 const tabs = [
   { id: 'mapbox', label: 'Mapbox' },
@@ -199,42 +200,44 @@ export default function WebsiteManagement() {
 
   const validateMapboxKey = async (key: string) => {
     if (!key) {
-      setKeyStatus('unknown')
-      return false
+      setKeyStatus('unknown');
+      return false;
     }
 
-    setValidatingKey(true)
+    setValidatingKey(true);
     try {
-      // Test the API key with a simple geocoding request
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/test.json?access_token=${key}`
-      )
+      const response = await apiRequest('/mapbox/validate', {
+        method: 'POST',
+        body: JSON.stringify({ apiKey: key })
+      });
       
-      const isValid = response.status !== 401 // 401 means invalid token
-      setKeyStatus(isValid ? 'valid' : 'invalid')
+      const data = await response.json();
+      const isValid = data.success;
+      
+      setKeyStatus(isValid ? 'valid' : 'invalid');
       
       if (!isValid) {
         toast({
           title: 'Invalid API Key',
           description: 'The Mapbox API key appears to be invalid. Please check your key and try again.',
           variant: 'destructive',
-        })
+        });
       }
       
-      return isValid
+      return isValid;
     } catch (error) {
-      console.error('Error validating Mapbox key:', error)
-      setKeyStatus('invalid')
+      console.error('Error validating Mapbox key:', error);
+      setKeyStatus('invalid');
       toast({
         title: 'Validation Error',
         description: 'Failed to validate the API key. Please check your internet connection and try again.',
         variant: 'destructive',
-      })
-      return false
+      });
+      return false;
     } finally {
-      setValidatingKey(false)
+      setValidatingKey(false);
     }
-  }
+  };
 
   const updateMapboxSettings = async (key: string, value: string | boolean) => {
     if (key === 'apiKey' && typeof value === 'string') {
@@ -259,14 +262,20 @@ export default function WebsiteManagement() {
 
     setValidatingKey(true);
     try {
-      const result = await sendgridService.validateApiKey(key);
-      const isValid = result.success;
+      const response = await apiRequest('/sendgrid/validate', {
+        method: 'POST',
+        body: JSON.stringify({ apiKey: key })
+      });
+      
+      const data = await response.json();
+      const isValid = data.success;
+      
       setKeyStatus(isValid ? 'valid' : 'invalid');
       
       if (!isValid) {
         toast({
           title: 'Invalid API Key',
-          description: result.message,
+          description: data.message,
           variant: 'destructive',
         });
       }
@@ -335,21 +344,17 @@ export default function WebsiteManagement() {
     try {
       setSaving(true);
       
-      // Save settings without waiting for validation
-      const result = await sendgridService.updateSettings(sendgridSettings);
-      
-      if (result.success) {
-        toast({
-          title: 'Success',
-          description: 'API settings saved successfully',
-        });
-      } else {
-        toast({
-          title: 'Warning',
-          description: result.message || 'Settings saved but validation failed',
-          variant: 'destructive',
-        });
-      }
+      // Save Mapbox settings to Firebase
+      await setDoc(doc(db, 'settings/mapbox'), {
+        enabled: apiSettings.mapbox?.enabled || false,
+        apiKey: apiSettings.mapbox?.apiKey || '',
+        geocodingEndpoint: apiSettings.mapbox?.geocodingEndpoint || ''
+      });
+
+      toast({
+        title: 'Success',
+        description: 'API settings saved successfully',
+      });
 
       // Reload settings to get updated validation status
       await loadApiSettings();
@@ -399,10 +404,11 @@ export default function WebsiteManagement() {
 
     try {
       setLoading(true);
-      const response = await fetch('/api/send-email', {
+      const response = await apiRequest('/sendgrid/send', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          apiKey: sendgridSettings.apiKey,
+          fromEmail: sendgridSettings.fromEmail,
           to: testEmail,
           subject: 'SendGrid Test Email',
           text: 'This is a test email from your application.'
