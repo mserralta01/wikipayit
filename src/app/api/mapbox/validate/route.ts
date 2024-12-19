@@ -13,15 +13,31 @@ export async function POST(request: Request) {
 
     // Test the API key with a simple geocoding request
     const response = await fetch(
-      `https://api.mapbox.com/geocoding/v5/mapbox.places/test.json?access_token=${apiKey}`
+      `https://api.mapbox.com/geocoding/v5/mapbox.places/test.json?access_token=${apiKey}`,
+      { method: 'GET' }
     );
 
-    const isValid = response.status !== 401; // 401 means invalid token
+    // Check for specific Mapbox error responses
+    if (response.status === 401) {
+      return NextResponse.json({
+        success: false,
+        message: 'Invalid Mapbox API key'
+      });
+    }
+
+    if (!response.ok) {
+      return NextResponse.json({
+        success: false,
+        message: 'Failed to validate Mapbox API key',
+        error: `HTTP ${response.status}`
+      });
+    }
 
     return NextResponse.json({
-      success: isValid,
-      message: isValid ? 'API key is valid' : 'Invalid API key'
+      success: true,
+      message: 'API key is valid'
     });
+
   } catch (error) {
     console.error('Error validating Mapbox key:', error);
     return NextResponse.json({

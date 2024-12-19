@@ -90,18 +90,34 @@ export default function WebsiteManagement() {
   const loadApiSettings = async () => {
     try {
       setLoading(true);
-      // Load SendGrid settings
-      const docRef = doc(db, 'settings/sendgrid');
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        // Transform and validate the data
-        const settings: SendGridSettings = {
+      
+      // Load both Mapbox and SendGrid settings
+      const [mapboxSnap, sendgridSnap] = await Promise.all([
+        getDoc(doc(db, 'settings/mapbox')),
+        getDoc(doc(db, 'settings/sendgrid'))
+      ]);
+
+      // Set Mapbox settings
+      if (mapboxSnap.exists()) {
+        const data = mapboxSnap.data();
+        setApiSettings(prev => ({
+          ...prev,
+          mapbox: {
+            enabled: data.enabled ?? false,
+            apiKey: data.apiKey ?? '',
+            geocodingEndpoint: data.geocodingEndpoint ?? ''
+          }
+        }));
+      }
+
+      // Set SendGrid settings
+      if (sendgridSnap.exists()) {
+        const data = sendgridSnap.data();
+        setSendgridSettings({
           enabled: data.enabled ?? false,
           apiKey: data.apiKey ?? '',
-          fromEmail: data.fromEmail ?? '',
-        };
-        setSendgridSettings(settings);
+          fromEmail: data.fromEmail ?? ''
+        });
       }
     } catch (error) {
       console.error('Error loading settings:', error);
