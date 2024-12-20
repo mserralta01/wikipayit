@@ -228,16 +228,14 @@ export default function WebsiteManagement() {
       // Then attempt to send test email with the new key
       const success = await emailService.sendTestEmail(testEmailRecipient)
 
-      if (success) {
-        setKeyStatus('valid')
-        toast({
-          title: 'Success',
-          description: 'Test email sent successfully.',
-        })
-      } else {
-        setKeyStatus('invalid')
-        throw new Error('Failed to send test email')
-      }
+      setKeyStatus(success ? 'valid' : 'invalid')
+      toast({
+        title: success ? 'Success' : 'Error',
+        description: success
+          ? 'Test email sent successfully.'
+          : 'Failed to send test email. Please check your API key and configuration.',
+        variant: success ? 'default' : 'destructive',
+      })
     } catch (error) {
       console.error('Error validating SendGrid key:', error)
       setKeyStatus('invalid')
