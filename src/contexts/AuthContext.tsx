@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 
 export type AuthContextType = {
@@ -8,6 +8,7 @@ export type AuthContextType = {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  signInWithEmailPassword: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signInWithGoogle: async () => {},
   signInWithEmail: async () => {},
+  signInWithEmailPassword: async () => {},
   signOut: async () => {}
 })
 
@@ -49,13 +51,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
-      
+
       // Update the user's display name
       await updateProfile(user, {
         displayName: `${firstName} ${lastName}`
       })
     } catch (error) {
       console.error('Email sign in error:', error)
+      throw error
+    }
+  }
+
+  const signInWithEmailPassword = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password)
+    } catch (error) {
+      console.error('Email/password sign in error:', error)
       throw error
     }
   }
@@ -70,17 +81,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAdmin, 
-      loading, 
+    <AuthContext.Provider value={{
+      user,
+      isAdmin,
+      loading,
       signInWithGoogle,
       signInWithEmail,
-      signOut 
+      signInWithEmailPassword,
+      signOut
     }}>
       {!loading && children}
     </AuthContext.Provider>
   )
 }
 
-export const useAuth = () => useContext(AuthContext) 
+export const useAuth = () => useContext(AuthContext)     
