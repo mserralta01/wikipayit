@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils'
+import { emailService } from '@/services/emailService'
 
 export default function WebsiteManagement() {
   const [sections, setSections] = useState<Section[]>([])
@@ -214,26 +215,9 @@ export default function WebsiteManagement() {
 
     try {
       setValidatingKey(true)
-      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          personalizations: [{
-            to: [{ email: apiSettings.sendgrid.fromEmail }]
-          }],
-          from: { email: apiSettings.sendgrid.fromEmail },
-          subject: 'WikiPayIt Test Email',
-          content: [{
-            type: 'text/plain',
-            value: 'This is a test email from WikiPayIt. If you received this email, your SendGrid configuration is working correctly.'
-          }]
-        })
-      })
+      const success = await emailService.sendTestEmail(apiSettings.sendgrid.fromEmail)
 
-      if (response.ok) {
+      if (success) {
         setKeyStatus('valid')
         toast({
           title: 'Success',
