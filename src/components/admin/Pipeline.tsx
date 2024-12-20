@@ -165,9 +165,8 @@ export function Pipeline() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [selectedItem, setSelectedItem] = useState<PipelineItem | null>(null)
-  const [columns, setColumns] = useState<Column[]>([])
 
-  const { data: items = [], isLoading } = useQuery({
+  const { data: columns = [], isLoading } = useQuery({
     queryKey: ['pipeline-items'],
     queryFn: async () => {
       const [leads, merchants] = await Promise.all([
@@ -191,9 +190,9 @@ export function Pipeline() {
         createdAt: timestampToString(lead.createdAt),
         updatedAt: timestampToString(lead.updatedAt),
         phone: lead.phone,
-        companyName: lead.companyName || 
-          lead.formData?.businessName || 
-          lead.formData?.dba || 
+        companyName: lead.companyName ||
+          lead.formData?.businessName ||
+          lead.formData?.dba ||
           lead.email,
         formData: lead.formData,
         position: lead.position ?? 0
@@ -249,12 +248,6 @@ export function Pipeline() {
     }
   })
 
-  useEffect(() => {
-    if (items) {
-      setColumns(items)
-    }
-  }, [items])
-
   const handleDragEnd = async (result: DropResult) => {
     const { source, destination } = result
     if (!destination) return
@@ -288,7 +281,7 @@ export function Pipeline() {
         return col
       })
 
-      setColumns(newColumns)
+      queryClient.setQueryData(['pipeline-items'], newColumns)
 
       try {
         const batch = writeBatch(db)
@@ -336,7 +329,7 @@ export function Pipeline() {
       return col
     })
 
-    setColumns(newColumns)
+    queryClient.setQueryData(['pipeline-items'], newColumns)
 
     try {
       const batch = writeBatch(db)
