@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from '@/lib/utils'
+import { emailService } from '@/services/emailService'
 
 export default function WebsiteManagement() {
   const [sections, setSections] = useState<Section[]>([])
@@ -175,10 +176,10 @@ export default function WebsiteManagement() {
       const response = await fetch(
         `https://api.mapbox.com/geocoding/v5/mapbox.places/test.json?access_token=${key}`
       )
-      
+
       const isValid = response.status !== 401 // 401 means invalid token
       setKeyStatus(isValid ? 'valid' : 'invalid')
-      
+
       if (!isValid) {
         toast({
           title: 'Invalid API Key',
@@ -186,7 +187,7 @@ export default function WebsiteManagement() {
           variant: 'destructive',
         })
       }
-      
+
       return isValid
     } catch (error) {
       console.error('Error validating Mapbox key:', error)
@@ -197,6 +198,43 @@ export default function WebsiteManagement() {
         variant: 'destructive',
       })
       return false
+    } finally {
+      setValidatingKey(false)
+    }
+  }
+
+  const validateSendGridKey = async (apiKey: string) => {
+    if (!apiSettings.sendgrid?.enabled || !apiSettings.sendgrid?.fromEmail) {
+      toast({
+        title: 'Error',
+        description: 'Please enable SendGrid and configure the from email address first.',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    try {
+      setValidatingKey(true)
+      const success = await emailService.sendTestEmail(apiSettings.sendgrid.fromEmail)
+
+      if (success) {
+        setKeyStatus('valid')
+        toast({
+          title: 'Success',
+          description: 'Test email sent successfully.',
+        })
+      } else {
+        setKeyStatus('invalid')
+        throw new Error('Failed to send test email')
+      }
+    } catch (error) {
+      console.error('Error validating SendGrid key:', error)
+      setKeyStatus('invalid')
+      toast({
+        title: 'Error',
+        description: 'Failed to send test email. Please check your API key and configuration.',
+        variant: 'destructive',
+      })
     } finally {
       setValidatingKey(false)
     }
@@ -217,10 +255,24 @@ export default function WebsiteManagement() {
     }))
   }
 
+  const updateSendGridSettings = async (key: string, value: string | boolean) => {
+    if (key === 'apiKey' && typeof value === 'string') {
+      setKeyStatus('unknown')
+    }
+
+    setApiSettings(prev => ({
+      ...prev,
+      sendgrid: {
+        ...prev.sendgrid,
+        [key]: typeof value === 'string' ? (value.trim() || undefined) : value
+      }
+    }))
+  }
+
   const handleSaveApiSettings = async () => {
     try {
       setSaving(true)
-      
+
       // Validate API key before saving if it exists and has changed
       if (apiSettings.mapbox?.apiKey) {
         const isValid = await validateMapboxKey(apiSettings.mapbox.apiKey)
@@ -229,14 +281,19 @@ export default function WebsiteManagement() {
         }
       }
 
-      // Create settings object with only the mapbox settings
+      // Create settings object with mapbox and sendgrid settings
       const settingsToSave: Partial<APISettings> = {
         mapbox: {
           enabled: apiSettings.mapbox?.enabled,
           ...(apiSettings.mapbox?.apiKey && { apiKey: apiSettings.mapbox.apiKey }),
-          ...(apiSettings.mapbox?.geocodingEndpoint && { 
-            geocodingEndpoint: apiSettings.mapbox.geocodingEndpoint 
+          ...(apiSettings.mapbox?.geocodingEndpoint && {
+            geocodingEndpoint: apiSettings.mapbox.geocodingEndpoint
           })
+        },
+        sendgrid: {
+          enabled: apiSettings.sendgrid?.enabled || false,
+          ...(apiSettings.sendgrid?.apiKey && { apiKey: apiSettings.sendgrid.apiKey }),
+          ...(apiSettings.sendgrid?.fromEmail && { fromEmail: apiSettings.sendgrid.fromEmail })
         }
       }
 
@@ -244,9 +301,12 @@ export default function WebsiteManagement() {
       if (Object.keys(settingsToSave.mapbox || {}).length === 0) {
         delete settingsToSave.mapbox;
       }
+      if (Object.keys(settingsToSave.sendgrid || {}).length === 0) {
+        delete settingsToSave.sendgrid;
+      }
 
       await apiSettingsService.updateSettings(settingsToSave)
-      
+
       // Reload settings
       await loadApiSettings()
 
@@ -339,8 +399,9 @@ export default function WebsiteManagement() {
                 <TabsList>
                   <TabsTrigger value="mapbox">Mapbox</TabsTrigger>
                   <TabsTrigger value="stripe">Stripe</TabsTrigger>
+                  <TabsTrigger value="sendgrid">SendGrid</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="mapbox">
                   <Card>
                     <CardHeader>
@@ -413,7 +474,7 @@ export default function WebsiteManagement() {
                         <div>
                           <h4 className="text-sm font-semibold text-gray-900">What is Mapbox?</h4>
                           <p className="mt-1 text-sm text-gray-600">
-                            Mapbox is a powerful mapping platform that provides address autocomplete, geocoding, and location services. 
+                            Mapbox is a powerful mapping platform that provides address autocomplete, geocoding, and location services.
                             It helps improve the accuracy of address input in your forms and provides a better user experience.
                           </p>
                         </div>
@@ -438,7 +499,7 @@ export default function WebsiteManagement() {
                         <div>
                           <h4 className="text-sm font-semibold text-gray-900">Note</h4>
                           <p className="mt-1 text-sm text-gray-600">
-                            The free tier includes 100,000 geocoding requests per month. For most small to medium-sized businesses, 
+                            The free tier includes 100,000 geocoding requests per month. For most small to medium-sized businesses,
                             this is more than sufficient. You can monitor your usage in the Mapbox dashboard.
                           </p>
                         </div>
@@ -460,10 +521,117 @@ export default function WebsiteManagement() {
                     </CardContent>
                   </Card>
                 </TabsContent>
+
+                <TabsContent value="sendgrid">
+                  <Card>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle>SendGrid Configuration</CardTitle>
+                          <CardDescription>
+                            Configure your SendGrid API settings for email functionality
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Label htmlFor="sendgrid-enabled">Enable SendGrid</Label>
+                          <Switch
+                            id="sendgrid-enabled"
+                            checked={apiSettings.sendgrid?.enabled || false}
+                            onCheckedChange={(checked) => updateSendGridSettings('enabled', checked)}
+                          />
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="space-y-2">
+                        <Label htmlFor="sendgrid-key">API Key</Label>
+                        <div className="relative">
+                          <Input
+                            id="sendgrid-key"
+                            type={showApiKey ? "text" : "password"}
+                            placeholder="Enter your SendGrid API key"
+                            value={apiSettings.sendgrid?.apiKey || ''}
+                            onChange={(e) => updateSendGridSettings('apiKey', e.target.value)}
+                            className={cn(
+                              "pr-20",
+                              keyStatus === 'valid' && "border-green-500",
+                              keyStatus === 'invalid' && "border-red-500"
+                            )}
+                          />
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-2">
+                            {validatingKey ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
+                            ) : keyStatus === 'valid' ? (
+                              <div className="text-green-500 text-xs">Valid</div>
+                            ) : keyStatus === 'invalid' ? (
+                              <div className="text-red-500 text-xs">Invalid</div>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => setShowApiKey(!showApiKey)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              {showApiKey ? (
+                                <EyeOff className="h-4 w-4" />
+                              ) : (
+                                <Eye className="h-4 w-4" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="sendgrid-from">From Email</Label>
+                        <Input
+                          id="sendgrid-from"
+                          type="email"
+                          placeholder="Enter sender email address"
+                          value={apiSettings.sendgrid?.fromEmail || ''}
+                          onChange={(e) => updateSendGridSettings('fromEmail', e.target.value)}
+                        />
+                      </div>
+
+                      <Button
+                        onClick={() => validateSendGridKey(apiSettings.sendgrid?.apiKey || '')}
+                        disabled={!apiSettings.sendgrid?.enabled || !apiSettings.sendgrid?.apiKey || !apiSettings.sendgrid?.fromEmail}
+                      >
+                        Send Test Email
+                      </Button>
+
+                      <div className="mt-6 space-y-4 bg-gray-50 p-4 rounded-lg">
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900">What is SendGrid?</h4>
+                          <p className="mt-1 text-sm text-gray-600">
+                            SendGrid is an email delivery service that provides reliable email sending capabilities.
+                            It helps ensure your emails are delivered successfully and provides tracking and analytics.
+                          </p>
+                        </div>
+
+                        <div>
+                          <h4 className="text-sm font-semibold text-gray-900">Getting Started</h4>
+                          <ol className="mt-1 text-sm text-gray-600 list-decimal list-inside space-y-1">
+                            <li>Sign up for a SendGrid account at <a href="https://signup.sendgrid.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">SendGrid.com</a></li>
+                            <li>Navigate to Settings &gt; API Keys</li>
+                            <li>Create a new API key with "Full Access" or "Restricted Access" with at least:
+                              <ul className="ml-6 mt-1 list-disc list-inside">
+                                <li>Mail Send permissions</li>
+                              </ul>
+                            </li>
+                            <li>Copy your API key and paste it in the field above</li>
+                            <li>Enter the email address you want to send from</li>
+                            <li>Enable SendGrid using the toggle switch</li>
+                            <li>Test your configuration using the "Send Test Email" button</li>
+                          </ol>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
               </Tabs>
 
               <div className="mt-6 flex justify-end">
-                <Button 
+                <Button
                   onClick={handleSaveApiSettings}
                   disabled={saving}
                 >

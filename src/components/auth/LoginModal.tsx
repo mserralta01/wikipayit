@@ -17,6 +17,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { AlertCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '../ui/alert'
+import { useAuth } from '@/contexts/AuthContext'
 
 const signupSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
@@ -28,8 +29,9 @@ const signupSchema = z.object({
 type SignupFormData = z.infer<typeof signupSchema>
 
 type LoginModalProps = {
-  isOpen: boolean
-  onClose: () => void
+  isOpen?: boolean
+  onClose?: () => void
+  standalone?: boolean
 }
 
 const getErrorMessage = (error: any): string => {
@@ -45,11 +47,12 @@ const getErrorMessage = (error: any): string => {
   return error?.message || 'An error occurred. Please try again.'
 }
 
-export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+export function LoginModal({ isOpen = true, onClose = () => {}, standalone = false }: LoginModalProps) {
   const navigate = useNavigate()
   const [isSignup, setIsSignup] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const { signInWithGoogle } = useAuth()
 
   const {
     register,
@@ -60,19 +63,19 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
     resolver: zodResolver(signupSchema),
   })
 
-  const provider = new GoogleAuthProvider()
-
   const handleGoogleLogin = async () => {
     try {
       setError(null)
       setLoading(true)
-      const result = await signInWithPopup(auth, provider)
-      if (result.user) {
+      await signInWithGoogle()
+
+      // Close the modal if it's not in standalone mode
+      if (!standalone) {
         onClose()
-        if (result.user.email === 'mserralta@gmail.com' || result.user.email === 'Mpilotg6@gmail.com') {
-          navigate('/admin')
-        }
       }
+
+      // Reset the form
+      reset()
     } catch (error) {
       console.error('Login error:', error)
       setError(getErrorMessage(error))
@@ -115,8 +118,8 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={standalone || isOpen} onOpenChange={onClose}>
+      <DialogContent className={`sm:max-w-[425px] ${standalone ? 'relative' : ''}`}>
         <DialogHeader>
           <DialogTitle>{isSignup ? 'Create Account' : 'Sign In'}</DialogTitle>
           <DialogDescription>
@@ -225,4 +228,4 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       </DialogContent>
     </Dialog>
   )
-} 
+}       

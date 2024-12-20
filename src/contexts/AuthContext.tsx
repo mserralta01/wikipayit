@@ -38,7 +38,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = async () => {
     const provider = new GoogleAuthProvider()
     try {
-      await signInWithPopup(auth, provider)
+      const result = await signInWithPopup(auth, provider)
+      if (result.user?.email === 'mserralta@gmail.com' || result.user?.email === 'Mpilotg6@gmail.com') {
+        window.location.href = '/admin/website'
+      }
     } catch (error) {
       console.error('Google sign in error:', error)
       throw error
@@ -83,4 +86,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-export const useAuth = () => useContext(AuthContext) 
+export const useAuth = () => useContext(AuthContext)   
