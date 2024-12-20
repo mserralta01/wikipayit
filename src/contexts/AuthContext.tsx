@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 
 export type AuthContextType = {
@@ -47,13 +47,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = async (email: string, password: string, firstName: string, lastName: string) => {
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-      const user = userCredential.user
-      
-      // Update the user's display name
-      await updateProfile(user, {
-        displayName: `${firstName} ${lastName}`
-      })
+      // Try to sign in first
+      try {
+        await signInWithEmailAndPassword(auth, email, password)
+        return
+      } catch (error: any) {
+        // If user doesn't exist, create new user
+        if (error.code === 'auth/user-not-found') {
+          const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+          const user = userCredential.user
+
+          // Update the user's display name
+          await updateProfile(user, {
+            displayName: `${firstName} ${lastName}`
+          })
+        } else {
+          throw error
+        }
+      }
     } catch (error) {
       console.error('Email sign in error:', error)
       throw error
@@ -83,4 +94,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-export const useAuth = () => useContext(AuthContext) 
+export const useAuth = () => useContext(AuthContext)   
