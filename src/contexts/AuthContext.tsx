@@ -31,7 +31,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
       setUser(user)
       setLoading(false)
-      setIsAdmin(user?.email === 'mserralta@gmail.com' || user?.email === 'Mpilotg6@gmail.com')
+      setIsAdmin(user?.email === 'mserralta@gmail.com' ||
+                user?.email === 'Mpilotg6@gmail.com' ||
+                user?.email === 'serralta@outlook.com')
     })
 
     return unsubscribe
@@ -105,4 +107,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 }
 
-export const useAuth = () => useContext(AuthContext)               
+export const useAuth = () => useContext(AuthContext)                     
