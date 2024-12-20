@@ -28,8 +28,9 @@ const signupSchema = z.object({
 type SignupFormData = z.infer<typeof signupSchema>
 
 type LoginModalProps = {
-  isOpen: boolean
-  onClose: () => void
+  isOpen?: boolean
+  onClose?: () => void
+  standalone?: boolean
 }
 
 const getErrorMessage = (error: any): string => {
@@ -45,7 +46,7 @@ const getErrorMessage = (error: any): string => {
   return error?.message || 'An error occurred. Please try again.'
 }
 
-export function LoginModal({ isOpen, onClose }: LoginModalProps) {
+export function LoginModal({ isOpen = true, onClose = () => {}, standalone = false }: LoginModalProps) {
   const navigate = useNavigate()
   const [isSignup, setIsSignup] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -115,8 +116,8 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+    <Dialog open={standalone || isOpen} onOpenChange={onClose}>
+      <DialogContent className={`sm:max-w-[425px] ${standalone ? 'relative' : ''}`}>
         <DialogHeader>
           <DialogTitle>{isSignup ? 'Create Account' : 'Sign In'}</DialogTitle>
           <DialogDescription>
@@ -225,4 +226,4 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       </DialogContent>
     </Dialog>
   )
-} 
+}   

@@ -41,7 +41,7 @@ function App() {
         <Router>
           <Routes>
             {/* Public Routes */}
-            <Route path="/login" element={<LoginModal />} />
+            <Route path="/login" element={<LoginModal standalone={true} />} />
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/apply" element={<MerchantApplicationPage />} />
