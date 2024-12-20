@@ -15,6 +15,7 @@ import EmailTemplates from "./components/admin/settings/EmailTemplates"
 import TeamManagement from "./components/admin/settings/TeamManagement"
 import { LoginModal } from "./components/auth/LoginModal"
 import { ProtectedRoute } from "./components/auth/ProtectedRoute"
+import { FirebaseAuthDebug } from "./components/admin/debug/FirebaseAuthDebug"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -39,6 +40,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <FirebaseAuthDebug />
         <Router>
           <Routes>
             {/* Public Routes */}
