@@ -39,11 +39,11 @@ const AdminLayoutWrapper = () => {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <FirebaseAuthDebug />
-        <AuthDebug />
-        <Router>
+    <Router>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <FirebaseAuthDebug />
+          <AuthDebug />
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<LoginModal standalone={true} />} />
@@ -71,9 +71,9 @@ function App() {
               <Route path="settings/team" element={<TeamManagement />} />
             </Route>
           </Routes>
-        </Router>
-      </AuthProvider>
-    </QueryClientProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </Router>
   )
 }
 
