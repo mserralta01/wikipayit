@@ -13,6 +13,7 @@ import WebsiteManagement from "./components/admin/WebsiteManagement"
 import SuperAdmin from "./components/admin/SuperAdmin"
 import EmailTemplates from "./components/admin/settings/EmailTemplates"
 import TeamManagement from "./components/admin/settings/TeamManagement"
+import { LoginModal } from "./components/auth/LoginModal"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -43,6 +44,7 @@ function App() {
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/apply" element={<MerchantApplicationPage />} />
+              <Route path="/login" element={<LoginModal />} />
             </Route>
 
             {/* Admin Routes */}
