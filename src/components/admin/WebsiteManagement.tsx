@@ -215,6 +215,16 @@ export default function WebsiteManagement() {
 
     try {
       setValidatingKey(true)
+
+      // First update the settings with the new API key
+      await apiSettingsService.updateSettings({
+        sendgrid: {
+          ...apiSettings.sendgrid,
+          apiKey
+        }
+      })
+
+      // Then attempt to send test email with the new key
       const success = await emailService.sendTestEmail(apiSettings.sendgrid.fromEmail)
 
       if (success) {
