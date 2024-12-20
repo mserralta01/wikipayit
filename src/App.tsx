@@ -14,6 +14,7 @@ import SuperAdmin from "./components/admin/SuperAdmin"
 import EmailTemplates from "./components/admin/settings/EmailTemplates"
 import TeamManagement from "./components/admin/settings/TeamManagement"
 import { LoginModal } from "./components/auth/LoginModal"
+import { ProtectedRoute } from "./components/auth/ProtectedRoute"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -48,7 +49,14 @@ function App() {
             </Route>
 
             {/* Admin Routes */}
-            <Route path="/admin" element={<AdminLayoutWrapper />}>
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminLayoutWrapper />
+                </ProtectedRoute>
+              }
+            >
               <Route index element={<Dashboard />} />
               <Route path="applications" element={<Applications />} />
               <Route path="pipeline" element={<Pipeline />} />
