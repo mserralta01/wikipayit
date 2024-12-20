@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useRouter } from 'next/router'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import {
   Dialog,
@@ -53,7 +53,7 @@ const getErrorMessage = (error: any): string => {
 }
 
 export function LoginModal({ isOpen, onClose }: LoginModalProps) {
-  const router = useRouter()
+  const navigate = useNavigate()
   const { signInWithGoogle, signInWithEmailPassword } = useAuth()
   const [isSignup, setIsSignup] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -87,7 +87,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       if (result.user) {
         onClose()
         if (result.user.email?.toLowerCase() === 'mserralta@gmail.com' || result.user.email?.toLowerCase() === 'mpilotg6@gmail.com') {
-          router.push('/admin')
+          navigate('/admin')
         }
       }
     } catch (error) {
@@ -115,7 +115,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       resetSignup()
 
       if (data.email === 'mserralta@gmail.com' || data.email === 'Mpilotg6@gmail.com') {
-        router.push('/admin')
+        navigate('/admin')
       }
     } catch (error: any) {
       console.error('Signup error:', error)
@@ -135,7 +135,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       resetSignin()
 
       if (data.email.toLowerCase() === 'mserralta@gmail.com' || data.email.toLowerCase() === 'mpilotg6@gmail.com') {
-        router.push('/admin')
+        navigate('/admin')
       }
     } catch (error: any) {
       console.error('Sign in error:', error)
@@ -278,4 +278,4 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
       </DialogContent>
     </Dialog>
   )
-} 
+}   
