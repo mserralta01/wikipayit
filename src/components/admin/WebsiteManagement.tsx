@@ -43,6 +43,7 @@ export default function WebsiteManagement() {
   const [showApiKey, setShowApiKey] = useState(false)
   const [validatingKey, setValidatingKey] = useState(false)
   const [keyStatus, setKeyStatus] = useState<'valid' | 'invalid' | 'unknown'>('unknown')
+  const [testEmailRecipient, setTestEmailRecipient] = useState('')
   const navigate = useNavigate()
   const { toast } = useToast()
 
@@ -204,10 +205,10 @@ export default function WebsiteManagement() {
   }
 
   const validateSendGridKey = async (apiKey: string) => {
-    if (!apiSettings.sendgrid?.enabled || !apiSettings.sendgrid?.fromEmail) {
+    if (!apiSettings.sendgrid?.enabled || !apiSettings.sendgrid?.fromEmail || !testEmailRecipient) {
       toast({
         title: 'Error',
-        description: 'Please enable SendGrid and configure the from email address first.',
+        description: 'Please enable SendGrid, configure the from email address, and provide a test recipient email.',
         variant: 'destructive',
       })
       return
@@ -215,18 +216,26 @@ export default function WebsiteManagement() {
 
     try {
       setValidatingKey(true)
-      const success = await emailService.sendTestEmail(apiSettings.sendgrid.fromEmail)
 
-      if (success) {
-        setKeyStatus('valid')
-        toast({
-          title: 'Success',
-          description: 'Test email sent successfully.',
-        })
-      } else {
-        setKeyStatus('invalid')
-        throw new Error('Failed to send test email')
-      }
+      // First update the settings with the new API key
+      await apiSettingsService.updateSettings({
+        sendgrid: {
+          ...apiSettings.sendgrid,
+          apiKey
+        }
+      })
+
+      // Then attempt to send test email with the new key
+      const success = await emailService.sendTestEmail(testEmailRecipient)
+
+      setKeyStatus(success ? 'valid' : 'invalid')
+      toast({
+        title: success ? 'Success' : 'Error',
+        description: success
+          ? 'Test email sent successfully.'
+          : 'Failed to send test email. Please check your API key and configuration.',
+        variant: success ? 'default' : 'destructive',
+      })
     } catch (error) {
       console.error('Error validating SendGrid key:', error)
       setKeyStatus('invalid')
@@ -589,6 +598,17 @@ export default function WebsiteManagement() {
                           placeholder="Enter sender email address"
                           value={apiSettings.sendgrid?.fromEmail || ''}
                           onChange={(e) => updateSendGridSettings('fromEmail', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="test-email-recipient">Test Email Recipient</Label>
+                        <Input
+                          id="test-email-recipient"
+                          type="email"
+                          placeholder="Enter recipient email for testing"
+                          value={testEmailRecipient}
+                          onChange={(e) => setTestEmailRecipient(e.target.value)}
                         />
                       </div>
 
