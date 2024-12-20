@@ -16,6 +16,7 @@ import TeamManagement from "./components/admin/settings/TeamManagement"
 import { LoginModal } from "./components/auth/LoginModal"
 import { ProtectedRoute } from "./components/auth/ProtectedRoute"
 import { FirebaseAuthDebug } from "./components/admin/debug/FirebaseAuthDebug"
+import { AuthDebug } from "./components/admin/debug/AuthDebug"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -41,6 +42,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <FirebaseAuthDebug />
+        <AuthDebug />
         <Router>
           <Routes>
             {/* Public Routes */}
