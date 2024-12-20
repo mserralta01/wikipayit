@@ -11,6 +11,11 @@ export interface APISettings {
     publicKey?: string
     secretKey?: string
   }
+  sendgrid?: {
+    enabled?: boolean
+    apiKey?: string
+    fromEmail?: string
+  }
 }
 
 // Use a direct path to the settings document
@@ -99,4 +104,4 @@ export const apiSettingsService = {
       return undefined
     }
   }
-} 
+}   
