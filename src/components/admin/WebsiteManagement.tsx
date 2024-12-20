@@ -645,96 +645,9 @@ export default function WebsiteManagement() {
                   </Card>
                 </TabsContent>
               </Tabs>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="sendgrid-key">API Key</Label>
-                        <div className="relative">
-                          <Input
-                            id="sendgrid-key"
-                            type={showApiKey ? "text" : "password"}
-                            placeholder="Enter your SendGrid API key"
-                            value={apiSettings.sendgrid?.apiKey || ''}
-                            onChange={(e) => updateSendGridSettings('apiKey', e.target.value)}
-                            className={cn(
-                              "pr-20",
-                              keyStatus === 'valid' && "border-green-500",
-                              keyStatus === 'invalid' && "border-red-500"
-                            )}
-                          />
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-2">
-                            {validatingKey ? (
-                              <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                            ) : keyStatus === 'valid' ? (
-                              <div className="text-green-500 text-xs">Valid</div>
-                            ) : keyStatus === 'invalid' ? (
-                              <div className="text-red-500 text-xs">Invalid</div>
-                            ) : null}
-                            <button
-                              type="button"
-                              onClick={() => setShowApiKey(!showApiKey)}
-                              className="text-gray-500 hover:text-gray-700"
-                            >
-                              {showApiKey ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="sendgrid-from">From Email</Label>
-                        <Input
-                          id="sendgrid-from"
-                          type="email"
-                          placeholder="Enter sender email address"
-                          value={apiSettings.sendgrid?.fromEmail || ''}
-                          onChange={(e) => updateSendGridSettings('fromEmail', e.target.value)}
-                        />
-                      </div>
-
-                      <Button
-                        onClick={() => validateSendGridKey(apiSettings.sendgrid?.apiKey || '')}
-                        disabled={!apiSettings.sendgrid?.enabled || !apiSettings.sendgrid?.apiKey || !apiSettings.sendgrid?.fromEmail}
-                      >
-                        Send Test Email
-                      </Button>
-
-                      <div className="mt-6 space-y-4 bg-gray-50 p-4 rounded-lg">
-                        <div>
-                          <h4 className="text-sm font-semibold text-gray-900">What is SendGrid?</h4>
-                          <p className="mt-1 text-sm text-gray-600">
-                            SendGrid is an email delivery service that provides reliable email sending capabilities.
-                            It helps ensure your emails are delivered successfully and provides tracking and analytics.
-                          </p>
-                        </div>
-
-                        <div>
-                          <h4 className="text-sm font-semibold text-gray-900">Getting Started</h4>
-                          <ol className="mt-1 text-sm text-gray-600 list-decimal list-inside space-y-1">
-                            <li>Sign up for a SendGrid account at <a href="https://signup.sendgrid.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">SendGrid.com</a></li>
-                            <li>Navigate to Settings > API Keys</li>
-                            <li>Create a new API key with "Full Access" or "Restricted Access" with at least:
-                              <ul className="ml-6 mt-1 list-disc list-inside">
-                                <li>Mail Send permissions</li>
-                              </ul>
-                            </li>
-                            <li>Copy your API key and paste it in the field above</li>
-                            <li>Enter the email address you want to send from</li>
-                            <li>Enable SendGrid using the toggle switch</li>
-                            <li>Test your configuration using the "Send Test Email" button</li>
-                          </ol>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </TabsContent>
 
               <div className="mt-6 flex justify-end">
-                <Button 
+                <Button
                   onClick={handleSaveApiSettings}
                   disabled={saving}
                 >
