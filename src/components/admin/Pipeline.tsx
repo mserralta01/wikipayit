@@ -22,6 +22,7 @@ import { Badge } from '../../components/ui/badge'
 import { Progress } from '../../components/ui/progress'
 import { cn } from '../../lib/utils'
 import { useToast } from '../../hooks/use-toast'
+import { AuthDebug } from './debug/AuthDebug'
 
 interface PipelineFormData {
   beneficialOwners?: {
@@ -386,6 +387,7 @@ export function Pipeline() {
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
+      <AuthDebug />
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex p-2 overflow-auto">
           {columns.map(column => (
