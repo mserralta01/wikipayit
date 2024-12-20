@@ -1,15 +1,14 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
-import { useNavigate } from 'react-router-dom'
 
 export type AuthContextType = {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<User>;
   signInWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  loginWithEmail: (email: string, password: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<User>;
   signOut: () => Promise<void>;
 };
 
@@ -17,9 +16,9 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
   loading: true,
-  signInWithGoogle: async () => {},
+  signInWithGoogle: async () => { throw new Error('Not implemented') },
   signInWithEmail: async () => {},
-  loginWithEmail: async () => {},
+  loginWithEmail: async () => { throw new Error('Not implemented') },
   signOut: async () => {}
 })
 
@@ -27,7 +26,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const navigate = useNavigate()
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
@@ -49,11 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const result = await signInWithPopup(auth, provider)
       console.log('Google sign in result:', result.user?.email)
-      if (result.user?.email === 'mserralta@gmail.com' ||
-          result.user?.email === 'Mpilotg6@gmail.com' ||
-          result.user?.email === 'serralta@outlook.com') {
-        navigate('/admin/website')
-      }
+      return result.user
     } catch (error) {
       console.error('Google sign in error:', error)
       throw error
@@ -80,11 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Attempting login with email:', email)
       const result = await signInWithEmailAndPassword(auth, email, password)
       console.log('Login successful:', result.user)
-      if (result.user?.email === 'mserralta@gmail.com' ||
-          result.user?.email === 'Mpilotg6@gmail.com' ||
-          result.user?.email === 'serralta@outlook.com') {
-        navigate('/admin/website')
-      }
+      return result.user
     } catch (error: any) {
       console.error('Email login error:', error.code, error.message)
       throw error
