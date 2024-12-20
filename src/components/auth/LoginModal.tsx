@@ -17,6 +17,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { AlertCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '../ui/alert'
+import { useAuth } from '@/contexts/AuthContext'
 
 const signupSchema = z.object({
   firstName: z.string().min(2, 'First name must be at least 2 characters'),
@@ -51,6 +52,7 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
   const [isSignup, setIsSignup] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const { signInWithGoogle } = useAuth()
 
   const {
     register,
@@ -61,19 +63,19 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
     resolver: zodResolver(signupSchema),
   })
 
-  const provider = new GoogleAuthProvider()
-
   const handleGoogleLogin = async () => {
     try {
       setError(null)
       setLoading(true)
-      const result = await signInWithPopup(auth, provider)
-      if (result.user) {
+      await signInWithGoogle()
+
+      // Close the modal if it's not in standalone mode
+      if (!standalone) {
         onClose()
-        if (result.user.email === 'mserralta@gmail.com' || result.user.email === 'Mpilotg6@gmail.com') {
-          navigate('/admin')
-        }
       }
+
+      // Reset the form
+      reset()
     } catch (error) {
       console.error('Login error:', error)
       setError(getErrorMessage(error))
@@ -226,4 +228,4 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
       </DialogContent>
     </Dialog>
   )
-}   
+}       
