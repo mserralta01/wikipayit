@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 
 export type AuthContextType = {
@@ -8,6 +8,7 @@ export type AuthContextType = {
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signInWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -17,6 +18,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   signInWithGoogle: async () => {},
   signInWithEmail: async () => {},
+  loginWithEmail: async () => {},
   signOut: async () => {}
 })
 
@@ -52,13 +54,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
-      
+
       // Update the user's display name
       await updateProfile(user, {
         displayName: `${firstName} ${lastName}`
       })
     } catch (error) {
       console.error('Email sign in error:', error)
+      throw error
+    }
+  }
+
+  const loginWithEmail = async (email: string, password: string) => {
+    try {
+      const result = await signInWithEmailAndPassword(auth, email, password)
+      if (result.user?.email === 'mserralta@gmail.com' || result.user?.email === 'Mpilotg6@gmail.com') {
+        window.location.href = '/admin/website'
+      }
+    } catch (error) {
+      console.error('Email login error:', error)
       throw error
     }
   }
@@ -73,13 +87,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAdmin, 
-      loading, 
+    <AuthContext.Provider value={{
+      user,
+      isAdmin,
+      loading,
       signInWithGoogle,
       signInWithEmail,
-      signOut 
+      loginWithEmail,
+      signOut
     }}>
       {!loading && children}
     </AuthContext.Provider>
