@@ -97,6 +97,12 @@ export type Merchant = {
     yearEstablished?: string
     monthlyVolume?: string
     averageTicket?: string
+    companyAddress?: {
+      street?: string
+      city?: string
+      state?: string
+      zipCode?: string
+    }
     beneficialOwners?: {
       owners: Array<{
         firstName: string

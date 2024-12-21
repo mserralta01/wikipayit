@@ -1,25 +1,37 @@
 import React from "react"
 import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
 import { doc, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
-import { Card, CardHeader, CardContent } from "../../../components/ui/card"
-import { Form, FormField, FormItem, FormLabel, FormControl } from "../../../components/ui/form"
+import { Card, CardHeader, CardContent, CardTitle } from "../../../components/ui/card"
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from "../../../components/ui/form"
 import { Input } from "../../../components/ui/input"
 import { Button } from "../../../components/ui/button"
-import { Merchant as PipelineMerchant } from "../../../types/merchant"
+import { Merchant as PipelineMerchant, timestampToString } from "../../../types/merchant"
+
+const pricingSchema = z.object({
+  monthlyFee: z.string()
+    .min(1, "Monthly fee is required")
+    .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid dollar amount"),
+  transactionFee: z.string()
+    .min(1, "Transaction fee is required")
+    .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid dollar amount"),
+  discountRate: z.string()
+    .min(1, "Discount rate is required")
+    .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid percentage")
+    .refine((val) => parseFloat(val) <= 100, "Percentage must be less than or equal to 100")
+})
+
+type PricingFormValues = z.infer<typeof pricingSchema>
 
 interface PricingSectionProps {
   merchant: PipelineMerchant
 }
 
-interface PricingFormValues {
-  monthlyFee: string
-  transactionFee: string
-  discountRate: string
-}
-
 export function PricingSection({ merchant }: PricingSectionProps) {
   const form = useForm<PricingFormValues>({
+    resolver: zodResolver(pricingSchema),
     defaultValues: {
       monthlyFee: merchant.pricing?.monthlyFee || '',
       transactionFee: merchant.pricing?.transactionFee || '',
@@ -28,16 +40,28 @@ export function PricingSection({ merchant }: PricingSectionProps) {
   })
 
   const onSubmit = async (values: PricingFormValues) => {
-    await updateDoc(doc(db, 'merchants', merchant.id), {
-      pricing: values,
-      updatedAt: new Date()
-    })
+    try {
+      await updateDoc(doc(db, 'merchants', merchant.id), {
+        pricing: {
+          ...values,
+          updatedAt: new Date()
+        },
+        updatedAt: new Date()
+      })
+    } catch (error) {
+      console.error("Error saving pricing data:", error)
+    }
   }
 
   return (
     <Card className="mt-4">
-      <CardHeader>
-        <h3 className="text-lg font-semibold">Pricing</h3>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-xl font-bold">Pricing</CardTitle>
+        {merchant.pricing?.updatedAt && (
+          <div className="text-sm text-gray-500">
+            Last updated: {timestampToString(merchant.pricing.updatedAt)}
+          </div>
+        )}
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -47,10 +71,11 @@ export function PricingSection({ merchant }: PricingSectionProps) {
               name="monthlyFee"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Monthly Fee</FormLabel>
+                  <FormLabel>Monthly Fee ($)</FormLabel>
                   <FormControl>
-                    <Input {...field} type="text" placeholder="Enter monthly fee" />
+                    <Input {...field} placeholder="0.00" />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -59,10 +84,11 @@ export function PricingSection({ merchant }: PricingSectionProps) {
               name="transactionFee"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Transaction Fee</FormLabel>
+                  <FormLabel>Transaction Fee ($)</FormLabel>
                   <FormControl>
-                    <Input {...field} type="text" placeholder="Enter transaction fee" />
+                    <Input {...field} placeholder="0.00" />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
@@ -71,14 +97,15 @@ export function PricingSection({ merchant }: PricingSectionProps) {
               name="discountRate"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Discount Rate</FormLabel>
+                  <FormLabel>Discount Rate (%)</FormLabel>
                   <FormControl>
-                    <Input {...field} type="text" placeholder="Enter discount rate" />
+                    <Input {...field} placeholder="0.00" />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit">Save Pricing</Button>
+            <Button type="submit" className="w-full">Save Pricing</Button>
           </form>
         </Form>
       </CardContent>
