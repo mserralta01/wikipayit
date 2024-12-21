@@ -1,14 +1,15 @@
 import React, { ReactNode } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
-import { 
+import {
   Users, Store, DollarSign, TrendingUp,
   Phone, Send, FileText, CheckCircle, Bell
 } from 'lucide-react'
 import { merchantService } from '../../services/merchantService'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, ActivityType } from '@/types/crm'
+import { Activity, ActivityType } from '@/types/activity'
 import { useState, useEffect } from 'react'
 import { formatDistanceToNow } from 'date-fns'
+import { Timestamp } from 'firebase/firestore'
 
 type MetricCardProps = {
   title: string
@@ -66,13 +67,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (recentActivity) {
-      const activities = recentActivity.map(activity => ({
-        ...activity,
-        timestamp: new Date(activity.timestamp)
-      })) as Activity[];
+      const activities = recentActivity.map(activity => {
+        const timestamp = activity.timestamp instanceof Timestamp
+          ? activity.timestamp
+          : Timestamp.fromDate(new Date(activity.timestamp));
+
+        return {
+          ...activity,
+          timestamp,
+          userId: activity.userId || '',
+          merchantId: activity.merchantId || '',
+          merchant: activity.merchant || { businessName: '' }
+        } as Activity;
+      });
 
       const sortedActivities = activities
-        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+        .sort((a, b) => b.timestamp.toMillis() - a.timestamp.toMillis())
         .slice(0, 10);
 
       setRecentActivities(sortedActivities);
@@ -141,7 +151,7 @@ export default function Dashboard() {
                     <p className="text-sm font-medium">{activity.description}</p>
                     <p className="text-xs text-gray-500">
                       {activity.merchant && <span className="font-medium">{activity.merchant.businessName} - </span>}
-                      {formatDistanceToNow(activity.timestamp, { addSuffix: true })}
+                      {formatDistanceToNow(activity.timestamp.toDate(), { addSuffix: true })}
                     </p>
                   </div>
                 </div>
@@ -169,4 +179,4 @@ function getActivityIcon(type: ActivityType): ReactNode {
     default:
       return <Bell className="h-5 w-5 text-blue-600" />
   }
-} 
+}     

@@ -4,13 +4,14 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Helper functions
     function isAdmin() {
-      return request.auth != null && 
-        (request.auth.token.email == 'mserralta@gmail.com' || 
-         request.auth.token.email == 'Mpilotg6@gmail.com');
+      return request.auth != null &&
+        (request.auth.token.email == 'mserralta@gmail.com' ||
+         request.auth.token.email == 'Mpilotg6@gmail.com' ||
+         request.auth.token.email == 'serralta@outlook.com');
     }
 
     function isTeamMember() {
-      return request.auth != null && 
+      return request.auth != null &&
         exists(/databases/$(database)/documents/teamMembers/$(request.auth.uid));
     }
 
@@ -24,11 +25,27 @@ service cloud.firestore {
       allow write: if isAuthenticated() || isAdmin();
     }
 
-    // Allow authenticated users to read and write merchants
+    // Allow authenticated users to read and write merchants with expanded permissions
     match /merchants/{merchantId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        // Allow pricing updates by admin
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pricing', 'updatedAt']) && isAdmin()) ||
+        // Allow status updates by team members
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && isAdmin())
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Activities collection (notes, phone calls, emails)
+    match /activities/{activityId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (
+        request.auth.uid == resource.data.userId ||
+        isAdmin()
+      );
     }
 
     // Team members collection
@@ -51,8 +68,8 @@ service cloud.firestore {
 
     // Settings collection - more specific rule for API settings
     match /settings/api {
-      allow read, write: if request.auth != null && 
-        (request.auth.token.email == 'mserralta@gmail.com' || 
+      allow read, write: if request.auth != null &&
+        (request.auth.token.email == 'mserralta@gmail.com' ||
          request.auth.token.email == 'Mpilotg6@gmail.com');
     }
 

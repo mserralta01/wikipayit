@@ -26,7 +26,13 @@ const signupSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 })
 
+const loginSchema = z.object({
+  email: z.string().email('Please enter a valid email'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+})
+
 type SignupFormData = z.infer<typeof signupSchema>
+type LoginFormData = z.infer<typeof loginSchema>
 
 type LoginModalProps = {
   isOpen?: boolean
@@ -44,6 +50,9 @@ const getErrorMessage = (error: any): string => {
   if (error?.code === 'auth/weak-password') {
     return 'Please choose a stronger password. It should be at least 6 characters long.'
   }
+  if (error?.code === 'auth/invalid-credential') {
+    return 'Invalid email or password. Please try again.'
+  }
   return error?.message || 'An error occurred. Please try again.'
 }
 
@@ -52,15 +61,24 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
   const [isSignup, setIsSignup] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const { signInWithGoogle } = useAuth()
+  const { signInWithGoogle, loginWithEmail } = useAuth()
 
   const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    reset,
+    register: registerSignup,
+    handleSubmit: handleSubmitSignup,
+    formState: { errors: signupErrors },
+    reset: resetSignup,
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
+  })
+
+  const {
+    register: registerLogin,
+    handleSubmit: handleSubmitLogin,
+    formState: { errors: loginErrors },
+    reset: resetLogin,
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
   })
 
   const handleGoogleLogin = async () => {
@@ -69,13 +87,12 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
       setLoading(true)
       await signInWithGoogle()
 
-      // Close the modal if it's not in standalone mode
       if (!standalone) {
         onClose()
       }
 
-      // Reset the form
-      reset()
+      resetSignup()
+      resetLogin()
     } catch (error) {
       console.error('Login error:', error)
       setError(getErrorMessage(error))
@@ -88,18 +105,17 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
     try {
       setError(null)
       setLoading(true)
-      
+
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password)
       const user = userCredential.user
-      
-      // Update the user's display name with first and last name
+
       await updateProfile(user, {
         displayName: `${data.firstName} ${data.lastName}`
       })
 
       onClose()
-      reset()
-      
+      resetSignup()
+
       if (data.email === 'mserralta@gmail.com' || data.email === 'Mpilotg6@gmail.com') {
         navigate('/admin')
       }
@@ -111,10 +127,26 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
     }
   }
 
+  const handleEmailLogin = async (data: LoginFormData) => {
+    try {
+      setError(null)
+      setLoading(true)
+      await loginWithEmail(data.email, data.password)
+      onClose()
+      resetLogin()
+    } catch (error: any) {
+      console.error('Login error:', error)
+      setError(getErrorMessage(error))
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const toggleSignup = () => {
     setIsSignup(!isSignup)
     setError(null)
-    reset()
+    resetSignup()
+    resetLogin()
   }
 
   return (
@@ -156,17 +188,17 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
           </div>
 
           {isSignup ? (
-            <form onSubmit={handleSubmit(handleEmailSignup)} className="space-y-4">
+            <form onSubmit={handleSubmitSignup(handleEmailSignup)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name</Label>
                   <Input
                     id="firstName"
-                    {...register('firstName')}
+                    {...registerSignup('firstName')}
                     disabled={loading}
                   />
-                  {errors.firstName && (
-                    <p className="text-sm text-destructive">{errors.firstName.message}</p>
+                  {signupErrors.firstName && (
+                    <p className="text-sm text-destructive">{signupErrors.firstName.message}</p>
                   )}
                 </div>
 
@@ -174,38 +206,38 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
                   <Label htmlFor="lastName">Last Name</Label>
                   <Input
                     id="lastName"
-                    {...register('lastName')}
+                    {...registerSignup('lastName')}
                     disabled={loading}
                   />
-                  {errors.lastName && (
-                    <p className="text-sm text-destructive">{errors.lastName.message}</p>
+                  {signupErrors.lastName && (
+                    <p className="text-sm text-destructive">{signupErrors.lastName.message}</p>
                   )}
                 </div>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="signupEmail">Email</Label>
                 <Input
-                  id="email"
+                  id="signupEmail"
                   type="email"
-                  {...register('email')}
+                  {...registerSignup('email')}
                   disabled={loading}
                 />
-                {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                {signupErrors.email && (
+                  <p className="text-sm text-destructive">{signupErrors.email.message}</p>
                 )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="signupPassword">Password</Label>
                 <Input
-                  id="password"
+                  id="signupPassword"
                   type="password"
-                  {...register('password')}
+                  {...registerSignup('password')}
                   disabled={loading}
                 />
-                {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                {signupErrors.password && (
+                  <p className="text-sm text-destructive">{signupErrors.password.message}</p>
                 )}
               </div>
 
@@ -214,18 +246,50 @@ export function LoginModal({ isOpen = true, onClose = () => {}, standalone = fal
               </Button>
             </form>
           ) : (
-            <Button
-              type="button"
-              variant="link"
-              className="w-full"
-              onClick={toggleSignup}
-              disabled={loading}
-            >
-              Don't have an account? Sign up
-            </Button>
+            <form onSubmit={handleSubmitLogin(handleEmailLogin)} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="loginEmail">Email</Label>
+                <Input
+                  id="loginEmail"
+                  type="email"
+                  {...registerLogin('email')}
+                  disabled={loading}
+                />
+                {loginErrors.email && (
+                  <p className="text-sm text-destructive">{loginErrors.email.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="loginPassword">Password</Label>
+                <Input
+                  id="loginPassword"
+                  type="password"
+                  {...registerLogin('password')}
+                  disabled={loading}
+                />
+                {loginErrors.password && (
+                  <p className="text-sm text-destructive">{loginErrors.password.message}</p>
+                )}
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? 'Signing In...' : 'Sign In'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="link"
+                className="w-full"
+                onClick={toggleSignup}
+                disabled={loading}
+              >
+                Don't have an account? Sign up
+              </Button>
+            </form>
           )}
         </div>
       </DialogContent>
     </Dialog>
   )
-}       
+}                     

@@ -14,6 +14,10 @@ import SuperAdmin from "./components/admin/SuperAdmin"
 import EmailTemplates from "./components/admin/settings/EmailTemplates"
 import TeamManagement from "./components/admin/settings/TeamManagement"
 import { LoginModal } from "./components/auth/LoginModal"
+import { ProtectedRoute } from "./components/auth/ProtectedRoute"
+import { FirebaseAuthDebug } from "./components/admin/debug/FirebaseAuthDebug"
+import { AuthDebug } from "./components/admin/debug/AuthDebug"
+import { LeadDetailView } from "./components/admin/LeadDetailView"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -36,9 +40,11 @@ const AdminLayoutWrapper = () => {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router>
+    <Router>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <FirebaseAuthDebug />
+          <AuthDebug />
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<LoginModal standalone={true} />} />
@@ -48,10 +54,18 @@ function App() {
             </Route>
 
             {/* Admin Routes */}
-            <Route path="/admin" element={<AdminLayoutWrapper />}>
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute>
+                  <AdminLayoutWrapper />
+                </ProtectedRoute>
+              }
+            >
               <Route index element={<Dashboard />} />
               <Route path="applications" element={<Applications />} />
               <Route path="pipeline" element={<Pipeline />} />
+              <Route path="pipeline/:id" element={<LeadDetailView />} />
               <Route path="merchants" element={<MerchantList />} />
               <Route path="website" element={<WebsiteManagement />} />
               <Route path="super" element={<SuperAdmin />} />
@@ -59,9 +73,9 @@ function App() {
               <Route path="settings/team" element={<TeamManagement />} />
             </Route>
           </Routes>
-        </Router>
-      </AuthProvider>
-    </QueryClientProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </Router>
   )
 }
 
