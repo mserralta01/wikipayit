@@ -25,33 +25,46 @@ import {
 import { useToast } from "@/hooks/use-toast"
 
 const pricingTierSchema = z.object({
-  volume: z.string().min(1, "Volume is required"),
-  rate: z.string()
-    .min(1, "Rate is required")
-    .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid percentage")
-    .refine((val) => parseFloat(val) <= 100, "Percentage must be less than or equal to 100"),
+  volume: z.number()
+    .min(0, "Volume cannot be negative")
+    .max(1000000, "Volume cannot exceed 1,000,000"),
+  rate: z.number()
+    .min(0.01, "Rate must be at least 0.01%")
+    .max(100, "Rate cannot exceed 100%")
 })
 
 const pricingSchema = z.object({
-  type: z.enum(["tier", "interchange", "flat", "surcharge"] as const),
-  tiers: z.array(pricingTierSchema).optional(),
-  interchangeMarkup: z.string()
-    .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid percentage")
-    .refine((val) => parseFloat(val) <= 100, "Percentage must be less than or equal to 100")
+  type: z.enum(["tier", "interchange", "flat", "surcharge"]),
+  tiers: z.array(pricingTierSchema)
+    .min(2, "Must have at least 2 tiers")
+    .refine(
+      (tiers) => {
+        for (let i = 1; i < tiers.length; i++) {
+          if (tiers[i].volume <= tiers[i-1].volume) return false;
+        }
+        return true;
+      },
+      "Volume thresholds must be strictly increasing"
+    )
     .optional(),
-  flatRate: z.string()
-    .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid percentage")
-    .refine((val) => parseFloat(val) <= 100, "Percentage must be less than or equal to 100")
+  interchangeMarkup: z.number()
+    .min(0.01, "Markup must be at least 0.01%")
+    .max(15, "Markup cannot exceed 15%")
     .optional(),
-  surchargeRate: z.string()
-    .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid percentage")
-    .refine((val) => parseFloat(val) <= 100, "Percentage must be less than or equal to 100")
+  flatRate: z.number()
+    .min(0.01, "Rate must be at least 0.01%")
+    .max(5, "Rate cannot exceed 5%")
     .optional(),
-  transactionFee: z.string()
-    .regex(/^\d+(\.\d{1,2})?$/, "Must be a valid dollar amount")
+  surchargeRate: z.number()
+    .min(1, "Surcharge must be at least 1%")
+    .max(4, "Surcharge cannot exceed 4%")
+    .optional(),
+  transactionFee: z.number()
+    .min(0, "Transaction fee cannot be negative")
+    .max(1, "Transaction fee cannot exceed $1.00")
     .optional(),
 }).refine((data) => {
-  if (data.type === "tier" && (!data.tiers || data.tiers.length === 0)) {
+  if (data.type === "tier" && (!data.tiers || data.tiers.length < 2)) {
     return false
   }
   if (data.type === "interchange" && !data.interchangeMarkup) {
@@ -84,14 +97,14 @@ export function PricingSection({ merchant }: PricingSectionProps) {
     resolver: zodResolver(pricingSchema),
     defaultValues: {
       type: merchant.pricing?.type || "flat",
-      tiers: merchant.pricing?.tiers?.map(tier => ({
-        volume: tier.volume.toString(),
-        rate: tier.rate.toString(),
-      })) || [{ volume: "", rate: "" }],
-      interchangeMarkup: merchant.pricing?.interchangeMarkup?.toString() || "",
-      flatRate: merchant.pricing?.flatRate?.toString() || "",
-      surchargeRate: merchant.pricing?.surchargeRate?.toString() || "",
-      transactionFee: merchant.pricing?.transactionFee?.toString() || "",
+      tiers: merchant.pricing?.tiers?.length ? merchant.pricing.tiers : [
+        { volume: 1000, rate: 2.5 },
+        { volume: 5000, rate: 2.0 }
+      ],
+      interchangeMarkup: merchant.pricing?.interchangeMarkup || 0.01,
+      flatRate: merchant.pricing?.flatRate || 0.01,
+      surchargeRate: merchant.pricing?.surchargeRate || 1,
+      transactionFee: merchant.pricing?.transactionFee || 0,
     },
   })
 
@@ -104,21 +117,21 @@ export function PricingSection({ merchant }: PricingSectionProps) {
     try {
       const pricingData: PricingDetails = {
         type: values.type,
-        transactionFee: values.transactionFee ? parseFloat(values.transactionFee) : undefined,
+        transactionFee: values.transactionFee,
         lastUpdated: Timestamp.fromDate(new Date()),
       }
 
-      if (values.type === "tier") {
-        pricingData.tiers = values.tiers?.map(tier => ({
-          volume: parseFloat(tier.volume),
-          rate: parseFloat(tier.rate),
+      if (values.type === "tier" && values.tiers) {
+        pricingData.tiers = values.tiers.map(tier => ({
+          volume: tier.volume,
+          rate: tier.rate,
         }))
-      } else if (values.type === "interchange") {
-        pricingData.interchangeMarkup = values.interchangeMarkup ? parseFloat(values.interchangeMarkup) : undefined
-      } else if (values.type === "flat") {
-        pricingData.flatRate = values.flatRate ? parseFloat(values.flatRate) : undefined
-      } else if (values.type === "surcharge") {
-        pricingData.surchargeRate = values.surchargeRate ? parseFloat(values.surchargeRate) : undefined
+      } else if (values.type === "interchange" && values.interchangeMarkup) {
+        pricingData.interchangeMarkup = values.interchangeMarkup
+      } else if (values.type === "flat" && values.flatRate) {
+        pricingData.flatRate = values.flatRate
+      } else if (values.type === "surcharge" && values.surchargeRate) {
+        pricingData.surchargeRate = values.surchargeRate
       }
 
       await updateDoc(doc(db, "merchants", merchant.id), {
@@ -163,7 +176,39 @@ export function PricingSection({ merchant }: PricingSectionProps) {
                     onValueChange={(value: PricingType) => {
                       field.onChange(value)
                       setSelectedType(value)
+                      // Reset form values based on pricing type
+                      switch (value) {
+                        case "tier":
+                          form.setValue("tiers", [
+                            { volume: 1000, rate: 2.5 },
+                            { volume: 5000, rate: 2.0 }
+                          ])
+                          form.setValue("interchangeMarkup", undefined)
+                          form.setValue("flatRate", undefined)
+                          form.setValue("surchargeRate", undefined)
+                          break
+                        case "interchange":
+                          form.setValue("tiers", undefined)
+                          form.setValue("interchangeMarkup", 0.01)
+                          form.setValue("flatRate", undefined)
+                          form.setValue("surchargeRate", undefined)
+                          break
+                        case "flat":
+                          form.setValue("tiers", undefined)
+                          form.setValue("interchangeMarkup", undefined)
+                          form.setValue("flatRate", 0.01)
+                          form.setValue("surchargeRate", undefined)
+                          break
+                        case "surcharge":
+                          form.setValue("tiers", undefined)
+                          form.setValue("interchangeMarkup", undefined)
+                          form.setValue("flatRate", undefined)
+                          form.setValue("surchargeRate", 1)
+                          break
+                      }
+                      form.setValue("transactionFee", 0)
                     }}
+                    value={field.value}
                     defaultValue={field.value}
                   >
                     <FormControl>
@@ -194,7 +239,7 @@ export function PricingSection({ merchant }: PricingSectionProps) {
                         <FormItem className="flex-1">
                           <FormLabel>Volume Threshold ($)</FormLabel>
                           <FormControl>
-                            <Input {...field} type="number" step="0.01" />
+                            <Input {...field} type="number" step="0.01" min="0" max="1000000" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -207,7 +252,7 @@ export function PricingSection({ merchant }: PricingSectionProps) {
                         <FormItem className="flex-1">
                           <FormLabel>Rate (%)</FormLabel>
                           <FormControl>
-                            <Input {...field} type="number" step="0.01" />
+                            <Input {...field} type="number" step="0.01" min="0.01" max="100" />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -228,7 +273,7 @@ export function PricingSection({ merchant }: PricingSectionProps) {
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => append({ volume: "", rate: "" })}
+                  onClick={() => append({ volume: 0, rate: 0 })}
                   className="w-full"
                 >
                   <PlusCircle className="h-4 w-4 mr-2" />
@@ -245,7 +290,7 @@ export function PricingSection({ merchant }: PricingSectionProps) {
                   <FormItem>
                     <FormLabel>Interchange Markup (%)</FormLabel>
                     <FormControl>
-                      <Input {...field} type="number" step="0.01" />
+                      <Input {...field} type="number" step="0.01" min="0.01" max="15" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -261,7 +306,7 @@ export function PricingSection({ merchant }: PricingSectionProps) {
                   <FormItem>
                     <FormLabel>Flat Rate (%)</FormLabel>
                     <FormControl>
-                      <Input {...field} type="number" step="0.01" />
+                      <Input {...field} type="number" step="0.01" min="0.01" max="5" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -277,7 +322,7 @@ export function PricingSection({ merchant }: PricingSectionProps) {
                   <FormItem>
                     <FormLabel>Surcharge Rate (%)</FormLabel>
                     <FormControl>
-                      <Input {...field} type="number" step="0.01" />
+                      <Input {...field} type="number" step="0.01" min="1" max="4" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -292,7 +337,7 @@ export function PricingSection({ merchant }: PricingSectionProps) {
                 <FormItem>
                   <FormLabel>Transaction Fee ($)</FormLabel>
                   <FormControl>
-                    <Input {...field} type="number" step="0.01" />
+                    <Input {...field} type="number" step="0.01" min="0" max="1" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

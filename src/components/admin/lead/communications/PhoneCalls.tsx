@@ -1,10 +1,12 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { Timestamp } from "firebase/firestore"
+import { Timestamp, collection, query, where, orderBy, getDocs } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
+import { merchantCommunication } from "@/services/merchantCommunication"
+import { db } from "@/lib/firebase"
 import {
   Form,
   FormControl,
@@ -45,6 +47,7 @@ type PhoneCallFormValues = z.infer<typeof phoneCallSchema>
 
 export function PhoneCalls({ merchant }: PhoneCallsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [activities, setActivities] = useState<Activity[]>([])
   const { toast } = useToast()
   const { user } = useAuth()
 
@@ -57,36 +60,55 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
     },
   })
 
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        const activitiesRef = collection(db, 'activities')
+        const q = query(
+          activitiesRef,
+          where('merchantId', '==', merchant.id),
+          where('type', '==', 'phone_call'),
+          orderBy('timestamp', 'desc')
+        )
+
+        const snapshot = await getDocs(q)
+        setActivities(snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Activity[])
+      } catch (error) {
+        console.error('Error fetching phone call activities:', error)
+        toast({
+          title: "Error loading phone calls",
+          description: "There was an error loading the phone call history.",
+          variant: "destructive",
+        })
+      }
+    }
+
+    fetchActivities()
+  }, [merchant.id, toast])
+
   const onSubmit = async (values: PhoneCallFormValues) => {
     if (!user) return
 
     setIsSubmitting(true)
     try {
-      const newActivity: Omit<Activity, "id"> = {
-        type: "phone_call",
-        description: `Phone call - ${values.outcome}`,
-        timestamp: Timestamp.now(),
-        userId: user.uid,
-        merchantId: merchant.id,
-        merchant: {
-          businessName: merchant.businessName || "",
-        },
-        metadata: {
-          duration: values.duration,
-          outcome: values.outcome,
-          notes: values.notes,
-          agentId: user.uid,
-          agentName: user.displayName || user.email || "Unknown Agent",
-        },
-      }
+      await merchantCommunication.addPhoneCall(merchant.id, {
+        duration: values.duration,
+        outcome: values.outcome,
+        notes: values.notes,
+        agentId: user.uid,
+        agentName: user.displayName || user.email || "Unknown Agent"
+      })
 
-      // TODO: Add activity through merchant service
       form.reset()
       toast({
         title: "Phone call logged successfully",
         description: "The phone call has been recorded.",
       })
     } catch (error) {
+      console.error("Error logging phone call:", error)
       toast({
         title: "Error logging phone call",
         description: "There was an error recording the phone call. Please try again.",
@@ -123,7 +145,7 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
                 render={({ field }: { field: any }) => (
                   <FormItem>
                     <FormLabel>Outcome</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select call outcome" />
@@ -166,7 +188,25 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
 
       <ScrollArea className="h-[400px]">
         <div className="space-y-4">
-          {/* TODO: Add phone call activity list */}
+          {activities?.map((activity) => (
+            <Card key={activity.id} className="p-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-medium">{activity.metadata?.agentName || "Unknown Agent"}</p>
+                  <p className="text-sm text-gray-500">
+                    {format(activity.timestamp instanceof Timestamp ? activity.timestamp.toDate() : new Date(activity.timestamp), "MMM d, yyyy h:mm a")}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm">Duration: {activity.metadata?.duration} minutes</p>
+                  <p className="text-sm capitalize">Outcome: {activity.metadata?.outcome}</p>
+                </div>
+              </div>
+              {activity.metadata?.notes && (
+                <p className="mt-2 text-sm text-gray-700">{activity.metadata.notes}</p>
+              )}
+            </Card>
+          ))}
         </div>
       </ScrollArea>
     </div>

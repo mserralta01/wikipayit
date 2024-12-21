@@ -18,6 +18,14 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
   const { toast } = useToast()
 
   useEffect(() => {
+    console.log('EmailThreads - Initial merchant data:', {
+      id: merchant.id,
+      email: merchant.email,
+      businessName: merchant.businessName,
+      formData: merchant.formData,
+      beneficialOwners: merchant.beneficialOwners
+    })
+
     const loadEmailThreads = async () => {
       try {
         const threads = await merchantCommunication.getEmailThreads(merchant.id)
@@ -40,24 +48,58 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
   const getRecipientOptions = () => {
     const options: Array<{ email: string; label: string }> = []
 
+    console.log('Merchant data in getRecipientOptions:', {
+      email: merchant.email,
+      businessName: merchant.businessName || merchant.formData?.businessName,
+      beneficialOwners: merchant.beneficialOwners,
+      formDataOwners: merchant.formData?.beneficialOwners?.owners
+    })
+
     // Add main contact email
     if (merchant.email) {
+      const businessName = merchant.businessName || merchant.formData?.businessName || 'Unknown Business'
       options.push({
         email: merchant.email,
-        label: `${merchant.businessName} (Primary)`
+        label: `${businessName} - Primary Contact`
       })
+      console.log('Added primary contact:', merchant.email)
     }
 
     // Add beneficial owner emails
     merchant.beneficialOwners?.forEach((owner) => {
       if (owner.email) {
+        const ownerName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim()
         options.push({
           email: owner.email,
-          label: `${owner.firstName} ${owner.lastName} (Owner)`
+          label: `${ownerName} - Beneficial Owner`
         })
+        console.log('Added beneficial owner:', owner.email)
       }
     })
 
+    // Add form data email if different
+    if (merchant.formData?.email && merchant.formData.email !== merchant.email) {
+      const businessName = merchant.formData.businessName || merchant.businessName || 'Unknown Business'
+      options.push({
+        email: merchant.formData.email,
+        label: `${businessName} - Application Contact`
+      })
+      console.log('Added form data email:', merchant.formData.email)
+    }
+
+    // Add form data beneficial owner emails if different
+    merchant.formData?.beneficialOwners?.owners.forEach((owner) => {
+      if (owner.email && !options.some(opt => opt.email === owner.email)) {
+        const ownerName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim()
+        options.push({
+          email: owner.email,
+          label: `${ownerName} - Application Owner`
+        })
+        console.log('Added form data owner:', owner.email)
+      }
+    })
+
+    console.log('Final recipient options:', options)
     return options
   }
 

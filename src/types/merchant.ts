@@ -22,6 +22,12 @@ export interface PricingTier {
   rate: number
 }
 
+export interface Note {
+  content: string
+  createdAt: Timestamp
+  createdBy: string
+}
+
 export interface PricingDetails {
   type: PricingType
   tiers?: PricingTier[]
@@ -106,11 +112,13 @@ export type Merchant = {
   beneficialOwners?: BeneficialOwner[]
   position?: number
   pricing?: PricingDetails
+  notes?: Note[]
 
   formData?: {
     businessName?: string
     dba?: string
     phone?: string
+    email?: string
     taxId?: string
     businessType?: string
     yearEstablished?: string
@@ -127,6 +135,7 @@ export type Merchant = {
         firstName: string
         lastName: string
         phone?: string
+        email?: string
       }>
     }
     bankDetails?: BankDetails

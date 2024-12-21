@@ -111,6 +111,16 @@ export function EmailEditor({ onSend, recipientOptions, placeholder = "Compose y
             </div>
           )}
         </div>
+        <div className="space-y-2">
+          <Label>Subject</Label>
+          <Input
+            type="text"
+            placeholder="Enter email subject"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full"
+          />
+        </div>
       </div>
       <div className="min-h-[200px] p-4">
         <EditorContent
@@ -122,7 +132,7 @@ export function EmailEditor({ onSend, recipientOptions, placeholder = "Compose y
         <Button
           onClick={handleSend}
           className="bg-primary text-primary-foreground hover:bg-primary/90"
-          disabled={!editor?.getText() || (!selectedRecipient && !customEmail)}
+          disabled={!editor?.getText() || (!selectedRecipient && !customEmail) || !subject.trim()}
         >
           Send Email
         </Button>

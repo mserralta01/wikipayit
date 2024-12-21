@@ -27,5 +27,7 @@ export interface Activity {
     notes?: string;
     agentId?: string;
     agentName?: string;
+    noteContent?: string;
+    createdAt?: Timestamp;
   };
 } 
