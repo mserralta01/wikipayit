@@ -100,7 +100,10 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
       offer: 'bg-purple-500',
       underwriting: 'bg-orange-500',
       documents: 'bg-indigo-500',
-      approved: 'bg-green-500'
+      approved: 'bg-green-500',
+      started: 'bg-gray-400',
+      in_progress: 'bg-gray-500',
+      completed: 'bg-gray-600'
     }
     return colors[status] || 'bg-gray-500'
   }
