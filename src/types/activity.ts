@@ -1,6 +1,12 @@
 import { Timestamp } from 'firebase/firestore';
 
-export type ActivityType = 'note' | 'status_change' | 'email_sent' | 'document_upload' | 'new_application';
+export type ActivityType =
+  | 'note'
+  | 'status_change'
+  | 'email_sent'
+  | 'document_upload'
+  | 'new_application'
+  | 'phone_call';
 
 export interface Activity {
   id: string;
@@ -16,5 +22,10 @@ export interface Activity {
     subject?: string;
     recipientEmail?: string;
     content?: string;
+    duration?: string;
+    outcome?: 'successful' | 'no_answer' | 'follow_up_required' | 'voicemail' | 'other';
+    notes?: string;
+    agentId?: string;
+    agentName?: string;
   };
 } 

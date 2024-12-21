@@ -5,6 +5,7 @@ import { db } from '../lib/firebase'
 import { collection, addDoc, Timestamp, query, where, orderBy, getDocs } from 'firebase/firestore'
 
 interface EmailData {
+  recipientEmail: string
   subject: string
   content: string
 }
@@ -17,14 +18,9 @@ export const merchantCommunication = {
   async sendEmail(merchantId: string, data: EmailData): Promise<boolean> {
     try {
       const merchant = await CustomerService.getCustomer(merchantId)
-      const primaryContact = merchant.contacts.find(contact => contact.isPrimary)
-
-      if (!primaryContact?.email) {
-        throw new Error('No primary contact email found for merchant')
-      }
 
       const success = await emailService.sendEmail({
-        to: primaryContact.email,
+        to: data.recipientEmail,
         subject: data.subject,
         content: data.content
       })
@@ -33,15 +29,16 @@ export const merchantCommunication = {
         // Log the email activity
         await this.logActivity({
           type: 'email_sent',
-          description: `Email sent: ${data.subject}`,
+          description: `Email sent to ${data.recipientEmail}`,
           userId: 'system', // TODO: Get actual user ID
           merchantId,
           merchant: {
             businessName: merchant.businessInfo.legalName
           },
           metadata: {
+            recipientEmail: data.recipientEmail,
             subject: data.subject,
-            recipientEmail: primaryContact.email
+            content: data.content
           }
         })
       }

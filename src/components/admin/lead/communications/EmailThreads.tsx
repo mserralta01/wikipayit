@@ -1,20 +1,18 @@
 import React, { useState, useEffect } from "react"
-import { Card, CardContent } from "../../../../components/ui/card"
-import { Merchant as PipelineMerchant } from "../../../../types/merchant"
-import { Button } from "../../../../components/ui/button"
-import { merchantCommunication } from "../../../../services/merchantCommunication"
-import { useToast } from "../../../../hooks/use-toast"
+import { Card, CardContent } from "@/components/ui/card"
+import { Merchant as PipelineMerchant } from "@/types/merchant"
+import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
-import { Activity } from "../../../../types/crm"
-import { Skeleton } from "../../../../components/ui/skeleton"
+import { Activity } from "@/types/activity"
+import { Skeleton } from "@/components/ui/skeleton"
+import { EmailEditor } from "./EmailEditor"
+import { merchantCommunication } from "@/services/merchantCommunication"
 
 interface EmailThreadsProps {
   merchant: PipelineMerchant
 }
 
 export function EmailThreads({ merchant }: EmailThreadsProps) {
-  const [subject, setSubject] = useState("")
-  const [content, setContent] = useState("")
   const [emailThreads, setEmailThreads] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
@@ -39,9 +37,34 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
     loadEmailThreads()
   }, [merchant.id, toast])
 
-  const handleSendEmail = async () => {
+  const getRecipientOptions = () => {
+    const options: Array<{ email: string; label: string }> = []
+
+    // Add main contact email
+    if (merchant.email) {
+      options.push({
+        email: merchant.email,
+        label: `${merchant.businessName} (Primary)`
+      })
+    }
+
+    // Add beneficial owner emails
+    merchant.beneficialOwners?.forEach((owner) => {
+      if (owner.email) {
+        options.push({
+          email: owner.email,
+          label: `${owner.firstName} ${owner.lastName} (Owner)`
+        })
+      }
+    })
+
+    return options
+  }
+
+  const handleSendEmail = async (content: string, recipient: string, subject: string) => {
     try {
       const success = await merchantCommunication.sendEmail(merchant.id, {
+        recipientEmail: recipient,
         subject,
         content
       })
@@ -51,8 +74,6 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
           title: "Email sent successfully",
           variant: "default"
         })
-        setSubject("")
-        setContent("")
         const threads = await merchantCommunication.getEmailThreads(merchant.id)
         setEmailThreads(threads)
       }
@@ -70,27 +91,11 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
     <div className="space-y-4">
       <Card>
         <CardContent className="pt-6">
-          <input
-            type="text"
-            className="w-full p-2 mb-2 border rounded-md"
-            placeholder="Subject"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          />
-          <textarea
-            className="w-full min-h-[100px] p-2 border rounded-md"
+          <EmailEditor
+            onSend={handleSendEmail}
+            recipientOptions={getRecipientOptions()}
             placeholder="Compose new email..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
           />
-          <div className="mt-2 flex justify-end">
-            <Button
-              onClick={handleSendEmail}
-              disabled={!subject.trim() || !content.trim()}
-            >
-              Send Email
-            </Button>
-          </div>
         </CardContent>
       </Card>
 
