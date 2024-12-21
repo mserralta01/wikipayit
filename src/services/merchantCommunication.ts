@@ -2,7 +2,7 @@ import { emailService } from './emailService'
 import { CustomerService } from './customerService'
 import { Activity, ActivityType } from '../types/crm'
 import { db } from '../lib/firebase'
-import { collection, addDoc, Timestamp } from 'firebase/firestore'
+import { collection, addDoc, Timestamp, query, where, orderBy, getDocs } from 'firebase/firestore'
 
 interface EmailData {
   subject: string
@@ -86,5 +86,26 @@ export const merchantCommunication = {
       ...activity,
       timestamp: timestamp.toDate()
     })
+  },
+
+  async getEmailThreads(merchantId: string): Promise<Activity[]> {
+    try {
+      const activitiesRef = collection(db, 'activities')
+      const q = query(
+        activitiesRef,
+        where('merchantId', '==', merchantId),
+        where('type', '==', 'email_sent'),
+        orderBy('timestamp', 'desc')
+      )
+
+      const snapshot = await getDocs(q)
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Activity[]
+    } catch (error) {
+      console.error('Error fetching email threads:', error)
+      throw error
+    }
   }
 }

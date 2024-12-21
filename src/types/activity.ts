@@ -1,6 +1,20 @@
+import { Timestamp } from 'firebase/firestore';
+
+export type ActivityType = 'note' | 'status_change' | 'email_sent' | 'document_upload' | 'new_application';
+
 export interface Activity {
   id: string;
-  type: string; // Or a more specific union type if you have different activity types
+  type: ActivityType;
   description: string;
-  timestamp: string; // Or Date if you want to store it as a Date object
+  timestamp: Timestamp;
+  userId: string;
+  merchantId: string;
+  merchant: {
+    businessName: string;
+  };
+  metadata?: {
+    subject?: string;
+    recipientEmail?: string;
+    content?: string;
+  };
 } 
