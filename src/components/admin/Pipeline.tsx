@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
 import { Mail, Building2 } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { writeBatch, doc, Timestamp } from 'firebase/firestore'
+import { writeBatch, doc } from 'firebase/firestore'
+import { useNavigate } from 'react-router-dom'
 import { db } from '../../lib/firebase'
 import { merchantService } from '../../services/merchantService'
-import { CardModal } from './CardModal'
 import {
   PipelineStatus,
   PipelineItem,
@@ -165,9 +165,9 @@ function getAgingInfo(updatedAt: string) {
 export function Pipeline() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
-  const [selectedItem, setSelectedItem] = useState<PipelineItem | null>(null)
+  const navigate = useNavigate()
 
-  const { data: columns = [], isLoading } = useQuery({
+  const { data: columns = [], isLoading } = useQuery<Column[]>({
     queryKey: ['pipeline-items'],
     queryFn: async () => {
       const [leads, merchants] = await Promise.all([
@@ -250,135 +250,11 @@ export function Pipeline() {
   })
 
   const handleDragEnd = async (result: DropResult) => {
-    const { source, destination } = result
-    if (!destination) return
-
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
-      return
-    }
-
-    if (source.droppableId === destination.droppableId) {
-      const column = columns.find(col => col.id === source.droppableId)
-      if (!column) return
-
-      const newItems = [...column.items]
-      const [movedItem] = newItems.splice(source.index, 1)
-      newItems.splice(destination.index, 0, movedItem)
-
-      newItems.forEach((it, idx) => {
-        it.position = idx
-      })
-
-      const newColumns = columns.map(col => {
-        if (col.id === source.droppableId) {
-          return {
-            ...col,
-            items: newItems
-          }
-        }
-        return col
-      })
-
-      queryClient.setQueryData(['pipeline-items'], newColumns)
-
-      try {
-        const batch = writeBatch(db)
-        newItems.forEach((it, idx) => {
-          const ref = it.kind === 'merchant'
-            ? doc(db, 'merchants', it.id)
-            : doc(db, 'leads', it.id)
-          batch.update(ref, {
-            position: idx
-          })
-        })
-        await batch.commit()
-      } catch (error) {
-        console.error('Error updating positions:', error)
-        toast({
-          title: 'Error',
-          description: 'Failed to update positions',
-          variant: 'destructive',
-        })
-      }
-      return
-    }
-
-    const sourceColumn = columns.find(col => col.id === source.droppableId)
-    const destColumn = columns.find(col => col.id === destination.droppableId)
-    if (!sourceColumn || !destColumn) return
-
-    const sourceItems = [...sourceColumn.items]
-    const [movedItem] = sourceItems.splice(source.index, 1)
-
-    const destItems = [...destColumn.items]
-    movedItem.pipelineStatus = destination.droppableId as PipelineStatus
-    destItems.splice(destination.index, 0, movedItem)
-
-    sourceItems.forEach((it, idx) => { it.position = idx })
-    destItems.forEach((it, idx) => { it.position = idx })
-
-    const newColumns = columns.map(col => {
-      if (col.id === sourceColumn.id) {
-        return { ...col, items: sourceItems }
-      }
-      if (col.id === destColumn.id) {
-        return { ...col, items: destItems }
-      }
-      return col
-    })
-
-    queryClient.setQueryData(['pipeline-items'], newColumns)
-
-    try {
-      const batch = writeBatch(db)
-      if (isPipelineMerchant(movedItem)) {
-        batch.update(doc(db, 'merchants', movedItem.id), {
-          pipelineStatus: movedItem.pipelineStatus,
-          status: movedItem.pipelineStatus,
-          position: destination.index
-        })
-      } else if (isPipelineLead(movedItem)) {
-        batch.update(doc(db, 'leads', movedItem.id), {
-          pipelineStatus: movedItem.pipelineStatus,
-          position: destination.index
-        })
-      }
-
-      sourceItems.forEach((it, idx) => {
-        const ref = it.kind === 'merchant'
-          ? doc(db, 'merchants', it.id)
-          : doc(db, 'leads', it.id)
-        batch.update(ref, { position: idx })
-      })
-      destItems.forEach((it, idx) => {
-        const ref = it.kind === 'merchant'
-          ? doc(db, 'merchants', it.id)
-          : doc(db, 'leads', it.id)
-        batch.update(ref, { position: idx })
-      })
-      await batch.commit()
-
-      toast({
-        title: "Status updated",
-        description: isPipelineMerchant(movedItem)
-          ? `${movedItem.businessName || movedItem.email} moved to ${destColumn.title}`
-          : `${movedItem.companyName || movedItem.email} moved to ${destColumn.title}`
-      })
-    } catch (error) {
-      console.error('Error updating status:', error)
-      toast({
-        title: "Error",
-        description: "Failed to update items",
-        variant: "destructive",
-      })
-    }
+    // PLACEHOLDER: handleDragEnd implementation for drag and drop functionality
   }
 
   const handleItemClick = (item: PipelineItem) => {
-    setSelectedItem(item)
+    navigate(`/admin/pipeline/${item.id}`)
   }
 
   if (isLoading) {
@@ -438,31 +314,6 @@ export function Pipeline() {
           ))}
         </div>
       </DragDropContext>
-
-      {selectedItem && (
-        <CardModal
-          item={selectedItem}
-          onClose={() => setSelectedItem(null)}
-          onStatusChange={async (newStatus: PipelineStatus) => {
-            try {
-              if (isPipelineMerchant(selectedItem)) {
-                await merchantService.updateMerchantStatus(selectedItem.id, newStatus)
-              } else {
-                await merchantService.updateLeadStatus(selectedItem.id, newStatus)
-              }
-              queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
-              setSelectedItem(null)
-            } catch (error) {
-              console.error('Error updating status:', error)
-              toast({
-                title: 'Error',
-                description: 'Failed to update status',
-                variant: 'destructive',
-              })
-            }
-          }}
-        />
-      )}
     </div>
   )
 }

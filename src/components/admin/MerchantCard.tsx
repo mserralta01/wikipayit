@@ -1,18 +1,17 @@
-import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { PipelineMerchant, ServiceMerchant, PipelineStatus } from "@/types/pipeline";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { LeadDetailView } from "./LeadDetailView";
+import { useNavigate } from "react-router-dom";
 
 interface MerchantCardProps {
   merchant: PipelineMerchant | (Omit<ServiceMerchant, 'pipelineStatus'> & { pipelineStatus: PipelineStatus });
 }
 
 export const MerchantCard: React.FC<MerchantCardProps> = ({ merchant }) => {
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const navigate = useNavigate();
   const displayName = merchant.formData?.businessName || merchant.businessName || merchant.email;
 
   const {
@@ -28,12 +27,19 @@ export const MerchantCard: React.FC<MerchantCardProps> = ({ merchant }) => {
     transition,
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Prevent click from interfering with drag operations
+    if (!transform) {
+      navigate(`/admin/pipeline/${merchant.id}`);
+    }
+  };
+
   return (
     <Card
       ref={setNodeRef}
       style={style}
       className="p-4 cursor-pointer hover:bg-gray-50"
-      onClick={() => setDetailsOpen(true)}
+      onClick={handleClick}
       {...attributes}
       {...listeners}
     >
@@ -44,11 +50,6 @@ export const MerchantCard: React.FC<MerchantCardProps> = ({ merchant }) => {
         </div>
         <Badge>{merchant.pipelineStatus}</Badge>
       </div>
-      <LeadDetailView
-        merchant={merchant}
-        open={detailsOpen}
-        onClose={() => setDetailsOpen(false)}
-      />
     </Card>
   );
 }; 

@@ -17,6 +17,7 @@ import { LoginModal } from "./components/auth/LoginModal"
 import { ProtectedRoute } from "./components/auth/ProtectedRoute"
 import { FirebaseAuthDebug } from "./components/admin/debug/FirebaseAuthDebug"
 import { AuthDebug } from "./components/admin/debug/AuthDebug"
+import { LeadDetailView } from "./components/admin/LeadDetailView"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -64,6 +65,7 @@ function App() {
               <Route index element={<Dashboard />} />
               <Route path="applications" element={<Applications />} />
               <Route path="pipeline" element={<Pipeline />} />
+              <Route path="pipeline/:id" element={<LeadDetailView />} />
               <Route path="merchants" element={<MerchantList />} />
               <Route path="website" element={<WebsiteManagement />} />
               <Route path="super" element={<SuperAdmin />} />

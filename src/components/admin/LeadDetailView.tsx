@@ -1,44 +1,88 @@
 import React from "react"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
-import { PipelineMerchant, ServiceMerchant, PipelineStatus } from "@/types/pipeline"
+import { useParams, useNavigate } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
+import { Merchant as PipelineMerchant, Lead } from "@/types/merchant"
+import { merchantService } from "@/services/merchantService"
+import { LeadDetails } from "./lead/LeadDetails"
+import { PricingSection } from "./lead/PricingSection"
+import { CommunicationsSection } from "./lead/CommunicationsSection"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import { ChevronLeft } from "lucide-react"
 
-type MerchantType = PipelineMerchant | (Omit<ServiceMerchant, 'pipelineStatus'> & { pipelineStatus: PipelineStatus })
+type PipelineItemData = PipelineMerchant | Lead
 
-// These will be implemented in subsequent steps
-const LeadDetails: React.FC<{ merchant: MerchantType }> = ({ merchant }) => (
-  <div>Lead Details Placeholder</div>
-)
+export function LeadDetailView() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
 
-const PricingSection: React.FC<{ merchant: MerchantType }> = ({ merchant }) => (
-  <div>Pricing Section Placeholder</div>
-)
+  const { data: item, isLoading, error } = useQuery<PipelineItemData>({
+    queryKey: ['pipeline-item', id],
+    queryFn: async () => {
+      if (!id) return null
+      // Try to get merchant first
+      const merchant = await merchantService.getMerchant(id)
+      if (merchant) return merchant
 
-const CommunicationsSection: React.FC<{ merchant: MerchantType }> = ({ merchant }) => (
-  <div>Communications Section Placeholder</div>
-)
+      // If not found in merchants, try leads
+      const leads = await merchantService.getLeads()
+      const lead = leads.find(l => l.id === id)
+      if (lead) return lead
 
-interface LeadDetailViewProps {
-  merchant: MerchantType
-  open: boolean
-  onClose: () => void
-}
+      throw new Error('Item not found')
+    },
+    enabled: !!id,
+  })
 
-export const LeadDetailView: React.FC<LeadDetailViewProps> = ({ merchant, open, onClose }) => {
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl h-[90vh]">
-        <div className="grid grid-cols-12 gap-4 h-full">
-          {/* Left column */}
-          <div className="col-span-4 overflow-y-auto">
-            <LeadDetails merchant={merchant} />
-            <PricingSection merchant={merchant} />
+  const handleBack = () => {
+    navigate('/admin/pipeline')
+  }
+
+  if (isLoading) {
+    return (
+      <div className="p-8">
+        <div className="flex gap-8">
+          <div className="w-[35%] space-y-4">
+            <Skeleton className="h-[200px] w-full" />
+            <Skeleton className="h-[300px] w-full" />
           </div>
-          {/* Right column */}
-          <div className="col-span-8 overflow-y-auto">
-            <CommunicationsSection merchant={merchant} />
+          <div className="w-[65%]">
+            <Skeleton className="h-[500px] w-full" />
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    )
+  }
+
+  if (error || !item) {
+    return (
+      <div className="p-8 text-center text-red-500">
+        Error loading details. Please try again.
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-8">
+      <Button
+        variant="ghost"
+        className="mb-4"
+        onClick={handleBack}
+      >
+        <ChevronLeft className="h-4 w-4 mr-2" />
+        Back to Pipeline
+      </Button>
+      <div className="flex gap-8">
+        <div className="w-[35%]">
+          <LeadDetails merchant={item} />
+          <div className="mt-8">
+            <PricingSection merchant={item} />
+          </div>
+        </div>
+        <div className="w-[65%]">
+          <CommunicationsSection merchant={item} />
+        </div>
+      </div>
+    </div>
   )
 }
