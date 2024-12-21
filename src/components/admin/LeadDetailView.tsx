@@ -1,7 +1,7 @@
 import React from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { Merchant as PipelineMerchant, Lead } from "@/types/merchant"
+import { Merchant as PipelineMerchant, Lead, timestampToString } from "@/types/merchant"
 import { merchantService } from "@/services/merchantService"
 import { LeadDetails } from "./lead/LeadDetails"
 import { PricingSection } from "./lead/PricingSection"
@@ -16,18 +16,19 @@ export function LeadDetailView() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
 
-  const { data: item, isLoading, error } = useQuery<PipelineItemData>({
+  const { data: item, isLoading, error } = useQuery<PipelineItemData, Error>({
     queryKey: ['pipeline-item', id],
     queryFn: async () => {
-      if (!id) return null
+      if (!id) throw new Error('No ID provided')
+
       // Try to get merchant first
       const merchant = await merchantService.getMerchant(id)
-      if (merchant) return merchant
+      if (merchant) return merchant as PipelineItemData
 
       // If not found in merchants, try leads
       const leads = await merchantService.getLeads()
       const lead = leads.find(l => l.id === id)
-      if (lead) return lead
+      if (lead) return lead as PipelineItemData
 
       throw new Error('Item not found')
     },
@@ -62,6 +63,27 @@ export function LeadDetailView() {
     )
   }
 
+  const isPipelineMerchant = (item: PipelineItemData): item is PipelineMerchant => {
+    return 'email' in item && 'createdAt' in item && 'updatedAt' in item
+  }
+
+  const merchantData: PipelineMerchant = isPipelineMerchant(item) ? item : {
+    id: item.id,
+    email: item.email || '',
+    createdAt: timestampToString(item.createdAt),
+    updatedAt: timestampToString(item.updatedAt),
+    status: item.status || 'lead',
+    pipelineStatus: item.pipelineStatus || 'lead',
+    position: item.position || 0,
+    formData: {
+      ...item.formData,
+      businessName: item.formData?.businessName || item.companyName || '',
+      phone: item.formData?.phone || item.phone || '',
+    },
+    companyName: item.companyName || item.formData?.businessName || '',
+    phone: item.phone || item.formData?.phone || '',
+  }
+
   return (
     <div className="p-8">
       <Button
@@ -74,13 +96,13 @@ export function LeadDetailView() {
       </Button>
       <div className="flex gap-8">
         <div className="w-[35%]">
-          <LeadDetails merchant={item} />
+          <LeadDetails merchant={merchantData} />
           <div className="mt-8">
-            <PricingSection merchant={item} />
+            <PricingSection merchant={merchantData} />
           </div>
         </div>
         <div className="w-[65%]">
-          <CommunicationsSection merchant={item} />
+          <CommunicationsSection merchant={merchantData} />
         </div>
       </div>
     </div>
