@@ -8,11 +8,19 @@ service firebase.storage {
     }
 
     function isValidContentType() {
-      return request.resource.contentType.matches('image/.*|application/pdf');
+      return request.resource.contentType.matches('image/.*|application/pdf|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     }
 
     function isValidFileSize() {
       return request.resource.size < 10 * 1024 * 1024; // 10MB
+    }
+
+    // Merchant documents path
+    match /merchants/{merchantId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated()
+        && isValidContentType()
+        && isValidFileSize();
     }
 
     // Default deny all other access

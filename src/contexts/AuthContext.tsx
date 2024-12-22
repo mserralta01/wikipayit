@@ -1,13 +1,14 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth'
+import { User, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth'
 import { auth } from '@/lib/firebase'
 
 export type AuthContextType = {
   user: User | null;
   isAdmin: boolean;
   loading: boolean;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: () => Promise<User>;
   signInWithEmail: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<User>;
   signOut: () => Promise<void>;
 };
 
@@ -15,8 +16,9 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   isAdmin: false,
   loading: true,
-  signInWithGoogle: async () => {},
+  signInWithGoogle: async () => { throw new Error('Not implemented') },
   signInWithEmail: async () => {},
+  loginWithEmail: async () => { throw new Error('Not implemented') },
   signOut: async () => {}
 })
 
@@ -27,9 +29,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
+      console.log('Auth state changed:', { user, email: user?.email })
       setUser(user)
       setLoading(false)
-      setIsAdmin(user?.email === 'mserralta@gmail.com' || user?.email === 'Mpilotg6@gmail.com')
+      const isAdminUser = user?.email === 'mserralta@gmail.com' ||
+                         user?.email === 'Mpilotg6@gmail.com' ||
+                         user?.email === 'serralta@outlook.com'
+      setIsAdmin(isAdminUser)
+      console.log('Admin status set:', isAdminUser)
     })
 
     return unsubscribe
@@ -39,9 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const provider = new GoogleAuthProvider()
     try {
       const result = await signInWithPopup(auth, provider)
-      if (result.user?.email === 'mserralta@gmail.com' || result.user?.email === 'Mpilotg6@gmail.com') {
-        window.location.href = '/admin/website'
-      }
+      console.log('Google sign in result:', result.user?.email)
+      return result.user
     } catch (error) {
       console.error('Google sign in error:', error)
       throw error
@@ -52,13 +58,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
-      
+
       // Update the user's display name
       await updateProfile(user, {
         displayName: `${firstName} ${lastName}`
       })
     } catch (error) {
       console.error('Email sign in error:', error)
+      throw error
+    }
+  }
+
+  const loginWithEmail = async (email: string, password: string) => {
+    try {
+      console.log('Attempting login with email:', email)
+      const result = await signInWithEmailAndPassword(auth, email, password)
+      console.log('Login successful:', result.user)
+      return result.user
+    } catch (error: any) {
+      console.error('Email login error:', error.code, error.message)
       throw error
     }
   }
@@ -73,13 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAdmin, 
-      loading, 
+    <AuthContext.Provider value={{
+      user,
+      isAdmin,
+      loading,
       signInWithGoogle,
       signInWithEmail,
-      signOut 
+      loginWithEmail,
+      signOut
     }}>
       {!loading && children}
     </AuthContext.Provider>

@@ -15,6 +15,30 @@ export type MerchantStatus =
   | "in_progress"
   | "completed"
 
+export type PricingType = "tier" | "interchange" | "flat" | "surcharge"
+
+export interface PricingTier {
+  volume: number
+  rate: number
+}
+
+export interface Note {
+  content: string
+  createdAt: Timestamp
+  createdBy: string
+}
+
+export interface PricingDetails {
+  type: PricingType
+  tiers?: PricingTier[]
+  interchangeMarkup?: number
+  flatRate?: number
+  surchargeRate?: number
+  transactionFee?: number
+  lastUpdated?: Timestamp
+  updatedBy?: string
+}
+
 // Zod schemas
 export const bankDetailsSchema = z.object({
   bankName: z.string().min(1, "Bank name is required."),
@@ -87,21 +111,31 @@ export type Merchant = {
   updatedAt: string | Timestamp
   beneficialOwners?: BeneficialOwner[]
   position?: number
+  pricing?: PricingDetails
+  notes?: Note[]
 
   formData?: {
     businessName?: string
     dba?: string
     phone?: string
+    email?: string
     taxId?: string
     businessType?: string
     yearEstablished?: string
     monthlyVolume?: string
     averageTicket?: string
+    companyAddress?: {
+      street?: string
+      city?: string
+      state?: string
+      zipCode?: string
+    }
     beneficialOwners?: {
       owners: Array<{
         firstName: string
         lastName: string
         phone?: string
+        email?: string
       }>
     }
     bankDetails?: BankDetails

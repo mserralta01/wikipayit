@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '../../lib/utils'
-import { 
-  LayoutDashboard, 
-  Settings, 
-  Globe, 
+import { useQuery } from '@tanstack/react-query'
+import {
+  LayoutDashboard,
+  Settings,
+  Globe,
   LogOut,
   ChevronDown,
   User,
@@ -32,6 +33,8 @@ import {
 } from '../../components/ui/dropdown-menu'
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar'
 import { Button } from '../../components/ui/button'
+import { merchantService } from '../../services/merchantService'
+import { Merchant as PipelineMerchant } from '../../types/merchant'
 
 type AdminLayoutProps = {
   children: React.ReactNode
@@ -49,6 +52,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate()
   const [user, setUser] = useState(auth.currentUser)
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null)
+
+  // Extract merchant ID from URL if we're on a pipeline detail page
+  const merchantId = location.pathname.match(/\/admin\/pipeline\/([^\/]+)/)?.[1]
+
+  // Fetch merchant data if we're on a detail page
+  const { data: merchant } = useQuery<PipelineMerchant>({
+    queryKey: ['merchant', merchantId],
+    queryFn: async () => {
+      const data = await merchantService.getMerchant(merchantId as string)
+      return data as PipelineMerchant
+    },
+    enabled: !!merchantId,
+  })
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -195,10 +211,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     )
   }
 
-  const getPageTitle = (pathname: string): string => {
+  const getPageTitle = (pathname: string): React.ReactNode => {
     switch (true) {
       case pathname === '/admin':
         return 'Dashboard'
+      case pathname.includes('/admin/pipeline/'):
+        return (
+          <div className="flex items-center gap-2">
+            <Link to="/admin/pipeline" className="text-gray-500 hover:text-gray-700">
+              Pipeline
+            </Link>
+            <ChevronRight className="h-4 w-4 text-gray-500" />
+            <span>{merchant?.formData?.businessName || merchant?.businessName || 'Lead Details'}</span>
+          </div>
+        )
       case pathname.includes('/admin/merchants'):
         return 'Merchant Management'
       case pathname.includes('/admin/applications'):
@@ -334,4 +360,4 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
     </div>
   )
-} 
+}   
