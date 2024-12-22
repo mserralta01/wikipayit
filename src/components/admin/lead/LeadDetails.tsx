@@ -17,11 +17,15 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 
 interface LeadDetailsProps {
-  merchant: Merchant
+  merchant: Merchant & {
+    kind?: 'lead' | 'merchant'
+  }
 }
 
 export function LeadDetails({ merchant }: LeadDetailsProps) {
   const { toast } = useToast()
+  // Determine collection based on kind
+  const collection = merchant.kind === 'lead' ? 'leads' : 'merchants'
   const [editMode, setEditMode] = useState<{ [key: string]: boolean }>({})
   const [formData, setFormData] = useState({
     businessName: merchant.formData?.businessName || merchant.businessName || '',
@@ -101,7 +105,9 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
         }
       }
 
-      await updateDoc(doc(db, 'merchants', merchant.id), {
+      // Verify document exists before updating
+      const docRef = doc(db, collection, merchant.id)
+      await updateDoc(docRef, {
         ...updateData,
         updatedAt: new Date()
       })
@@ -144,7 +150,7 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
 
   const handleStatusChange = async (status: MerchantStatus): Promise<void> => {
     try {
-      await updateDoc(doc(db, 'merchants', merchant.id), {
+      await updateDoc(doc(db, collection, merchant.id), {
         pipelineStatus: status,
         updatedAt: new Date()
       })
