@@ -1,7 +1,20 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { merchantService } from '../../services/merchantService';
-import { PipelineItem, isPipelineMerchant, PIPELINE_STATUSES } from '../../types/pipeline';
+import { PipelineItem, isPipelineMerchant, PIPELINE_STATUSES, PipelineLead, PipelineStatus } from '../../types/pipeline';
+import { db } from '../../lib/firebase';
+import { doc, getDoc, updateDoc, Timestamp } from 'firebase/firestore';
+
+// Helper to safely convert Firestore Timestamp to ISO string
+function toIsoStringOrNow(value: any): string {
+  if (value && typeof value.toDate === 'function') {
+    return value.toDate().toISOString();
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return new Date().toISOString();
+}
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 const LeadDetailView: React.FC = () => {
@@ -14,8 +27,37 @@ const LeadDetailView: React.FC = () => {
     queryKey: ['pipeline-item', id],
     queryFn: async () => {
       if (!id) return null;
-      const merchant = await merchantService.getMerchant(id);
-      return merchant as PipelineItem;
+      try {
+        // Try to get as merchant first
+        const merchant = await merchantService.getMerchant(id);
+        if (merchant) return merchant as PipelineItem;
+        
+        // If not found as merchant, try as lead
+        const leadRef = doc(db, "leads", id);
+        const leadDoc = await getDoc(leadRef);
+        if (leadDoc.exists()) {
+          const data = leadDoc.data();
+          const lead: PipelineLead = {
+            id: leadDoc.id,
+            kind: 'lead',
+            type: 'lead',
+            email: data.email || '',
+            phone: data.phone || '',
+            companyName: data.formData?.businessName || data.formData?.dba || data.email || '',
+            pipelineStatus: (data.pipelineStatus || 'lead') as PipelineStatus,
+            createdAt: toIsoStringOrNow(data.createdAt),
+            updatedAt: toIsoStringOrNow(data.updatedAt),
+            position: data.position ?? 0,
+            formData: data.formData || {}
+          };
+          return lead;
+        }
+        
+        return null;
+      } catch (error) {
+        console.error('Error fetching item:', error);
+        return null;
+      }
     },
     enabled: !!id
   });
@@ -24,25 +66,42 @@ const LeadDetailView: React.FC = () => {
     if (!item || !id) return;
 
     try {
+      let updates: Record<string, any>;
+      
       if (isPipelineMerchant(item)) {
-        await merchantService.updateMerchant(id, {
-          [field.startsWith("companyAddress.")
-            ? `formData.companyAddress.${field.split(".")[1]}`
-            : `formData.${field}`
-          ]: value
-        });
+        // For merchants, maintain the existing structure
+        updates = field === 'pipelineStatus' 
+          ? { pipelineStatus: value }
+          : {
+              [field.startsWith("companyAddress.")
+                ? `formData.companyAddress.${field.split(".")[1]}`
+                : field.includes('.')
+                ? field
+                : `formData.${field}`
+              ]: value
+            };
+        await merchantService.updateMerchant(id, updates);
       } else {
-        await merchantService.updateLead(id, {
-          [field.startsWith("companyAddress.")
-            ? `formData.companyAddress.${field.split(".")[1]}`
-            : `formData.${field}`
-          ]: value
-        });
+        // For leads, update fields based on their location in the document
+        updates = {
+          ...(field === 'businessName' ? { 'formData.businessName': value } :
+             field === 'companyName' ? { 'formData.businessName': value } :
+             field === 'pipelineStatus' ? { pipelineStatus: value } :
+             { [field]: value }),
+          updatedAt: Timestamp.now()
+        };
+        const leadRef = doc(db, "leads", id);
+        await updateDoc(leadRef, updates);
       }
+      
       // Invalidate the query to refresh the data
       await queryClient.invalidateQueries({ queryKey: ['pipeline-item', id] });
+      setEditingField(null);
     } catch (error) {
       console.error('Error updating field:', error);
+      // Show error in UI
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save changes';
+      alert(errorMessage);
     }
   };
 
@@ -91,7 +150,7 @@ const LeadDetailView: React.FC = () => {
                       />
                       <button
                         onClick={async () => {
-                          await handleSave(isPipelineMerchant(item) ? 'businessName' : 'companyName', editValue);
+                          await handleSave('businessName', editValue);
                           setEditingField(null);
                         }}
                         className="ml-2 p-1 text-green-600 hover:text-green-700"

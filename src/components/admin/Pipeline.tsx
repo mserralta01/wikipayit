@@ -161,14 +161,23 @@ function getAgingInfo(updatedAt: string) {
   }
 }
 
-const Pipeline: React.FC<{}> = (): React.ReactElement => {
+export function Pipeline() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
   const [selectedItem, setSelectedItem] = useState<PipelineItem | null>(null)
   const [columns, setColumns] = useState<Column[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const { data: items = [], isLoading } = useQuery({
+  const handleItemClick = (item: PipelineItem) => {
+    window.location.href = `/admin/pipeline/${item.id}`
+  }
+
+  const handleCloseModal = () => {
+    setSelectedItem(null)
+    setIsModalOpen(false)
+  }
+
+  const { data: items = [], isLoading, isError } = useQuery({
     queryKey: ['pipeline-items'],
     queryFn: async () => {
       const [leads, merchants] = await Promise.all([
@@ -250,16 +259,18 @@ const Pipeline: React.FC<{}> = (): React.ReactElement => {
     }
   })
 
+  // Initialize columns once when items are loaded
   useEffect(() => {
-    if (items) {
+    if (items && items.length > 0 && columns.length === 0) {
       setColumns(items)
     }
-  }, [items])
+  }, [items, columns.length])
 
   const handleDragEnd = async (result: DropResult) => {
     const { source, destination } = result
     if (!destination) return
 
+    // Return if dropped in same position
     if (
       source.droppableId === destination.droppableId &&
       source.index === destination.index
@@ -270,16 +281,20 @@ const Pipeline: React.FC<{}> = (): React.ReactElement => {
     try {
       const sourceColumn = columns.find(col => col.id === source.droppableId)
       const destinationColumn = columns.find(col => col.id === destination.droppableId)
-      if (!sourceColumn || !destinationColumn) return
+      if (!sourceColumn || !destinationColumn) {
+        console.error('Source or destination column not found')
+        return
+      }
 
       const sourceItems = [...sourceColumn.items]
       const [movedItem] = sourceItems.splice(source.index, 1)
       const destinationItems = [...destinationColumn.items]
 
-      // Update item's status if moving to a different column
-      const updatedItem = source.droppableId !== destination.droppableId
-        ? { ...movedItem, pipelineStatus: destination.droppableId as PipelineStatus }
-        : movedItem
+      // Update the item's status to match the destination column
+      const updatedItem = {
+        ...movedItem,
+        pipelineStatus: destination.droppableId as PipelineStatus
+      }
 
       // Insert item at new position
       destinationItems.splice(destination.index, 0, updatedItem)
@@ -306,9 +321,10 @@ const Pipeline: React.FC<{}> = (): React.ReactElement => {
         return col
       })
 
+      // Update state first
       setColumns(newColumns)
 
-      // Persist changes to Firestore
+      // Then persist changes to Firestore
       const updates = {
         position: destination.index,
         ...(source.droppableId !== destination.droppableId && {
@@ -316,10 +332,10 @@ const Pipeline: React.FC<{}> = (): React.ReactElement => {
         })
       }
 
-      if (isPipelineMerchant(movedItem)) {
-        await merchantService.updateMerchant(movedItem.id, updates)
+      if (isPipelineMerchant(updatedItem)) {
+        await merchantService.updateMerchant(updatedItem.id, updates)
       } else {
-        await merchantService.updateLead(movedItem.id, updates)
+        await merchantService.updateLead(updatedItem.id, updates)
       }
 
       // Invalidate the query to refresh the data
@@ -332,22 +348,15 @@ const Pipeline: React.FC<{}> = (): React.ReactElement => {
         variant: 'destructive'
       })
     }
-
-    }
   }
 
-  const handleItemClick = React.useCallback((item: PipelineItem) => {
-    setSelectedItem(item)
-    setIsModalOpen(true)
-  }, [])
-
-  const handleCloseModal = React.useCallback(() => {
-    setSelectedItem(null)
-    setIsModalOpen(false)
-  }, [])
 
   if (isLoading) {
     return <div className="p-4">Loading...</div>
+  }
+  
+  if (isError) {
+    return <div className="p-4 text-red-500">Error loading pipeline items</div>
   }
 
   return (
@@ -402,36 +411,12 @@ const Pipeline: React.FC<{}> = (): React.ReactElement => {
           ))}
         </div>
       </DragDropContext>
-      {selectedItem && (
-        <CardModal
-          isOpen={isModalOpen}
-          item={selectedItem}
-          onClose={handleCloseModal}
-          onStatusChange={async (newStatus: PipelineStatus) => {
-            try {
-              if (isPipelineMerchant(selectedItem)) {
-                await merchantService.updateMerchantStatus(selectedItem.id, newStatus)
-              } else {
-                await merchantService.updateLeadStatus(selectedItem.id, newStatus)
-              }
-              queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
-              handleCloseModal()
-            } catch (error) {
-              console.error('Error updating status:', error)
-              toast({
-                title: 'Error',
-                description: 'Failed to update status',
-                variant: 'destructive',
-              })
-            }
-          }}
-        />
-      )}
+      {/* Card details are now handled by LeadDetailView via React Router */}
     </div>
   )
 }
 
-export { Pipeline }
+
 
 const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   const config = COLUMN_CONFIGS[item.pipelineStatus]
