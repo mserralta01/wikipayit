@@ -99,6 +99,58 @@ export function timestampToString(value: string | Timestamp | undefined): string
   return value
 }
 
+export interface ProcessingHistory {
+  averageTicket: string
+  cardPresentPercentage: string
+  currentProcessor: string
+  ecommercePercentage: string
+  hasBeenTerminated: 'yes' | 'no'
+  highTicket: string
+  isCurrentlyProcessing: 'yes' | 'no'
+  monthlyVolume: string
+  terminationExplanation: string
+  updatedAt?: string | Timestamp
+}
+
+export interface FormData {
+  businessName: string
+  dba: string
+  phone: string
+  businessType: string
+  taxId: string
+  businessDescription: string
+  yearEstablished: string
+  website: string
+  customerServiceEmail: string
+  customerServicePhone: string
+  companyAddress: {
+    street: string
+    city: string
+    state: string
+    zipCode: string
+  }
+  bankDetails: {
+    bankName: string
+    routingNumber: string
+    accountNumber: string
+  }
+  processingHistory: ProcessingHistory
+  beneficialOwners: Array<{
+    firstName: string
+    lastName: string
+    phone?: string
+    email?: string
+    title?: string
+    ownershipPercentage?: string
+    dateOfBirth?: string
+    ssn?: string
+    address?: string
+    city?: string
+    state?: string
+    zipCode?: string
+  }>
+}
+
 export type Merchant = {
   id: string
   email: string
@@ -113,6 +165,12 @@ export type Merchant = {
   position?: number
   pricing?: PricingDetails
   notes?: Note[]
+  processingHistory?: ProcessingHistory
+  bank_statements?: string[]
+  drivers_license?: string[]
+  voided_check?: string[]
+  currentStep?: number
+  uid?: string
 
   formData?: {
     businessName?: string
@@ -121,7 +179,11 @@ export type Merchant = {
     email?: string
     taxId?: string
     businessType?: string
+    businessDescription?: string
     yearEstablished?: string
+    website?: string
+    customerServiceEmail?: string
+    customerServicePhone?: string
     monthlyVolume?: string
     averageTicket?: string
     companyAddress?: {
@@ -160,6 +222,11 @@ export type Lead = {
   createdAt: string | Timestamp
   updatedAt: string | Timestamp
   position?: number
+  processingHistory?: ProcessingHistory
+  bank_statements?: string[]
+  drivers_license?: string[]
+  voided_check?: string[]
+  uid?: string
 
   formData?: {
     businessName?: string
@@ -167,9 +234,19 @@ export type Lead = {
     phone?: string
     taxId?: string
     businessType?: string
+    businessDescription?: string
     yearEstablished?: string
+    website?: string
+    customerServiceEmail?: string
+    customerServicePhone?: string
     monthlyVolume?: string
     averageTicket?: string
+    companyAddress?: {
+      street?: string
+      city?: string
+      state?: string
+      zipCode?: string
+    }
     beneficialOwners?: {
       owners: Array<{
         firstName: string
