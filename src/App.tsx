@@ -14,6 +14,7 @@ import SuperAdmin from "./components/admin/SuperAdmin"
 import EmailTemplates from "./components/admin/settings/EmailTemplates"
 import TeamManagement from "./components/admin/settings/TeamManagement"
 import { LoginModal } from "./components/auth/LoginModal"
+import LeadDetailView from "./components/admin/LeadDetailView"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -52,6 +53,7 @@ function App() {
               <Route index element={<Dashboard />} />
               <Route path="applications" element={<Applications />} />
               <Route path="pipeline" element={<Pipeline />} />
+              <Route path="pipeline/:id" element={<LeadDetailView />} />
               <Route path="merchants" element={<MerchantList />} />
               <Route path="website" element={<WebsiteManagement />} />
               <Route path="super" element={<SuperAdmin />} />
