@@ -20,6 +20,7 @@ import {
 import { Lead, Merchant, timestampToString } from '../../types/merchant'
 import { Badge } from '../../components/ui/badge'
 import { Progress } from '../../components/ui/progress'
+import { Card, CardHeader, CardContent } from '../../components/ui/card'
 import { cn } from '../../lib/utils'
 import { useToast } from '../../hooks/use-toast'
 
@@ -362,25 +363,25 @@ export function Pipeline() {
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex p-2 overflow-auto">
+        <div className="flex p-0.5 gap-0.5 overflow-auto">
           {columns.map(column => (
             <Droppable key={column.id} droppableId={column.id}>
               {(provided, snapshot) => (
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className={`w-48 bg-white rounded-lg p-4 m-2 min-h-[calc(100vh-200px)] shadow-sm ${
-                    snapshot.isDraggingOver ? 'bg-gray-50' : ''
-                  }`}
+                  className="w-48 m-0.5 min-h-[calc(100vh-200px)]"
                 >
-                  <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-gray-700">
-                      {column.title}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {column.items.length} items
-                    </p>
-                  </div>
+                  <Card className={`h-full ${snapshot.isDraggingOver ? 'bg-gray-50' : 'bg-white'}`}>
+                    <CardHeader className="p-2 pb-1.5 space-y-0.5">
+                      <h3 className="text-sm font-medium text-gray-700">
+                        {column.title}
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        {column.items.length} items
+                      </p>
+                    </CardHeader>
+                    <CardContent className="p-2 pt-0">
                   {column.items.map((item, index) => (
                     <Draggable
                       key={item.id}
@@ -393,7 +394,7 @@ export function Pipeline() {
                           {...dragProvided.draggableProps}
                           {...dragProvided.dragHandleProps}
                           onClick={() => handleItemClick(item)}
-                          className={`bg-white rounded-lg p-4 mb-2 cursor-move shadow-sm transition-shadow ${
+                          className={`bg-white rounded-lg p-3 mb-2 cursor-move shadow-sm transition-shadow ${
                             dragSnapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
                           }`}
                         >
@@ -405,6 +406,8 @@ export function Pipeline() {
                     </Draggable>
                   ))}
                   {provided.placeholder}
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </Droppable>
@@ -430,7 +433,7 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   const agingInfo = getAgingInfo(item.updatedAt || new Date().toISOString())
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Badge
           variant="secondary"
@@ -445,7 +448,7 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
       </div>
 
       {fullName && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <svg
             className="h-4 w-4 text-blue-500"
             xmlns="http://www.w3.org/2000/svg"
@@ -463,17 +466,17 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
         </div>
       )}
       {item.companyName && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Building2 className="h-4 w-4 text-blue-500" />
           <span className="text-sm text-gray-700">{item.companyName}</span>
         </div>
       )}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5">
         <Mail className="h-4 w-4 text-blue-500" />
         <span className="text-sm text-gray-600">{item.email}</span>
       </div>
       {phoneNumber && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <svg
             className="h-4 w-4 text-blue-500"
             xmlns="http://www.w3.org/2000/svg"
@@ -522,7 +525,7 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
   const agingInfo = getAgingInfo(item.updatedAt)
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Badge
           variant="secondary"
