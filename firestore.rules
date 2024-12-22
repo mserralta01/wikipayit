@@ -22,7 +22,12 @@ service cloud.firestore {
     // Allow authenticated users to read and write leads
     match /leads/{leadId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated() || isAdmin();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        // Allow pipeline updates
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['pipelineStatus', 'position', 'updatedAt']) && isAdmin())
+      );
+      allow delete: if isAdmin();
     }
 
     // Allow authenticated users to read and write merchants with expanded permissions
@@ -32,8 +37,8 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         // Allow pricing updates by admin
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pricing', 'updatedAt']) && isAdmin()) ||
-        // Allow status updates by team members
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']) && isAdmin())
+        // Allow status and pipeline updates by team members
+        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'pipelineStatus', 'position', 'updatedAt']) && isAdmin())
       );
       allow delete: if isAdmin();
     }

@@ -1,11 +1,13 @@
 import React, { useState } from "react"
+import { CommunicationsSection } from "./CommunicationsSection"
+import { PricingSection } from "./PricingSection"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Merchant, MerchantStatus, timestampToString } from "@/types/merchant"
-import { doc, updateDoc } from "firebase/firestore"
+import { doc, updateDoc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -15,11 +17,16 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 
 interface LeadDetailsProps {
-  merchant: Merchant
+  merchant: Merchant & {
+    kind?: 'lead' | 'merchant'
+  }
 }
 
-export function LeadDetails({ merchant }: LeadDetailsProps) {
+export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const { toast } = useToast()
+  const [merchant, setMerchant] = useState(initialMerchant)
+  // Determine collection based on kind
+  const collection = merchant.kind === 'lead' ? 'leads' : 'merchants'
   const [editMode, setEditMode] = useState<{ [key: string]: boolean }>({})
   const [formData, setFormData] = useState({
     businessName: merchant.formData?.businessName || merchant.businessName || '',
@@ -32,7 +39,13 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
       city: merchant.formData?.companyAddress?.city || '',
       state: merchant.formData?.companyAddress?.state || '',
       zipCode: merchant.formData?.companyAddress?.zipCode || '',
-    }
+    },
+    bankDetails: {
+      bankName: merchant.formData?.bankDetails?.bankName || '',
+      routingNumber: merchant.formData?.bankDetails?.routingNumber || '',
+      accountNumber: merchant.formData?.bankDetails?.accountNumber || '',
+    },
+    beneficialOwners: merchant.beneficialOwners || merchant.formData?.beneficialOwners?.owners || []
   })
 
   const toggleEdit = (field: string): void => {
@@ -49,6 +62,18 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
           [addressField]: value
         }
       }))
+    } else if (field.startsWith('bankDetails.')) {
+      const bankField = field.split('.')[1]
+      setFormData(prev => ({
+        ...prev,
+        bankDetails: {
+          ...prev.bankDetails,
+          [bankField]: value
+        }
+      }))
+    } else if (field.startsWith('beneficialOwners.')) {
+      // Handled directly in the component
+      return
     } else {
       setFormData(prev => ({
         ...prev,
@@ -59,18 +84,115 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
 
   const handleSave = async (field: string) => {
     try {
-      const updateData = field.startsWith('companyAddress.')
-        ? {
-            [`formData.companyAddress.${field.split('.')[1]}`]: formData.companyAddress[field.split('.')[1] as keyof typeof formData.companyAddress]
+      let updateData: Record<string, any> = {}
+      let localUpdateData: Record<string, any> = {}
+      
+      if (field.startsWith('companyAddress.')) {
+        const addressField = field.split('.')[1]
+        updateData = {
+          [`formData.companyAddress.${addressField}`]: formData.companyAddress[addressField as keyof typeof formData.companyAddress]
+        }
+        localUpdateData = {
+          companyAddress: {
+            ...formData.companyAddress
           }
-        : {
-            [`formData.${field}`]: formData[field as keyof typeof formData]
+        }
+      } else if (field.startsWith('bankDetails.')) {
+        const bankField = field.split('.')[1]
+        updateData = {
+          [`formData.bankDetails.${bankField}`]: formData.bankDetails[bankField as keyof typeof formData.bankDetails]
+        }
+        localUpdateData = {
+          bankDetails: {
+            ...formData.bankDetails
           }
+        }
+      } else if (field.startsWith('beneficialOwners.')) {
+        const [, index, subfield] = field.split('.')
+        const owners = [...formData.beneficialOwners]
+        updateData = {
+          beneficialOwners: owners
+        }
+        localUpdateData = {
+          beneficialOwners: owners
+        }
+      } else {
+        updateData = {
+          [`formData.${field}`]: formData[field as keyof typeof formData]
+        }
+        localUpdateData = {
+          [field]: formData[field as keyof typeof formData]
+        }
+      }
 
-      await updateDoc(doc(db, 'merchants', merchant.id), {
+      // Verify document exists before updating
+      const docRef = doc(db, collection, merchant.id)
+      await updateDoc(docRef, {
         ...updateData,
         updatedAt: new Date()
       })
+
+      // Update local merchant state to reflect changes immediately
+      // Update local merchant state to reflect changes immediately
+      setMerchant(prev => {
+        const updatedMerchant = { ...prev };
+        const newFormData = updatedMerchant.formData ? { ...updatedMerchant.formData } : {};
+
+        if (field.startsWith('companyAddress.')) {
+          const addressField = field.split('.')[1] as keyof typeof formData.companyAddress;
+          newFormData.companyAddress = {
+            ...(newFormData.companyAddress || {}),
+            [addressField]: formData.companyAddress[addressField]
+          };
+        } else if (field.startsWith('bankDetails.')) {
+          const bankField = field.split('.')[1] as keyof typeof formData.bankDetails;
+          newFormData.bankDetails = {
+            ...(newFormData.bankDetails || {
+              bankName: '',
+              routingNumber: '',
+              accountNumber: '',
+              confirmAccountNumber: ''
+            }),
+            [bankField]: formData.bankDetails[bankField]
+          };
+        } else if (field.startsWith('beneficialOwners.')) {
+          // Handle beneficial owners separately since it's not in formData
+          updatedMerchant.beneficialOwners = formData.beneficialOwners.map(owner => ({
+            firstName: owner.firstName,
+            lastName: owner.lastName,
+            phone: owner.phone || '',
+            email: owner.email || '',
+            title: '',
+            ownershipPercentage: '0',
+            dateOfBirth: '',
+            ssn: '',
+            address: '',
+            city: '',
+            state: '',
+            zipCode: ''
+          }));
+        } else {
+          // For other fields, update formData directly
+          if (field in formData) {
+            const value = formData[field as keyof typeof formData];
+            if (value !== undefined) {
+              (newFormData as any)[field] = value;
+            }
+          }
+        }
+
+        // Ensure we maintain the correct Merchant type structure
+        const updatedFormData = {
+          ...updatedMerchant.formData,
+          ...newFormData
+        };
+
+        return {
+          ...updatedMerchant,
+          formData: updatedFormData,
+          updatedAt: Timestamp.fromDate(new Date())
+        };
+      });
 
       setEditMode(prev => ({ ...prev, [field]: false }))
       toast({
@@ -110,7 +232,7 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
 
   const handleStatusChange = async (status: MerchantStatus): Promise<void> => {
     try {
-      await updateDoc(doc(db, 'merchants', merchant.id), {
+      await updateDoc(doc(db, collection, merchant.id), {
         pipelineStatus: status,
         updatedAt: new Date()
       })
@@ -129,10 +251,12 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
   }
 
   return (
-    <Card className="mb-4">
-      <CardHeader className="space-y-4 pb-4">
-        <div className="flex flex-row items-center justify-between">
-          <CardTitle className="text-xl font-bold">Lead Details</CardTitle>
+    <div className="flex gap-6">
+      <div className="flex flex-col w-[35%] min-w-[400px]">
+        <Card className="mb-4 w-full">
+          <CardHeader className="space-y-4 pb-4">
+            <div className="flex flex-row items-center justify-between">
+              <CardTitle className="text-xl font-bold">Lead Details</CardTitle>
           <Badge
             className={cn(
               getStatusColor(merchant.pipelineStatus || 'lead'),
@@ -550,6 +674,248 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
             </AccordionContent>
           </AccordionItem>
 
+          <AccordionItem value="banking">
+            <AccordionTrigger>Banking Information</AccordionTrigger>
+            <AccordionContent>
+              <div className="grid gap-4">
+                <div className="grid gap-2">
+                  <Label className="font-medium">Bank Name</Label>
+                  <div className="flex items-center gap-2">
+                    {editMode['bankDetails.bankName'] ? (
+                      <>
+                        <Input
+                          value={formData.bankDetails.bankName}
+                          onChange={(e) => handleInputChange('bankDetails.bankName', e.target.value)}
+                          className="flex-1"
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSave('bankDetails.bankName')}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('bankDetails.bankName')}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm text-gray-700 flex-1">
+                          {merchant.formData?.bankDetails?.bankName}
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('bankDetails.bankName')}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label className="font-medium">Routing Number</Label>
+                  <div className="flex items-center gap-2">
+                    {editMode['bankDetails.routingNumber'] ? (
+                      <>
+                        <Input
+                          value={formData.bankDetails.routingNumber}
+                          onChange={(e) => handleInputChange('bankDetails.routingNumber', e.target.value)}
+                          className="flex-1"
+                          maxLength={9}
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSave('bankDetails.routingNumber')}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('bankDetails.routingNumber')}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm text-gray-700 flex-1">
+                          {merchant.formData?.bankDetails?.routingNumber}
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('bankDetails.routingNumber')}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label className="font-medium">Account Number</Label>
+                  <div className="flex items-center gap-2">
+                    {editMode['bankDetails.accountNumber'] ? (
+                      <>
+                        <Input
+                          value={formData.bankDetails.accountNumber}
+                          onChange={(e) => handleInputChange('bankDetails.accountNumber', e.target.value)}
+                          className="flex-1"
+                          type="password"
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSave('bankDetails.accountNumber')}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('bankDetails.accountNumber')}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm text-gray-700 flex-1">
+                          {merchant.formData?.bankDetails?.accountNumber ? '••••••••' : ''}
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('bankDetails.accountNumber')}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="beneficialOwners">
+            <AccordionTrigger>Beneficial Owners</AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-4">
+                {formData.beneficialOwners.map((owner, index) => (
+                  <div key={index} className="p-4 border rounded-lg space-y-2">
+                    <div className="grid gap-2">
+                      <Label className="font-medium">Owner {index + 1}</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-sm">First Name</Label>
+                          <div className="flex items-center gap-2">
+                            {editMode[`beneficialOwners.${index}.firstName`] ? (
+                              <>
+                                <Input
+                                  value={owner.firstName}
+                                  onChange={(e) => {
+                                    const newOwners = [...formData.beneficialOwners];
+                                    newOwners[index] = { ...owner, firstName: e.target.value };
+                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
+                                  }}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleSave(`beneficialOwners.${index}.firstName`)}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => toggleEdit(`beneficialOwners.${index}.firstName`)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-sm text-gray-700 flex-1">
+                                  {owner.firstName}
+                                </div>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => toggleEdit(`beneficialOwners.${index}.firstName`)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-sm">Last Name</Label>
+                          <div className="flex items-center gap-2">
+                            {editMode[`beneficialOwners.${index}.lastName`] ? (
+                              <>
+                                <Input
+                                  value={owner.lastName}
+                                  onChange={(e) => {
+                                    const newOwners = [...formData.beneficialOwners];
+                                    newOwners[index] = { ...owner, lastName: e.target.value };
+                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
+                                  }}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => handleSave(`beneficialOwners.${index}.lastName`)}
+                                >
+                                  <Check className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => toggleEdit(`beneficialOwners.${index}.lastName`)}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-sm text-gray-700 flex-1">
+                                  {owner.lastName}
+                                </div>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={() => toggleEdit(`beneficialOwners.${index}.lastName`)}
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
           <AccordionItem value="status">
             <AccordionTrigger>Status and Stage</AccordionTrigger>
             <AccordionContent>
@@ -584,5 +950,27 @@ export function LeadDetails({ merchant }: LeadDetailsProps) {
         </Accordion>
       </CardContent>
     </Card>
+        <div className="mt-8 w-full">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pricing</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PricingSection merchant={merchant} />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+      <div className="flex-1 min-w-[600px]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Communications</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CommunicationsSection merchant={merchant} />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   )
 }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
 import { Mail, Building2 } from 'lucide-react'
@@ -167,6 +167,7 @@ export function Pipeline() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
+  const [localColumns, setColumns] = useState<Column[]>([])
   const { data: columns = [], isLoading } = useQuery<Column[]>({
     queryKey: ['pipeline-items'],
     queryFn: async () => {
@@ -250,12 +251,119 @@ export function Pipeline() {
   })
 
   const handleDragEnd = async (result: DropResult) => {
-    // PLACEHOLDER: handleDragEnd implementation for drag and drop functionality
+    const { source, destination } = result
+    if (!destination) return
+
+    // Return if dropped in same position
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) {
+      return
+    }
+
+    try {
+      const sourceColumn = columns.find(col => col.id === source.droppableId)
+      const destinationColumn = columns.find(col => col.id === destination.droppableId)
+      if (!sourceColumn || !destinationColumn) {
+        console.error('Source or destination column not found')
+        return
+      }
+
+      const sourceItems = [...sourceColumn.items]
+      const [movedItem] = sourceItems.splice(source.index, 1)
+      const destinationItems = [...destinationColumn.items]
+
+      // Update the item's status to match the destination column
+      const updatedItem = {
+        ...movedItem,
+        pipelineStatus: destination.droppableId as PipelineStatus
+      }
+
+      // Insert item at new position
+      destinationItems.splice(destination.index, 0, updatedItem)
+
+      // Update positions for affected items
+      destinationItems.forEach((it, idx) => {
+        it.position = idx
+      })
+
+      // Update columns state
+      const newColumns = columns.map(col => {
+        if (col.id === source.droppableId) {
+          return {
+            ...col,
+            items: sourceItems
+          }
+        }
+        if (col.id === destination.droppableId) {
+          return {
+            ...col,
+            items: destinationItems
+          }
+        }
+        return col
+      })
+
+      // Update state first
+      setColumns(newColumns)
+
+      // Then persist changes to Firestore
+      const batch = writeBatch(db)
+      
+      // Update moved item's status and position
+      const movedItemRef = isPipelineMerchant(updatedItem)
+        ? doc(db, 'merchants', updatedItem.id)
+        : doc(db, 'leads', updatedItem.id)
+      
+      batch.update(movedItemRef, {
+        pipelineStatus: updatedItem.pipelineStatus,
+        position: destination.index,
+        ...(isPipelineMerchant(updatedItem) && { status: updatedItem.pipelineStatus }),
+        updatedAt: new Date()
+      })
+
+      // Update positions of other items in destination column
+      destinationItems.forEach((it, idx) => {
+        if (it.id !== updatedItem.id) {
+          const ref = isPipelineMerchant(it)
+            ? doc(db, 'merchants', it.id)
+            : doc(db, 'leads', it.id)
+          batch.update(ref, { 
+            position: idx,
+            updatedAt: new Date()
+          })
+        }
+      })
+
+      await batch.commit()
+
+      // Invalidate the query to refresh the data
+      await queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
+
+      toast({
+        title: "Status updated",
+        description: isPipelineMerchant(updatedItem)
+          ? `${updatedItem.businessName || updatedItem.email} moved to ${destinationColumn.title}`
+          : `${updatedItem.companyName || updatedItem.email} moved to ${destinationColumn.title}`
+      })
+    } catch (error) {
+      console.error('Error updating item:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to update item',
+        variant: 'destructive'
+      })
+    }
   }
 
   const handleItemClick = (item: PipelineItem) => {
     navigate(`/admin/pipeline/${item.id}`)
   }
+
+  useEffect(() => {
+    setColumns(columns)
+  }, [columns])
 
   if (isLoading) {
     return <div className="p-4">Loading...</div>
@@ -266,7 +374,7 @@ export function Pipeline() {
       <AuthDebug />
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="flex p-2 overflow-auto">
-          {columns.map(column => (
+          {localColumns.map(column => (
             <Droppable key={column.id} droppableId={column.id}>
               {(provided, snapshot) => (
                 <div
