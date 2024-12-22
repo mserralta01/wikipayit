@@ -136,7 +136,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       // Update local merchant state to reflect changes immediately
       setMerchant(prev => {
         const updatedMerchant = { ...prev };
-        const newFormData = { ...updatedMerchant.formData } || {};
+        const newFormData = updatedMerchant.formData ? { ...updatedMerchant.formData } : {};
 
         if (field.startsWith('companyAddress.')) {
           const addressField = field.split('.')[1] as keyof typeof formData.companyAddress;
