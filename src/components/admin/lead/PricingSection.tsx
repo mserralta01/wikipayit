@@ -154,17 +154,13 @@ export function PricingSection({ merchant }: PricingSectionProps) {
   }
 
   return (
-    <Card className="bg-white shadow-sm hover:shadow-md transition-shadow duration-200">
-      <CardHeader className="flex items-center justify-between border-b">
-        <CardTitle className="text-xl font-semibold text-gray-900">Pricing</CardTitle>
-        {merchant.pricing?.lastUpdated && (
-          <div className="text-sm text-gray-500">
-            Last updated: {timestampToString(merchant.pricing.lastUpdated)}
-          </div>
-        )}
-      </CardHeader>
-      <CardContent className="pt-6 space-y-6">
-        <Form {...form}>
+    <div>
+      {merchant.pricing?.lastUpdated && (
+        <div className="text-sm text-gray-500 mb-4">
+          Last updated: {timestampToString(merchant.pricing.lastUpdated)}
+        </div>
+      )}
+      <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
@@ -349,7 +345,6 @@ export function PricingSection({ merchant }: PricingSectionProps) {
             </Button>
           </form>
         </Form>
-      </CardContent>
-    </Card>
+    </div>
   )
 }

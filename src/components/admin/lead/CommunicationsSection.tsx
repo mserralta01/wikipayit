@@ -11,7 +11,7 @@ interface CommunicationsSectionProps {
 
 export function CommunicationsSection({ merchant }: CommunicationsSectionProps) {
   return (
-    <div className="w-[60%] min-w-[600px]">
+    <div className="w-full">
       <Tabs defaultValue="emails" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="emails">Emails</TabsTrigger>

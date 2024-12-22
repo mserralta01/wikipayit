@@ -4,8 +4,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Merchant as PipelineMerchant, Lead, timestampToString } from "@/types/merchant"
 import { merchantService } from "@/services/merchantService"
 import { LeadDetails } from "./lead/LeadDetails"
-import { PricingSection } from "./lead/PricingSection"
-import { CommunicationsSection } from "./lead/CommunicationsSection"
+// Components are now rendered inside LeadDetails
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
@@ -94,16 +93,8 @@ export function LeadDetailView() {
         <ChevronLeft className="h-4 w-4 mr-2" />
         Back to Pipeline
       </Button>
-      <div className="flex gap-8">
-        <div className="w-[35%]">
-          <LeadDetails merchant={merchantData} />
-          <div className="mt-8">
-            <PricingSection merchant={merchantData} />
-          </div>
-        </div>
-        <div className="w-[65%]">
-          <CommunicationsSection merchant={merchantData} />
-        </div>
+      <div>
+        <LeadDetails merchant={merchantData} />
       </div>
     </div>
   )
