@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
-  Merchant, 
+  MerchantDTO, 
   MerchantStatus, 
   timestampToString, 
   ProcessingHistory, 
@@ -26,9 +26,7 @@ import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 
 interface LeadDetailsProps {
-  merchant: Merchant & {
-    kind?: 'lead' | 'merchant'
-  }
+  merchant: MerchantDTO;
 }
 
 const formatPhoneNumber = (value: string): string => {
@@ -288,7 +286,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       await updateDoc(doc(db, 'leads', merchant.id), updateData);
 
       // Update local merchant state with the new data
-      setMerchant(prev => {
+      setMerchant((prev: MerchantDTO) => {
         const updatedFormData = {
           ...prev.formData,
           ...formDataUpdate

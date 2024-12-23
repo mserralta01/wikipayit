@@ -23,19 +23,25 @@ import { Progress } from '../../components/ui/progress'
 import { cn } from '../../lib/utils'
 import { useToast } from '../../hooks/use-toast'
 import { AuthDebug } from './debug/AuthDebug'
+import { FormData } from "@/types/merchant";
 
 interface PipelineFormData {
+  businessName?: string;
+  dba?: string;
+  phone?: string;
+  taxId?: string;
+  businessType?: string;
+  yearEstablished?: string;
+  monthlyVolume?: string;
+  averageTicket?: string;
   beneficialOwners?: {
     owners: Array<{
-      firstName: string
-      lastName: string
-      phone?: string
-    }>
-  }
-  businessName?: string
-  dba?: string
-  phone?: string
-  email?: string
+      firstName: string;
+      lastName: string;
+      phone?: string;
+    }>;
+  };
+  bankDetails?: any;
 }
 
 interface Column {
@@ -162,6 +168,24 @@ function getAgingInfo(updatedAt: string) {
   }
 }
 
+const convertFormDataToPipelineForm = (formData: FormData | undefined): PipelineFormData | undefined => {
+  if (!formData) return undefined;
+  return {
+    businessName: formData.businessName,
+    dba: formData.dba,
+    phone: formData.phone,
+    taxId: formData.taxId,
+    businessType: formData.businessType,
+    yearEstablished: formData.yearEstablished,
+    monthlyVolume: formData.monthlyVolume?.toString(),
+    averageTicket: formData.averageTicket?.toString(),
+    beneficialOwners: {
+      owners: formData.beneficialOwners?.owners || []
+    },
+    bankDetails: formData.bankDetails
+  };
+};
+
 export function Pipeline() {
   const { toast } = useToast()
   const queryClient = useQueryClient()
@@ -196,7 +220,7 @@ export function Pipeline() {
           lead.formData?.businessName ||
           lead.formData?.dba ||
           lead.email,
-        formData: lead.formData,
+        formData: convertFormDataToPipelineForm(lead.formData),
         position: lead.position ?? 0
       }))
 
@@ -213,22 +237,7 @@ export function Pipeline() {
         businessName: m.businessName || m.email,
         status: m.status,
         position: m.position ?? 0,
-        formData: m.formData
-          ? m.formData
-          : {
-              businessName: m.businessName,
-              dba: m.dba,
-              phone: m.phone,
-              beneficialOwners: m.beneficialOwners
-                ? {
-                    owners: (m.beneficialOwners as BeneficialOwner[]).map((owner: BeneficialOwner) => ({
-                      firstName: owner.firstName,
-                      lastName: owner.lastName,
-                      phone: owner.phone
-                    }))
-                  }
-                : undefined
-            }
+        formData: convertFormDataToPipelineForm(m.formData)
       }))
 
       const allItems = [...pipelineLeads, ...pipelineMerchants]

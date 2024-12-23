@@ -23,6 +23,26 @@ export interface BaseLead extends Omit<Lead, 'id'> {
   type: 'lead';
 }
 
+// First, let's define a simpler FormData type for pipeline items
+interface PipelineFormData {
+  businessName?: string;
+  dba?: string;
+  phone?: string;
+  taxId?: string;
+  businessType?: string;
+  yearEstablished?: string;
+  monthlyVolume?: string;  // Changed from number to string
+  averageTicket?: string;
+  beneficialOwners?: {
+    owners: Array<{
+      firstName: string;
+      lastName: string;
+      phone?: string;
+    }>;
+  };
+  bankDetails?: any;
+}
+
 // Add BasePipelineItem interface
 export interface BasePipelineItem {
   id: string;
@@ -34,24 +54,7 @@ export interface BasePipelineItem {
   updatedAt: string;
   phone?: string;
   position?: number; // <-- Added position here to unify usage across all PipelineItems
-  formData?: {
-    businessName?: string;
-    dba?: string;
-    phone?: string;
-    taxId?: string;
-    businessType?: string;
-    yearEstablished?: string;
-    monthlyVolume?: string;
-    averageTicket?: string;
-    beneficialOwners?: {
-      owners: Array<{
-        firstName: string;
-        lastName: string;
-        phone?: string;
-      }>;
-    };
-    bankDetails?: any;
-  };
+  formData?: PipelineFormData;
 }
 
 // Pipeline types
@@ -72,26 +75,9 @@ export interface PipelineLead extends BasePipelineItem {
 export type PipelineItem = PipelineMerchant | PipelineLead;
 
 // Service types
-export interface ServiceMerchant extends BaseMerchant {
+export interface ServiceMerchant extends Omit<Lead, 'formData'> {
   pipelineStatus: ServiceStatus;
-  formData?: {
-    businessName?: string;
-    dba?: string;
-    phone?: string;
-    taxId?: string;
-    businessType?: string;
-    yearEstablished?: string;
-    monthlyVolume?: string;
-    averageTicket?: string;
-    beneficialOwners?: {
-      owners: Array<{
-        firstName: string;
-        lastName: string;
-        phone?: string;
-      }>;
-    };
-    bankDetails?: any;
-  };
+  formData?: PipelineFormData;
 }
 
 export interface ServiceLead extends BaseLead {

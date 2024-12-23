@@ -32,6 +32,7 @@ import {
   query,
   orderBy
 } from "firebase/firestore";
+import { MerchantDTO } from "@/types/merchant";
 
 interface LocalColumn {
   id: PipelineStatus;
@@ -46,6 +47,10 @@ const getValidPipelineStatus = (status: string | undefined): PipelineStatus => {
   const normalizedStatus = (status || 'lead').toLowerCase() as PipelineStatus;
   return validStatuses.includes(normalizedStatus) ? normalizedStatus : 'lead';
 };
+
+interface MerchantPipelineProps {
+  merchants: MerchantDTO[];
+}
 
 export function MerchantPipeline() {
   const { toast } = useToast();

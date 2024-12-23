@@ -8,7 +8,7 @@ import { LeadDetails } from "./lead/LeadDetails"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink } from "@/components/ui/breadcrumb"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink } from "../../components/ui/breadcrumb"
 
 type PipelineItemData = PipelineMerchant | Lead
 
@@ -67,7 +67,7 @@ export function LeadDetailView() {
     return 'email' in item && 'createdAt' in item && 'updatedAt' in item
   }
 
-  const merchantData: PipelineMerchant = isPipelineMerchant(item) ? item : {
+  const merchantData: Lead = {
     id: item.id,
     email: item.email || '',
     createdAt: timestampToString(item.createdAt),
@@ -82,7 +82,7 @@ export function LeadDetailView() {
     },
     companyName: item.companyName || item.formData?.businessName || '',
     phone: item.phone || item.formData?.phone || '',
-  }
+  } as Lead;
 
   return (
     <div className="p-8">
