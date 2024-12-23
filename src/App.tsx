@@ -1,3 +1,5 @@
+'use client';
+
 import { BrowserRouter as Router, Routes, Route, Outlet } from "react-router-dom"
 import { AuthProvider } from "./contexts/AuthContext"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -18,7 +20,6 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute"
 import { FirebaseAuthDebug } from "./components/admin/debug/FirebaseAuthDebug"
 import { AuthDebug } from "./components/admin/debug/AuthDebug"
 import { LeadDetailView } from "./components/admin/LeadDetailView"
-import TermsPage from "./pages/TermsPage"
 
 // Create a client
 const queryClient = new QueryClient({
