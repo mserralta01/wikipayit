@@ -8,6 +8,7 @@ import { LeadDetails } from "./lead/LeadDetails"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft } from "lucide-react"
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink } from "@/components/ui/breadcrumb"
 
 type PipelineItemData = PipelineMerchant | Lead
 
@@ -85,14 +86,19 @@ export function LeadDetailView() {
 
   return (
     <div className="p-8">
-      <Button
-        variant="ghost"
-        className="mb-4"
-        onClick={handleBack}
-      >
-        <ChevronLeft className="h-4 w-4 mr-2" />
-        Back to Pipeline
-      </Button>
+      <Breadcrumb className="mb-6">
+        <BreadcrumbItem>
+          <BreadcrumbLink to="/admin">Admin</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbItem>
+          <BreadcrumbLink to="/admin/pipeline">Pipeline</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbItem>
+          <span className="text-muted-foreground">
+            {item?.formData?.businessName || item?.businessName || 'Details'}
+          </span>
+        </BreadcrumbItem>
+      </Breadcrumb>
       <div>
         <LeadDetails merchant={merchantData} />
       </div>
