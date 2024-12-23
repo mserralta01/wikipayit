@@ -18,6 +18,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute"
 import { FirebaseAuthDebug } from "./components/admin/debug/FirebaseAuthDebug"
 import { AuthDebug } from "./components/admin/debug/AuthDebug"
 import { LeadDetailView } from "./components/admin/LeadDetailView"
+import TermsPage from "./pages/TermsPage"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -51,6 +52,7 @@ function App() {
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
               <Route path="/apply" element={<MerchantApplicationPage />} />
+              <Route path="/terms" element={<TermsPage />} />
             </Route>
 
             {/* Admin Routes */}
