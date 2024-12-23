@@ -117,10 +117,10 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       const updatedFormData: FormData = {
         ...prev,
         bankDetails: {
-          bankName: initialMerchant.formData?.bankDetails?.bankName || '',
-          routingNumber: initialMerchant.formData?.bankDetails?.routingNumber || '',
-          accountNumber: initialMerchant.formData?.bankDetails?.accountNumber || '',
-          confirmAccountNumber: initialMerchant.formData?.bankDetails?.confirmAccountNumber || ''
+          bankName: initialMerchant.formData?.bankName || '',
+          routingNumber: initialMerchant.formData?.routingNumber || '',
+          accountNumber: initialMerchant.formData?.accountNumber || '',
+          confirmAccountNumber: initialMerchant.formData?.accountNumber || ''
         },
         processingHistory: {
           ...prev.processingHistory,
@@ -230,10 +230,23 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       if (field.startsWith('bankDetails.')) {
         const bankField = field.split('.')[1] as keyof BankDetails;
         updateData = {
-          [`formData.bankDetails.${bankField}`]: formData.bankDetails?.[bankField]
+          [`formData.${bankField}`]: formData.bankDetails?.[bankField]
+        };
+      } else {
+        updateData = {
+          [`formData.${field}`]: formData[field as keyof FormData]
         };
       }
-      // ... rest of the function remains the same
+      
+      const collectionPath = 'leads';
+      await updateDoc(doc(db, collectionPath, merchant.id), updateData);
+      
+      toast({
+        title: "Success",
+        description: "Field updated successfully.",
+      });
+      
+      setEditMode(prev => ({ ...prev, [field]: false }));
     } catch (error) {
       console.error("Error updating field:", error);
       toast({
@@ -356,6 +369,15 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     formDataBankDetails: formData.bankDetails,
     editMode
   });
+
+  const formatCurrency = (value: number): string => {
+    return value.toLocaleString('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
+  };
 
   return (
     <div className="flex gap-6">
@@ -746,261 +768,53 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               <AccordionItem value="processingHistory">
                 <AccordionTrigger>Processing History</AccordionTrigger>
                 <AccordionContent>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
                       <Label className="font-medium">Average Ticket</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['processingHistory.averageTicket'] ? (
-                          <Input
-                            value={formData.processingHistory?.averageTicket ?? ''}
-                            onChange={(e) => handleInputChange('processingHistory.averageTicket', e.target.value)}
-                            onBlur={() => handleBlur('processingHistory.averageTicket')}
-                            className="flex-1"
-                            type="number"
-                            min="0"
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('processingHistory.averageTicket');
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('processingHistory.averageTicket')}
-                          >
-                            ${merchant.formData?.processingHistory?.averageTicket || 'Not set'}
-                          </div>
-                        )}
+                      <div className="text-sm text-gray-700">
+                        {formatCurrency(merchant.formData?.processingHistory?.averageTicket || 0)}
                       </div>
                     </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Card Present Percentage</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['processingHistory.cardPresentPercentage'] ? (
-                          <Input
-                            value={formData.processingHistory?.cardPresentPercentage ?? ''}
-                            onChange={(e) => handleInputChange('processingHistory.cardPresentPercentage', e.target.value)}
-                            onBlur={() => handleBlur('processingHistory.cardPresentPercentage')}
-                            className="flex-1"
-                            type="number"
-                            min="0"
-                            max="100"
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('processingHistory.cardPresentPercentage');
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('processingHistory.cardPresentPercentage')}
-                          >
-                            {merchant.formData?.processingHistory?.cardPresentPercentage || 'Not set'}%
-                          </div>
-                        )}
+                    <div>
+                      <Label className="font-medium">Card Present %</Label>
+                      <div className="text-sm text-gray-700">
+                        {merchant.formData?.processingHistory?.cardPresentPercentage || 0}%
                       </div>
                     </div>
-
-                    <div className="grid gap-2">
+                    <div>
                       <Label className="font-medium">Current Processor</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['processingHistory.currentProcessor'] ? (
-                          <Input
-                            value={formData.processingHistory?.currentProcessor ?? ''}
-                            onChange={(e) => handleInputChange('processingHistory.currentProcessor', e.target.value)}
-                            onBlur={() => handleBlur('processingHistory.currentProcessor')}
-                            className="flex-1"
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('processingHistory.currentProcessor');
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('processingHistory.currentProcessor')}
-                          >
-                            {merchant.formData?.processingHistory?.currentProcessor || 'Not set'}
-                          </div>
-                        )}
+                      <div className="text-sm text-gray-700">
+                        {merchant.formData?.processingHistory?.currentProcessor || 'N/A'}
                       </div>
                     </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">E-commerce Percentage</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['processingHistory.ecommercePercentage'] ? (
-                          <Input
-                            value={formData.processingHistory?.ecommercePercentage ?? ''}
-                            onChange={(e) => handleInputChange('processingHistory.ecommercePercentage', e.target.value)}
-                            onBlur={() => handleBlur('processingHistory.ecommercePercentage')}
-                            className="flex-1"
-                            type="number"
-                            min="0"
-                            max="100"
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('processingHistory.ecommercePercentage');
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('processingHistory.ecommercePercentage')}
-                          >
-                            {merchant.formData?.processingHistory?.ecommercePercentage || 'Not set'}%
-                          </div>
-                        )}
+                    <div>
+                      <Label className="font-medium">E-commerce %</Label>
+                      <div className="text-sm text-gray-700">
+                        {merchant.formData?.processingHistory?.ecommercePercentage || 0}%
                       </div>
                     </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Is Currently Processing</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['processingHistory.isCurrentlyProcessing'] ? (
-                          <Select
-                            defaultValue={formData.processingHistory?.isCurrentlyProcessing ?? 'no'}
-                            onValueChange={(value) => handleInputChange('processingHistory.isCurrentlyProcessing', value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="yes">Yes</SelectItem>
-                              <SelectItem value="no">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('processingHistory.isCurrentlyProcessing')}
-                          >
-                            {merchant.formData?.processingHistory?.isCurrentlyProcessing || 'Not set'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Has Been Terminated</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['processingHistory.hasBeenTerminated'] ? (
-                          <Select
-                            defaultValue={formData.processingHistory?.hasBeenTerminated ?? 'no'}
-                            onValueChange={(value) => handleInputChange('processingHistory.hasBeenTerminated', value)}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="yes">Yes</SelectItem>
-                              <SelectItem value="no">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('processingHistory.hasBeenTerminated')}
-                          >
-                            {merchant.formData?.processingHistory?.hasBeenTerminated || 'Not set'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {(formData.processingHistory?.hasBeenTerminated === 'yes' || merchant.formData?.processingHistory?.hasBeenTerminated === 'yes') && (
-                      <div className="grid gap-2">
-                        <Label className="font-medium">Termination Explanation</Label>
-                        <div className="flex items-center gap-2">
-                          {editMode['processingHistory.terminationExplanation'] ? (
-                            <Textarea
-                              value={formData.processingHistory?.terminationExplanation ?? ''}
-                              onChange={(e) => handleInputChange('processingHistory.terminationExplanation', e.target.value)}
-                              onBlur={() => handleBlur('processingHistory.terminationExplanation')}
-                              className="flex-1"
-                              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {  // Allow shift+enter for new lines
-                                  e.preventDefault();
-                                  handleBlur('processingHistory.terminationExplanation');
-                                }
-                              }}
-                            />
-                          ) : (
-                            <div 
-                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                              onClick={() => handleFieldClick('processingHistory.terminationExplanation')}
-                            >
-                              {merchant.formData?.processingHistory?.terminationExplanation || 'Not set'}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid gap-2">
+                    <div>
                       <Label className="font-medium">High Ticket</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['processingHistory.highTicket'] ? (
-                          <Input
-                            value={formData.processingHistory?.highTicket ?? ''}
-                            onChange={(e) => handleInputChange('processingHistory.highTicket', e.target.value)}
-                            onBlur={() => handleBlur('processingHistory.highTicket')}
-                            className="flex-1"
-                            type="number"
-                            min="0"
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('processingHistory.highTicket');
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('processingHistory.highTicket')}
-                          >
-                            ${merchant.formData?.processingHistory?.highTicket || 'Not set'}
-                          </div>
-                        )}
+                      <div className="text-sm text-gray-700">
+                        {formatCurrency(merchant.formData?.processingHistory?.highTicket || 0)}
                       </div>
                     </div>
-
-                    <div className="grid gap-2">
+                    <div>
                       <Label className="font-medium">Monthly Volume</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['processingHistory.monthlyVolume'] ? (
-                          <Input
-                            value={formData.processingHistory?.monthlyVolume ?? ''}
-                            onChange={(e) => handleInputChange('processingHistory.monthlyVolume', e.target.value)}
-                            onBlur={() => handleBlur('processingHistory.monthlyVolume')}
-                            className="flex-1"
-                            type="number"
-                            min="0"
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('processingHistory.monthlyVolume');
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('processingHistory.monthlyVolume')}
-                          >
-                            ${merchant.formData?.processingHistory?.monthlyVolume || 'Not set'}
-                          </div>
-                        )}
+                      <div className="text-sm text-gray-700">
+                        {formatCurrency(merchant.formData?.processingHistory?.monthlyVolume || 0)}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="font-medium">Has Been Terminated</Label>
+                      <div className="text-sm text-gray-700">
+                        {merchant.formData?.processingHistory?.hasBeenTerminated || 'no'}
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="font-medium">Termination Explanation</Label>
+                      <div className="text-sm text-gray-700">
+                        {merchant.formData?.processingHistory?.terminationExplanation || 'N/A'}
                       </div>
                     </div>
                   </div>
@@ -1010,76 +824,68 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               <AccordionItem value="bankDetails">
                 <AccordionTrigger>Bank Details</AccordionTrigger>
                 <AccordionContent>
-                  <div className="space-y-4">
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Bank Name</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['bankDetails.bankName'] ? (
-                          <Input
-                            value={formData.bankDetails?.bankName || ''}
-                            onChange={(e) => handleInputChange('bankDetails.bankName', e.target.value)}
-                            onBlur={() => handleBlur('bankDetails.bankName')}
-                            className="flex-1"
-                            type="text"
-                            autoFocus
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('bankDetails.bankName')}
-                          >
-                            {merchant.formData?.bankDetails?.bankName || formData.bankDetails?.bankName || 'Click to edit'}
-                          </div>
-                        )}
-                      </div>
+                  <div className="grid gap-2">
+                    <Label className="font-medium">Bank Name</Label>
+                    <div className="flex items-center gap-2">
+                      {editMode['bankDetails.bankName'] ? (
+                        <Input
+                          value={formData.bankDetails.bankName}
+                          onChange={(e) => handleInputChange('bankDetails.bankName', e.target.value)}
+                          onBlur={() => handleBlur('bankDetails.bankName')}
+                          className="flex-1"
+                          autoFocus
+                        />
+                      ) : (
+                        <div 
+                          className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                          onClick={() => handleFieldClick('bankDetails.bankName')}
+                        >
+                          {merchant.formData?.bankName || 'Click to edit'}
+                        </div>
+                      )}
                     </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Routing Number</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['bankDetails.routingNumber'] ? (
-                          <Input
-                            value={formData.bankDetails?.routingNumber || ''}
-                            onChange={(e) => handleInputChange('bankDetails.routingNumber', e.target.value)}
-                            onBlur={() => handleBlur('bankDetails.routingNumber')}
-                            className="flex-1"
-                            type="text"
-                            autoFocus
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('bankDetails.routingNumber')}
-                          >
-                            {merchant.formData?.bankDetails?.routingNumber || formData.bankDetails?.routingNumber || 'Click to edit'}
-                          </div>
-                        )}
-                      </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="font-medium">Routing Number</Label>
+                    <div className="flex items-center gap-2">
+                      {editMode['bankDetails.routingNumber'] ? (
+                        <Input
+                          value={formData.bankDetails.routingNumber}
+                          onChange={(e) => handleInputChange('bankDetails.routingNumber', e.target.value)}
+                          onBlur={() => handleBlur('bankDetails.routingNumber')}
+                          className="flex-1"
+                          autoFocus
+                        />
+                      ) : (
+                        <div 
+                          className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                          onClick={() => handleFieldClick('bankDetails.routingNumber')}
+                        >
+                          {merchant.formData?.routingNumber || 'Click to edit'}
+                        </div>
+                      )}
                     </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Account Number</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode['bankDetails.accountNumber'] ? (
-                          <Input
-                            value={formData.bankDetails?.accountNumber || ''}
-                            onChange={(e) => handleInputChange('bankDetails.accountNumber', e.target.value)}
-                            onBlur={() => handleBlur('bankDetails.accountNumber')}
-                            className="flex-1"
-                            type="password"
-                            autoFocus
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('bankDetails.accountNumber')}
-                          >
-                            {(merchant.formData?.bankDetails?.accountNumber || formData.bankDetails?.accountNumber) ? 
-                              '••••••••' + (merchant.formData?.bankDetails?.accountNumber || formData.bankDetails?.accountNumber).slice(-4) : 
-                              'Click to edit'}
-                          </div>
-                        )}
-                      </div>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label className="font-medium">Account Number</Label>
+                    <div className="flex items-center gap-2">
+                      {editMode['bankDetails.accountNumber'] ? (
+                        <Input
+                          value={formData.bankDetails.accountNumber}
+                          onChange={(e) => handleInputChange('bankDetails.accountNumber', e.target.value)}
+                          onBlur={() => handleBlur('bankDetails.accountNumber')}
+                          className="flex-1"
+                          type="password"
+                          autoFocus
+                        />
+                      ) : (
+                        <div 
+                          className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                          onClick={() => handleFieldClick('bankDetails.accountNumber')}
+                        >
+                          {merchant.formData?.accountNumber ? '••••••••' + merchant.formData?.accountNumber.slice(-4) : 'Click to edit'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </AccordionContent>
@@ -1729,3 +1535,4 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     </div>
   )
 }
+
