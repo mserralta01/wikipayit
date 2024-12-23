@@ -12,7 +12,8 @@ import {
   timestampToString, 
   ProcessingHistory, 
   FormData,
-  BeneficialOwner 
+  BeneficialOwner,
+  BankDetails 
 } from "@/types/merchant"
 import { doc, updateDoc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
@@ -23,6 +24,12 @@ import { Pencil, X, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
+
+type FormBankDetails = {
+  bankName: string;
+  routingNumber: string;
+  accountNumber: string;
+}
 
 interface LeadDetailsProps {
   merchant: Merchant & {
@@ -173,59 +180,91 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     }
   }
 
+  // Add helper function to set nested values
+  const setNestedValue = (obj: any, path: string, value: any): any => {
+    const keys = path.split('.');
+    const lastKey = keys.pop() as string;
+    const newObj = { ...obj };
+    let current = newObj;
+    keys.forEach(key => {
+      if (!current[key]) current[key] = {};
+      current = current[key];
+    });
+    current[lastKey] = value;
+    return newObj;
+  }
+
+  // Modify handleSave to correctly update local state
   const handleSave = async (field: string) => {
     try {
-      let updateData: Record<string, any> = {}
+      let updateData: Record<string, any> = {
+        updatedAt: Timestamp.fromDate(new Date())
+      }
+
+      console.log('Saving field:', field)
+      console.log('Current form data:', formData)
 
       if (field.startsWith('processingHistory.')) {
-        const historyField = field.split('.')[1] as keyof ProcessingHistory
-        let value = formData.processingHistory?.[historyField]
-        
-        // Convert string values to numbers where needed
-        if (['averageTicket', 'cardPresentPercentage', 'ecommercePercentage', 'highTicket', 'monthlyVolume'].includes(historyField)) {
-          value = Number(value)
-        }
-        
+        const historyField = field.split('.')[1]
         updateData = {
-          [`formData.processingHistory.${historyField}`]: value,
-          updatedAt: Timestamp.fromDate(new Date())
+          ...updateData,
+          formData: {
+            ...merchant.formData,
+            processingHistory: {
+              ...merchant.formData?.processingHistory,
+              [historyField]: formData.processingHistory?.[historyField as keyof ProcessingHistory]
+            }
+          }
         }
       } else if (field.startsWith('bankDetails.')) {
-        const bankField = field.split('.')[1]
-        const fieldName = bankField === 'bankName' ? 'bankName' :
-                         bankField === 'routingNumber' ? 'routingNumber' :
-                         'accountNumber'
+        const bankField = field.replace('bankDetails.', '')
         updateData = {
-          [`formData.${fieldName}`]: formData.bankDetails[bankField as keyof typeof formData.bankDetails]
+          ...updateData,
+          formData: {
+            ...merchant.formData,
+            [bankField]: formData.bankDetails[bankField as keyof FormBankDetails]
+          }
         }
       } else if (field.startsWith('companyAddress.')) {
         const addressField = field.split('.')[1]
         updateData = {
-          [`formData.companyAddress.${addressField}`]: formData.companyAddress[addressField as keyof typeof formData.companyAddress]
+          ...updateData,
+          formData: {
+            ...merchant.formData,
+            companyAddress: {
+              ...merchant.formData?.companyAddress,
+              [addressField]: formData.companyAddress[addressField as keyof typeof formData.companyAddress]
+            }
+          }
         }
       } else if (field.startsWith('beneficialOwners.')) {
         updateData = {
-          'formData.beneficialOwners': formData.beneficialOwners
+          ...updateData,
+          formData: {
+            ...merchant.formData,
+            beneficialOwners: formData.beneficialOwners
+          }
         }
       } else {
+        // Handle top-level fields
         updateData = {
-          [`formData.${field}`]: formData[field as keyof typeof formData]
+          ...updateData,
+          formData: {
+            ...merchant.formData,
+            [field]: formData[field as keyof typeof formData]
+          }
         }
       }
 
-      // Update document
-      const collectionPath = merchant.kind === 'lead' ? 'leads' : 'merchants'
       console.log('Updating document with data:', updateData)
-      await updateDoc(doc(db, collectionPath, merchant.id), updateData)
+      console.log('Document ID:', merchant.id)
 
-      // Update local merchant state
+      await updateDoc(doc(db, 'leads', merchant.id), updateData)
+
       setMerchant(prev => ({
         ...prev,
-        formData: {
-          ...prev.formData,
-          ...updateData.formData
-        },
-        updatedAt: Timestamp.fromDate(new Date())
+        formData: updateData.formData,
+        updatedAt: updateData.updatedAt
       }))
 
       setEditMode(prev => ({ ...prev, [field]: false }))
