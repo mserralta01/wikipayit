@@ -19,7 +19,7 @@ import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Pencil, X, Check } from "lucide-react"
+import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
@@ -39,48 +39,43 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   console.log('Initial merchant data:', initialMerchant)
   console.log('Processing History:', initialMerchant.formData?.processingHistory)
 
-  const [formData, setFormData] = useState<FormData>(() => {
-    console.log('Initializing form data with beneficial owners:', initialMerchant.formData?.beneficialOwners)
-    const initialFormData: FormData = {
-      businessName: initialMerchant.formData?.businessName || '',
-      dba: initialMerchant.formData?.dba || '',
-      phone: initialMerchant.formData?.phone || '',
-      businessType: initialMerchant.formData?.businessType || '',
-      taxId: initialMerchant.formData?.taxId || '',
-      businessDescription: initialMerchant.formData?.businessDescription || '',
-      yearEstablished: initialMerchant.formData?.yearEstablished || '',
-      website: initialMerchant.formData?.website || '',
-      customerServiceEmail: initialMerchant.formData?.customerServiceEmail || '',
-      customerServicePhone: initialMerchant.formData?.customerServicePhone || '',
-      companyAddress: {
-        street: initialMerchant.formData?.companyAddress?.street || '',
-        city: initialMerchant.formData?.companyAddress?.city || '',
-        state: initialMerchant.formData?.companyAddress?.state || '',
-        zipCode: initialMerchant.formData?.companyAddress?.zipCode || '',
-      },
-      bankDetails: {
-        bankName: initialMerchant.formData?.bankName || '',
-        routingNumber: initialMerchant.formData?.routingNumber || '',
-        accountNumber: initialMerchant.formData?.accountNumber || '',
-      },
-      processingHistory: {
-        averageTicket: initialMerchant.formData?.processingHistory?.averageTicket || '',
-        cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage || '',
-        currentProcessor: initialMerchant.formData?.processingHistory?.currentProcessor || '',
-        ecommercePercentage: initialMerchant.formData?.processingHistory?.ecommercePercentage || '',
-        hasBeenTerminated: initialMerchant.formData?.processingHistory?.hasBeenTerminated || 'no',
-        highTicket: initialMerchant.formData?.processingHistory?.highTicket || '',
-        isCurrentlyProcessing: initialMerchant.formData?.processingHistory?.isCurrentlyProcessing || 'no',
-        monthlyVolume: initialMerchant.formData?.processingHistory?.monthlyVolume || '',
-        terminationExplanation: initialMerchant.formData?.processingHistory?.terminationExplanation || ''
-      },
-      beneficialOwners: {
-        owners: initialMerchant.formData?.beneficialOwners?.owners || []
-      }
+  const [formData, setFormData] = useState<FormData>(() => ({
+    businessName: initialMerchant.formData?.businessName || '',
+    dba: initialMerchant.formData?.dba || '',
+    phone: initialMerchant.formData?.phone || '',
+    businessType: initialMerchant.formData?.businessType || '',
+    taxId: initialMerchant.formData?.taxId || '',
+    businessDescription: initialMerchant.formData?.businessDescription || '',
+    yearEstablished: initialMerchant.formData?.yearEstablished || '',
+    website: initialMerchant.formData?.website || '',
+    customerServiceEmail: initialMerchant.formData?.customerServiceEmail || '',
+    customerServicePhone: initialMerchant.formData?.customerServicePhone || '',
+    companyAddress: {
+      street: initialMerchant.formData?.companyAddress?.street || '',
+      city: initialMerchant.formData?.companyAddress?.city || '',
+      state: initialMerchant.formData?.companyAddress?.state || '',
+      zipCode: initialMerchant.formData?.companyAddress?.zipCode || '',
+    },
+    bankDetails: {
+      bankName: initialMerchant.formData?.bankDetails?.bankName || '',
+      routingNumber: initialMerchant.formData?.bankDetails?.routingNumber || '',
+      accountNumber: initialMerchant.formData?.bankDetails?.accountNumber || '',
+    },
+    processingHistory: {
+      averageTicket: initialMerchant.formData?.processingHistory?.averageTicket || 0,
+      cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage || 0,
+      currentProcessor: initialMerchant.formData?.processingHistory?.currentProcessor || '',
+      ecommercePercentage: initialMerchant.formData?.processingHistory?.ecommercePercentage || 0,
+      hasBeenTerminated: initialMerchant.formData?.processingHistory?.hasBeenTerminated || 'no',
+      highTicket: initialMerchant.formData?.processingHistory?.highTicket || 0,
+      isCurrentlyProcessing: initialMerchant.formData?.processingHistory?.isCurrentlyProcessing || 'no',
+      monthlyVolume: initialMerchant.formData?.processingHistory?.monthlyVolume || 0,
+      terminationExplanation: initialMerchant.formData?.processingHistory?.terminationExplanation || ''
+    },
+    beneficialOwners: {
+      owners: initialMerchant.formData?.beneficialOwners?.owners || []
     }
-    console.log('Initial form data:', initialFormData)
-    return initialFormData
-  })
+  }))
 
   // Update merchant state when initialMerchant changes
   useEffect(() => {
@@ -93,20 +88,20 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
         ...prev,
         processingHistory: {
           ...prev.processingHistory,
-          averageTicket: initialMerchant.formData?.processingHistory?.averageTicket?.toString() || '',
-          cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage?.toString() || '',
+          averageTicket: initialMerchant.formData?.processingHistory?.averageTicket || 0,
+          cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage || 0,
           currentProcessor: initialMerchant.formData?.processingHistory?.currentProcessor || '',
-          ecommercePercentage: initialMerchant.formData?.processingHistory?.ecommercePercentage?.toString() || '',
+          ecommercePercentage: initialMerchant.formData?.processingHistory?.ecommercePercentage || 0,
           hasBeenTerminated: initialMerchant.formData?.processingHistory?.hasBeenTerminated || 'no',
-          highTicket: initialMerchant.formData?.processingHistory?.highTicket?.toString() || '',
+          highTicket: initialMerchant.formData?.processingHistory?.highTicket || 0,
           isCurrentlyProcessing: initialMerchant.formData?.processingHistory?.isCurrentlyProcessing || 'no',
-          monthlyVolume: initialMerchant.formData?.processingHistory?.monthlyVolume?.toString() || '',
+          monthlyVolume: initialMerchant.formData?.processingHistory?.monthlyVolume || 0,
           terminationExplanation: initialMerchant.formData?.processingHistory?.terminationExplanation || ''
         },
         bankDetails: {
-          bankName: initialMerchant.formData?.bankName || '',
-          routingNumber: initialMerchant.formData?.routingNumber || '',
-          accountNumber: initialMerchant.formData?.accountNumber || ''
+          bankName: initialMerchant.formData?.bankDetails?.bankName || '',
+          routingNumber: initialMerchant.formData?.bankDetails?.routingNumber || '',
+          accountNumber: initialMerchant.formData?.bankDetails?.accountNumber || ''
         },
         beneficialOwners: {
           owners: initialMerchant.formData?.beneficialOwners?.owners || []
@@ -128,7 +123,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
           zipCode: initialMerchant.formData?.companyAddress?.zipCode || ''
         }
       }
-      console.log('Updated form data:', updatedFormData)
+      console.log('Initial form data:', updatedFormData)
       return updatedFormData
     })
   }, [initialMerchant])
@@ -175,73 +170,120 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
 
   const handleSave = async (field: string) => {
     try {
-      let updateData: Record<string, any> = {}
+      let updateData: Record<string, any> = {};
+      let formDataUpdate: Partial<FormData> = {};
 
       if (field.startsWith('processingHistory.')) {
-        const historyField = field.split('.')[1] as keyof ProcessingHistory
-        let value = formData.processingHistory?.[historyField]
+        const historyField = field.split('.')[1] as keyof ProcessingHistory;
+        let value = formData.processingHistory?.[historyField];
         
         // Convert string values to numbers where needed
         if (['averageTicket', 'cardPresentPercentage', 'ecommercePercentage', 'highTicket', 'monthlyVolume'].includes(historyField)) {
-          value = Number(value)
+          value = Number(value);
         }
         
         updateData = {
           [`formData.processingHistory.${historyField}`]: value,
           updatedAt: Timestamp.fromDate(new Date())
-        }
+        };
+
+        // Create a new processing history object with all existing values
+        const updatedProcessingHistory: ProcessingHistory = {
+          ...formData.processingHistory,
+          [historyField]: value
+        };
+
+        formDataUpdate = {
+          processingHistory: updatedProcessingHistory
+        };
       } else if (field.startsWith('bankDetails.')) {
-        const bankField = field.split('.')[1]
-        const fieldName = bankField === 'bankName' ? 'bankName' :
-                         bankField === 'routingNumber' ? 'routingNumber' :
-                         'accountNumber'
+        const bankField = field.split('.')[1] as keyof BankDetails;
+        const value = formData.bankDetails[bankField];
+        
         updateData = {
-          [`formData.${fieldName}`]: formData.bankDetails[bankField as keyof typeof formData.bankDetails]
-        }
+          [`formData.bankDetails.${bankField}`]: value,
+          updatedAt: Timestamp.fromDate(new Date())
+        };
+
+        // Create a new bank details object with all existing values
+        const updatedBankDetails: BankDetails = {
+          ...formData.bankDetails,
+          [bankField]: value
+        };
+
+        formDataUpdate = {
+          bankDetails: updatedBankDetails
+        };
       } else if (field.startsWith('companyAddress.')) {
-        const addressField = field.split('.')[1]
+        const addressField = field.split('.')[1];
+        const value = formData.companyAddress[addressField as keyof typeof formData.companyAddress];
         updateData = {
-          [`formData.companyAddress.${addressField}`]: formData.companyAddress[addressField as keyof typeof formData.companyAddress]
-        }
+          [`formData.companyAddress.${addressField}`]: value,
+          updatedAt: Timestamp.fromDate(new Date())
+        };
+        formDataUpdate = {
+          companyAddress: {
+            ...formData.companyAddress,
+            [addressField]: value
+          }
+        };
       } else if (field.startsWith('beneficialOwners.')) {
         updateData = {
-          'formData.beneficialOwners': formData.beneficialOwners
-        }
+          'formData.beneficialOwners': formData.beneficialOwners,
+          updatedAt: Timestamp.fromDate(new Date())
+        };
+        formDataUpdate = {
+          beneficialOwners: formData.beneficialOwners
+        };
       } else {
+        const value = formData[field as keyof typeof formData];
         updateData = {
-          [`formData.${field}`]: formData[field as keyof typeof formData]
-        }
+          [`formData.${field}`]: value,
+          updatedAt: Timestamp.fromDate(new Date())
+        };
+        formDataUpdate = {
+          [field]: value
+        };
       }
 
-      // Update document
-      const collectionPath = merchant.kind === 'lead' ? 'leads' : 'merchants'
-      console.log('Updating document with data:', updateData)
-      await updateDoc(doc(db, collectionPath, merchant.id), updateData)
+      // Update Firestore
+      await updateDoc(doc(db, 'leads', merchant.id), updateData);
 
-      // Update local merchant state
-      setMerchant(prev => ({
-        ...prev,
-        formData: {
+      // Update local merchant state with the new data
+      setMerchant(prev => {
+        const updatedFormData = {
           ...prev.formData,
-          ...updateData.formData
-        },
-        updatedAt: Timestamp.fromDate(new Date())
-      }))
+          ...formDataUpdate
+        };
+        
+        return {
+          ...prev,
+          formData: updatedFormData as FormData,
+          updatedAt: Timestamp.fromDate(new Date())
+        };
+      });
 
-      setEditMode(prev => ({ ...prev, [field]: false }))
+      // Update local form data state
+      setFormData(prev => ({
+        ...prev,
+        ...formDataUpdate
+      }));
+
+      setEditMode(prev => ({ ...prev, [field]: false }));
+      
       toast({
         title: "Success",
         description: "Field updated successfully.",
-      })
+      });
     } catch (error) {
-      console.error("Error updating field:", error)
+      console.error("Error updating field:", error);
       toast({
         title: "Error",
         description: "Failed to update field. Please try again.",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const calculateProgress = (status: MerchantStatus): number => {
     const stages = ['lead', 'phone', 'offer', 'underwriting', 'documents', 'approved']
@@ -266,7 +308,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
 
   const handleStatusChange = async (status: MerchantStatus): Promise<void> => {
     try {
-      const collectionPath = merchant.kind === 'lead' ? 'leads' : 'merchants'
+      const collectionPath = 'leads'
       await updateDoc(doc(db, collectionPath, merchant.id), {
         pipelineStatus: status,
         updatedAt: Timestamp.fromDate(new Date())
@@ -334,367 +376,388 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 <AccordionContent>
                   <div className="grid gap-4">
                     <div className="grid gap-2">
-                      <Label className="font-medium">Business Name</Label>
                       <div className="flex items-center gap-2">
-                        {editMode.businessName ? (
-                          <>
-                            <Input
-                              value={formData.businessName}
-                              onChange={(e) => handleInputChange('businessName', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('businessName')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('businessName')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.businessName || merchant.businessName}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('businessName')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                        <Building className="h-5 w-5" />
+                        <div className="flex-1 flex items-center justify-between">
+                          {editMode.businessName ? (
+                            <>
+                              <Input
+                                value={formData.businessName}
+                                onChange={(e) => handleInputChange('businessName', e.target.value)}
+                                className="flex-1"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSave('businessName')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('businessName')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700 flex-1">
+                                {merchant.formData?.businessName || merchant.businessName}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('businessName')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="grid gap-2">
-                      <Label className="font-medium">Phone</Label>
                       <div className="flex items-center gap-2">
-                        {editMode.phone ? (
-                          <>
-                            <Input
-                              value={formData.phone}
-                              onChange={(e) => handleInputChange('phone', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('phone')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('phone')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.phone}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('phone')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                        <Phone className="h-5 w-5" />
+                        <div className="flex-1 flex items-center justify-between">
+                          {editMode.phone ? (
+                            <>
+                              <Input
+                                value={formData.phone}
+                                onChange={(e) => handleInputChange('phone', e.target.value)}
+                                className="flex-1"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSave('phone')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('phone')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700 flex-1">
+                                {merchant.formData?.phone}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('phone')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="grid gap-2">
-                      <Label className="font-medium">Address</Label>
                       <div className="flex items-center gap-2">
-                        {editMode['companyAddress.street'] ? (
-                          <>
-                            <Input
-                              value={formData.companyAddress.street}
-                              onChange={(e) => handleInputChange('companyAddress.street', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('companyAddress.street')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('companyAddress.street')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.companyAddress?.street}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('companyAddress.street')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                        <MapPin className="h-5 w-5" />
+                        <div className="flex-1 flex items-center justify-between">
+                          {editMode['companyAddress.street'] ? (
+                            <>
+                              <Input
+                                value={formData.companyAddress.street}
+                                onChange={(e) => handleInputChange('companyAddress.street', e.target.value)}
+                                className="flex-1"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSave('companyAddress.street')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('companyAddress.street')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700 flex-1">
+                                {merchant.formData?.companyAddress?.street}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('companyAddress.street')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {editMode['companyAddress.city'] ? (
-                          <>
-                            <Input
-                              value={formData.companyAddress.city}
-                              onChange={(e) => handleInputChange('companyAddress.city', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('companyAddress.city')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('companyAddress.city')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.companyAddress?.city}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('companyAddress.city')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                        <MapPin className="h-5 w-5" />
+                        <div className="flex-1 flex items-center justify-between">
+                          {editMode['companyAddress.city'] ? (
+                            <>
+                              <Input
+                                value={formData.companyAddress.city}
+                                onChange={(e) => handleInputChange('companyAddress.city', e.target.value)}
+                                className="flex-1"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSave('companyAddress.city')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('companyAddress.city')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700 flex-1">
+                                {merchant.formData?.companyAddress?.city}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('companyAddress.city')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {editMode['companyAddress.state'] ? (
-                          <>
-                            <Input
-                              value={formData.companyAddress.state}
-                              onChange={(e) => handleInputChange('companyAddress.state', e.target.value)}
-                              className="flex-1"
-                              maxLength={2}
-                              placeholder="FL"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('companyAddress.state')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('companyAddress.state')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.companyAddress?.state}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('companyAddress.state')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                        <MapPin className="h-5 w-5" />
+                        <div className="flex-1 flex items-center justify-between">
+                          {editMode['companyAddress.state'] ? (
+                            <>
+                              <Input
+                                value={formData.companyAddress.state}
+                                onChange={(e) => handleInputChange('companyAddress.state', e.target.value)}
+                                className="flex-1"
+                                maxLength={2}
+                                placeholder="FL"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSave('companyAddress.state')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('companyAddress.state')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700 flex-1">
+                                {merchant.formData?.companyAddress?.state}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('companyAddress.state')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {editMode['companyAddress.zipCode'] ? (
-                          <>
-                            <Input
-                              value={formData.companyAddress.zipCode}
-                              onChange={(e) => handleInputChange('companyAddress.zipCode', e.target.value)}
-                              className="flex-1"
-                              pattern="\d{5}(-\d{4})?"
-                              placeholder="12345"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('companyAddress.zipCode')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('companyAddress.zipCode')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.companyAddress?.zipCode}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('companyAddress.zipCode')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Business Description</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode.businessDescription ? (
-                          <>
-                            <Input
-                              value={formData.businessDescription}
-                              onChange={(e) => handleInputChange('businessDescription', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('businessDescription')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('businessDescription')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.businessDescription}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('businessDescription')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                        <MapPin className="h-5 w-5" />
+                        <div className="flex-1 flex items-center justify-between">
+                          {editMode['companyAddress.zipCode'] ? (
+                            <>
+                              <Input
+                                value={formData.companyAddress.zipCode}
+                                onChange={(e) => handleInputChange('companyAddress.zipCode', e.target.value)}
+                                className="flex-1"
+                                pattern="\d{5}(-\d{4})?"
+                                placeholder="12345"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSave('companyAddress.zipCode')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('companyAddress.zipCode')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700 flex-1">
+                                {merchant.formData?.companyAddress?.zipCode}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('companyAddress.zipCode')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="grid gap-2">
-                      <Label className="font-medium">Year Established</Label>
                       <div className="flex items-center gap-2">
-                        {editMode.yearEstablished ? (
-                          <>
-                            <Input
-                              value={formData.yearEstablished}
-                              onChange={(e) => handleInputChange('yearEstablished', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('yearEstablished')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('yearEstablished')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.yearEstablished}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('yearEstablished')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                        <FileText className="h-5 w-5" />
+                        <div className="flex-1 flex items-center justify-between">
+                          {editMode.businessDescription ? (
+                            <>
+                              <Input
+                                value={formData.businessDescription}
+                                onChange={(e) => handleInputChange('businessDescription', e.target.value)}
+                                className="flex-1"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSave('businessDescription')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('businessDescription')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700 flex-1">
+                                {merchant.formData?.businessDescription}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('businessDescription')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <div className="grid gap-2">
-                      <Label className="font-medium">Website</Label>
                       <div className="flex items-center gap-2">
-                        {editMode.website ? (
-                          <>
-                            <Input
-                              value={formData.website}
-                              onChange={(e) => handleInputChange('website', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('website')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('website')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.website}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('website')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
+                        <Calendar className="h-5 w-5" />
+                        <div className="flex-1 flex items-center justify-between">
+                          {editMode.yearEstablished ? (
+                            <>
+                              <Input
+                                value={formData.yearEstablished}
+                                onChange={(e) => handleInputChange('yearEstablished', e.target.value)}
+                                className="flex-1"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSave('yearEstablished')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('yearEstablished')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700 flex-1">
+                                {merchant.formData?.yearEstablished}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('yearEstablished')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-5 w-5" />
+                        <div className="flex-1 flex items-center justify-between">
+                          {editMode.website ? (
+                            <>
+                              <Input
+                                value={formData.website}
+                                onChange={(e) => handleInputChange('website', e.target.value)}
+                                className="flex-1"
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleSave('website')}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('website')}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <div className="text-sm text-gray-700 flex-1">
+                                {merchant.formData?.website}
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => toggleEdit('website')}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

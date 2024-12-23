@@ -100,132 +100,70 @@ export function timestampToString(value: string | Timestamp | undefined): string
 }
 
 export interface ProcessingHistory {
-  averageTicket: number | string
-  cardPresentPercentage: number | string
-  currentProcessor: string
-  ecommercePercentage: number | string
-  hasBeenTerminated: 'yes' | 'no'
-  highTicket: number | string
-  isCurrentlyProcessing: 'yes' | 'no'
-  monthlyVolume: number | string
-  terminationExplanation: string
-  updatedAt?: string | Timestamp
+  averageTicket: number;
+  cardPresentPercentage: number;
+  currentProcessor: string;
+  ecommercePercentage: number;
+  hasBeenTerminated: 'yes' | 'no';
+  highTicket: number;
+  isCurrentlyProcessing: 'yes' | 'no';
+  monthlyVolume: number;
+  terminationExplanation: string;
+}
+
+export interface BankDetails {
+  bankName: string;
+  routingNumber: string;
+  accountNumber: string;
 }
 
 export interface FormData {
-  businessName: string
-  dba: string
-  phone: string
-  businessType: string
-  taxId: string
-  businessDescription: string
-  yearEstablished: string
-  website: string
-  customerServiceEmail: string
-  customerServicePhone: string
+  businessName: string;
+  dba: string;
+  phone: string;
+  businessType: string;
+  taxId: string;
+  businessDescription: string;
+  yearEstablished: string;
+  website: string;
+  customerServiceEmail: string;
+  customerServicePhone: string;
   companyAddress: {
-    street: string
-    city: string
-    state: string
-    zipCode: string
-  }
-  bankDetails: {
-    bankName: string
-    routingNumber: string
-    accountNumber: string
-  }
-  processingHistory: ProcessingHistory
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  bankDetails: BankDetails;
+  processingHistory: ProcessingHistory;
   beneficialOwners: {
     owners: Array<{
-      firstName: string
-      lastName: string
-      phone?: string
-      email?: string
-      title?: string
-      ownershipPercentage?: string
-      dateOfBirth?: string
-      ssn?: string
-      address?: string
-      city?: string
-      state?: string
-      zipCode?: string
-    }>
-  }
+      firstName: string;
+      lastName: string;
+      phone?: string;
+      email?: string;
+      title?: string;
+      ownershipPercentage?: string;
+      dateOfBirth?: string;
+      ssn?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+    }>;
+  };
 }
 
-export type Merchant = {
-  id: string
-  email: string
-  phone?: string
-  businessName?: string
-  dba?: string
-  status?: MerchantStatus
-  pipelineStatus?: MerchantStatus
-  createdAt: string | Timestamp
-  updatedAt: string | Timestamp
-  position?: number
-  pricing?: PricingDetails
-  notes?: Note[]
-  bank_statements?: string[]
-  drivers_license?: string[]
-  voided_check?: string[]
-  currentStep?: number
-  uid?: string
-
-  formData?: {
-    businessName?: string
-    dba?: string
-    phone?: string
-    email?: string
-    taxId?: string
-    businessType?: string
-    businessDescription?: string
-    yearEstablished?: string
-    website?: string
-    customerServiceEmail?: string
-    customerServicePhone?: string
-    monthlyVolume?: string
-    averageTicket?: string
-    bankName?: string
-    routingNumber?: string
-    accountNumber?: string
-    companyAddress?: {
-      street?: string
-      city?: string
-      state?: string
-      zipCode?: string
-    }
-    beneficialOwners?: {
-      owners: Array<{
-        firstName: string
-        lastName: string
-        title?: string
-        dateOfBirth?: string
-        ssn?: string
-        address?: string
-        city?: string
-        state?: string
-        zipCode?: string
-        phone?: string
-        email?: string
-        ownershipPercentage?: string
-      }>
-    }
-    processingHistory?: {
-      averageTicket?: number
-      cardPresentPercentage?: number
-      currentProcessor?: string
-      ecommercePercentage?: number
-      hasBeenTerminated?: 'yes' | 'no'
-      highTicket?: number
-      isCurrentlyProcessing?: 'yes' | 'no'
-      monthlyVolume?: number
-      terminationExplanation?: string
-      updatedAt?: string | Timestamp
-    }
-  }
-
-  [key: string]: any
+export interface Merchant {
+  id: string;
+  email: string;
+  formData?: FormData;
+  createdAt: any;
+  updatedAt: any;
+  status?: string;
+  pipelineStatus?: MerchantStatus;
+  currentStep?: number;
+  uid?: string;
 }
 
 // Application interface that extends Merchant but with its own status type
