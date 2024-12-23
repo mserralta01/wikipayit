@@ -20,6 +20,7 @@ import { ProtectedRoute } from "./components/auth/ProtectedRoute"
 import { FirebaseAuthDebug } from "./components/admin/debug/FirebaseAuthDebug"
 import { AuthDebug } from "./components/admin/debug/AuthDebug"
 import { LeadDetailView } from "./components/admin/LeadDetailView"
+import TermsPage from "./pages/TermsPage"
 
 // Create a client
 const queryClient = new QueryClient({
