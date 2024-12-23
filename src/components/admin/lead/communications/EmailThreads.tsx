@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
-import { Merchant as PipelineMerchant } from "@/types/merchant"
+import { Merchant, BeneficialOwner } from "@/types/merchant"
 import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
 import { Activity } from "@/types/activity"
@@ -9,7 +9,7 @@ import { EmailEditor } from "./EmailEditor"
 import { merchantCommunication } from "@/services/merchantCommunication"
 
 interface EmailThreadsProps {
-  merchant: PipelineMerchant
+  merchant: Merchant
 }
 
 export function EmailThreads({ merchant }: EmailThreadsProps) {
@@ -66,7 +66,7 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
     }
 
     // Add beneficial owner emails
-    merchant.beneficialOwners?.forEach((owner) => {
+    (merchant.beneficialOwners as BeneficialOwner[] | undefined)?.forEach((owner: BeneficialOwner) => {
       if (owner.email) {
         const ownerName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim()
         options.push({

@@ -17,7 +17,7 @@ import {
   isPipelineLead,
   isPipelineMerchant
 } from '../../types/pipeline'
-import { Lead, Merchant, timestampToString } from '../../types/merchant'
+import { Lead, Merchant, timestampToString, BeneficialOwner } from '../../types/merchant'
 import { Badge } from '../../components/ui/badge'
 import { Progress } from '../../components/ui/progress'
 import { cn } from '../../lib/utils'
@@ -221,7 +221,7 @@ export function Pipeline() {
               phone: m.phone,
               beneficialOwners: m.beneficialOwners
                 ? {
-                    owners: m.beneficialOwners.map(owner => ({
+                    owners: (m.beneficialOwners as BeneficialOwner[]).map((owner: BeneficialOwner) => ({
                       firstName: owner.firstName,
                       lastName: owner.lastName,
                       phone: owner.phone
