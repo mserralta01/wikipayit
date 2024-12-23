@@ -1,55 +1,74 @@
+import { Card } from "@/components/ui/card";
+import { PipelineMerchant } from "@/types/pipeline";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { PipelineMerchant, ServiceMerchant, PipelineStatus } from "@/types/pipeline";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { useNavigate } from "react-router-dom";
 
 interface MerchantCardProps {
-  merchant: PipelineMerchant | (Omit<ServiceMerchant, 'pipelineStatus'> & { pipelineStatus: PipelineStatus });
+  merchant: PipelineMerchant;
 }
 
-export const MerchantCard: React.FC<MerchantCardProps> = ({ merchant }) => {
-  const navigate = useNavigate();
-  const displayName = merchant.formData?.businessName || merchant.businessName || merchant.email;
-
+export function MerchantCard({ merchant }: MerchantCardProps) {
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
-  } = useSortable({ id: merchant.id });
+    isDragging,
+  } = useSortable({
+    id: merchant.id,
+  });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
   };
 
-  const handleClick = (e: React.MouseEvent) => {
-    // Prevent click from interfering with drag operations
-    if (!transform) {
-      navigate(`/admin/pipeline/${merchant.id}`);
-    }
+  // Calculate progress based on current status
+  const statusProgress = {
+    lead: 17,
+    phone: 33,
+    offer: 50,
+    underwriting: 67,
+    documents: 83,
+    approved: 100,
   };
+
+  const progress = statusProgress[merchant.pipelineStatus] || 0;
 
   return (
     <Card
       ref={setNodeRef}
       style={style}
-      className="p-4 cursor-pointer hover:bg-gray-50"
-      onClick={handleClick}
       {...attributes}
       {...listeners}
+      className="p-4 mb-2 cursor-pointer hover:shadow-md transition-shadow"
     >
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-medium">{displayName}</h3>
-          <p className="text-sm text-gray-500">{merchant.email}</p>
-        </div>
-        <Badge>{merchant.pipelineStatus}</Badge>
+      <div className="w-full bg-blue-500 rounded-full h-2 mb-2">
+        <div
+          className="h-full rounded-full bg-white"
+          style={{
+            width: `${100 - progress}%`,
+            marginLeft: 'auto',
+            transition: 'width 0.5s ease-in-out'
+          }}
+        />
       </div>
+      
+      <h3 className="font-medium text-sm">
+        {merchant.businessName || merchant.email}
+      </h3>
+      
+      <div className="text-sm text-gray-500 mt-1">
+        {merchant.email}
+      </div>
+      
+      {merchant.phone && (
+        <div className="text-sm text-gray-500">
+          {merchant.phone}
+        </div>
+      )}
     </Card>
   );
-}; 
+} 

@@ -33,6 +33,7 @@ import {
   orderBy
 } from "firebase/firestore";
 import { MerchantDTO } from "@/types/merchant";
+import { Card } from "@/components/ui/card";
 
 interface LocalColumn {
   id: PipelineStatus;
@@ -308,6 +309,16 @@ export function MerchantPipeline() {
     }
   };
 
+  // Calculate progress based on current status
+  const statusProgress: Record<PipelineStatus, number> = {
+    lead: 17,
+    phone: 33,
+    offer: 50,
+    underwriting: 67,
+    documents: 83,
+    approved: 100,
+  };
+
   return (
     <DndContext
       sensors={sensors}
@@ -318,11 +329,38 @@ export function MerchantPipeline() {
     >
       <div className="flex gap-4 p-4 overflow-x-auto min-h-screen">
         {columns.map((column) => (
-          <PipelineColumnComponent
-            key={column.id}
-            column={column}
-            merchants={getColumnMerchants(column)}
-          />
+          <div key={column.id} className="w-80 flex-shrink-0">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-medium text-sm text-gray-700">
+                  {column.title}
+                </h3>
+                <span className="text-sm text-gray-500">
+                  {column.items.length} items
+                </span>
+              </div>
+              
+              <div className="space-y-2">
+                {column.items.map((merchant) => (
+                  <Card key={merchant.id} className="p-4">
+                    <div className="w-full bg-white rounded-full h-2 mb-2 border border-gray-200">
+                      <div
+                        className="h-full rounded-full bg-blue-500"
+                        style={{
+                          width: `${statusProgress[merchant.pipelineStatus] || 0}%`,
+                          transition: 'width 0.5s ease-in-out'
+                        }}
+                      />
+                    </div>
+                    <h4 className="font-medium text-sm">
+                      {merchant.businessName || merchant.email}
+                    </h4>
+                    {/* Rest of your merchant card content */}
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
         ))}
       </div>
       <DragOverlay>
