@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent } from "react"
+import React, { useState, ChangeEvent, useEffect } from "react"
 import { CommunicationsSection } from "./CommunicationsSection"
 import { PricingSection } from "./PricingSection"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -33,58 +33,104 @@ interface LeadDetailsProps {
 export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const { toast } = useToast()
   const [merchant, setMerchant] = useState(initialMerchant)
-
-  // Type guards for field types
-  const isProcessingHistoryField = (field: string): boolean => field.startsWith('processingHistory.')
-  const isCompanyAddressField = (field: string): boolean => field.startsWith('companyAddress.')
-  const isBankDetailsField = (field: string): boolean => field.startsWith('bankDetails.')
-  const isBeneficialOwnersField = (field: string): boolean => field.startsWith('beneficialOwners.')
-  // Determine collection based on kind
-  const collection = merchant.kind === 'lead' ? 'leads' : 'merchants'
   const [editMode, setEditMode] = useState<{ [key: string]: boolean }>({})
-  const defaultProcessingHistory: ProcessingHistory = {
-    averageTicket: '',
-    cardPresentPercentage: '',
-    currentProcessor: '',
-    ecommercePercentage: '',
-    hasBeenTerminated: 'no',
-    highTicket: '',
-    isCurrentlyProcessing: 'no',
-    monthlyVolume: '',
-    terminationExplanation: ''
-  }
+
+  // Add console log to see initial merchant data
+  console.log('Initial merchant data:', initialMerchant)
+  console.log('Processing History:', initialMerchant.formData?.processingHistory)
 
   const [formData, setFormData] = useState<FormData>(() => {
+    console.log('Initializing form data with beneficial owners:', initialMerchant.formData?.beneficialOwners)
     const initialFormData: FormData = {
-      businessName: merchant.formData?.businessName || merchant.businessName || '',
-      dba: merchant.formData?.dba || '',
-      phone: merchant.formData?.phone || '',
-      businessType: merchant.formData?.businessType || '',
-      taxId: merchant.formData?.taxId || '',
-      businessDescription: merchant.formData?.businessDescription || '',
-      yearEstablished: merchant.formData?.yearEstablished || '',
-      website: merchant.formData?.website || '',
-      customerServiceEmail: merchant.formData?.customerServiceEmail || '',
-      customerServicePhone: merchant.formData?.customerServicePhone || '',
+      businessName: initialMerchant.formData?.businessName || '',
+      dba: initialMerchant.formData?.dba || '',
+      phone: initialMerchant.formData?.phone || '',
+      businessType: initialMerchant.formData?.businessType || '',
+      taxId: initialMerchant.formData?.taxId || '',
+      businessDescription: initialMerchant.formData?.businessDescription || '',
+      yearEstablished: initialMerchant.formData?.yearEstablished || '',
+      website: initialMerchant.formData?.website || '',
+      customerServiceEmail: initialMerchant.formData?.customerServiceEmail || '',
+      customerServicePhone: initialMerchant.formData?.customerServicePhone || '',
       companyAddress: {
-        street: merchant.formData?.companyAddress?.street || '',
-        city: merchant.formData?.companyAddress?.city || '',
-        state: merchant.formData?.companyAddress?.state || '',
-        zipCode: merchant.formData?.companyAddress?.zipCode || '',
+        street: initialMerchant.formData?.companyAddress?.street || '',
+        city: initialMerchant.formData?.companyAddress?.city || '',
+        state: initialMerchant.formData?.companyAddress?.state || '',
+        zipCode: initialMerchant.formData?.companyAddress?.zipCode || '',
       },
       bankDetails: {
-        bankName: merchant.formData?.bankDetails?.bankName || '',
-        routingNumber: merchant.formData?.bankDetails?.routingNumber || '',
-        accountNumber: merchant.formData?.bankDetails?.accountNumber || '',
+        bankName: initialMerchant.formData?.bankName || '',
+        routingNumber: initialMerchant.formData?.routingNumber || '',
+        accountNumber: initialMerchant.formData?.accountNumber || '',
       },
       processingHistory: {
-        ...defaultProcessingHistory,
-        ...(merchant.processingHistory || {}),
+        averageTicket: initialMerchant.formData?.processingHistory?.averageTicket || '',
+        cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage || '',
+        currentProcessor: initialMerchant.formData?.processingHistory?.currentProcessor || '',
+        ecommercePercentage: initialMerchant.formData?.processingHistory?.ecommercePercentage || '',
+        hasBeenTerminated: initialMerchant.formData?.processingHistory?.hasBeenTerminated || 'no',
+        highTicket: initialMerchant.formData?.processingHistory?.highTicket || '',
+        isCurrentlyProcessing: initialMerchant.formData?.processingHistory?.isCurrentlyProcessing || 'no',
+        monthlyVolume: initialMerchant.formData?.processingHistory?.monthlyVolume || '',
+        terminationExplanation: initialMerchant.formData?.processingHistory?.terminationExplanation || ''
       },
-      beneficialOwners: merchant.beneficialOwners || merchant.formData?.beneficialOwners?.owners || []
+      beneficialOwners: {
+        owners: initialMerchant.formData?.beneficialOwners?.owners || []
+      }
     }
+    console.log('Initial form data:', initialFormData)
     return initialFormData
   })
+
+  // Update merchant state when initialMerchant changes
+  useEffect(() => {
+    console.log('useEffect - initialMerchant changed:', initialMerchant)
+    console.log('useEffect - processing history:', initialMerchant.formData?.processingHistory)
+    
+    setMerchant(initialMerchant)
+    setFormData(prev => {
+      const updatedFormData: FormData = {
+        ...prev,
+        processingHistory: {
+          averageTicket: initialMerchant.formData?.processingHistory?.averageTicket?.toString() || '',
+          cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage?.toString() || '',
+          currentProcessor: initialMerchant.formData?.processingHistory?.currentProcessor || '',
+          ecommercePercentage: initialMerchant.formData?.processingHistory?.ecommercePercentage?.toString() || '',
+          hasBeenTerminated: initialMerchant.formData?.processingHistory?.hasBeenTerminated || 'no',
+          highTicket: initialMerchant.formData?.processingHistory?.highTicket?.toString() || '',
+          isCurrentlyProcessing: initialMerchant.formData?.processingHistory?.isCurrentlyProcessing || 'no',
+          monthlyVolume: initialMerchant.formData?.processingHistory?.monthlyVolume?.toString() || '',
+          terminationExplanation: initialMerchant.formData?.processingHistory?.terminationExplanation || ''
+        },
+        bankDetails: {
+          bankName: initialMerchant.formData?.bankName || '',
+          routingNumber: initialMerchant.formData?.routingNumber || '',
+          accountNumber: initialMerchant.formData?.accountNumber || ''
+        },
+        beneficialOwners: {
+          owners: initialMerchant.formData?.beneficialOwners?.owners || []
+        },
+        businessName: initialMerchant.formData?.businessName || '',
+        dba: initialMerchant.formData?.dba || '',
+        phone: initialMerchant.formData?.phone || '',
+        businessType: initialMerchant.formData?.businessType || '',
+        taxId: initialMerchant.formData?.taxId || '',
+        businessDescription: initialMerchant.formData?.businessDescription || '',
+        yearEstablished: initialMerchant.formData?.yearEstablished || '',
+        website: initialMerchant.formData?.website || '',
+        customerServiceEmail: initialMerchant.formData?.customerServiceEmail || '',
+        customerServicePhone: initialMerchant.formData?.customerServicePhone || '',
+        companyAddress: {
+          street: initialMerchant.formData?.companyAddress?.street || '',
+          city: initialMerchant.formData?.companyAddress?.city || '',
+          state: initialMerchant.formData?.companyAddress?.state || '',
+          zipCode: initialMerchant.formData?.companyAddress?.zipCode || ''
+        }
+      }
+      console.log('Updated form data:', updatedFormData)
+      return updatedFormData
+    })
+  }, [initialMerchant])
 
   const toggleEdit = (field: string): void => {
     setEditMode(prev => ({ ...prev, [field]: !prev[field] }))
@@ -93,33 +139,11 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const handleInputChange = (field: string, value: string | number): void => {
     if (field.startsWith('processingHistory.')) {
       const historyField = field.split('.')[1] as keyof ProcessingHistory
-      setFormData(prev => {
-        const processingHistory: ProcessingHistory = prev.processingHistory || {
-          averageTicket: '',
-          cardPresentPercentage: '',
-          currentProcessor: '',
-          ecommercePercentage: '',
-          hasBeenTerminated: 'no',
-          highTicket: '',
-          isCurrentlyProcessing: 'no',
-          monthlyVolume: '',
-          terminationExplanation: ''
-        }
-        return {
-          ...prev,
-          processingHistory: {
-            ...processingHistory,
-            [historyField]: value
-          }
-        }
-      })
-    } else if (field.startsWith('companyAddress.')) {
-      const addressField = field.split('.')[1]
       setFormData(prev => ({
         ...prev,
-        companyAddress: {
-          ...prev.companyAddress,
-          [addressField]: value
+        processingHistory: {
+          ...prev.processingHistory,
+          [historyField]: value
         }
       }))
     } else if (field.startsWith('bankDetails.')) {
@@ -131,9 +155,15 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
           [bankField]: value
         }
       }))
-    } else if (field.startsWith('beneficialOwners.')) {
-      // Handled directly in the component
-      return
+    } else if (field.startsWith('companyAddress.')) {
+      const addressField = field.split('.')[1]
+      setFormData(prev => ({
+        ...prev,
+        companyAddress: {
+          ...prev.companyAddress,
+          [addressField]: value
+        }
+      }))
     } else {
       setFormData(prev => ({
         ...prev,
@@ -145,169 +175,76 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const handleSave = async (field: string) => {
     try {
       let updateData: Record<string, any> = {}
-      let localUpdateData: Record<string, any> = {}
 
-      if (isProcessingHistoryField(field)) {
+      if (field.startsWith('processingHistory.')) {
         const historyField = field.split('.')[1] as keyof ProcessingHistory
-        const processingHistory: ProcessingHistory = formData.processingHistory || {
-          averageTicket: '',
-          cardPresentPercentage: '',
-          currentProcessor: '',
-          ecommercePercentage: '',
-          hasBeenTerminated: 'no',
-          highTicket: '',
-          isCurrentlyProcessing: 'no',
-          monthlyVolume: '',
-          terminationExplanation: ''
+        let value = formData.processingHistory?.[historyField]
+        
+        // Convert string values to numbers where needed
+        if (['averageTicket', 'cardPresentPercentage', 'ecommercePercentage', 'highTicket', 'monthlyVolume'].includes(historyField)) {
+          value = Number(value)
         }
-        const value = processingHistory[historyField]
-
+        
         updateData = {
-          [`processingHistory.${historyField}`]: value ?? '',
+          [`formData.processingHistory.${historyField}`]: value,
           updatedAt: Timestamp.fromDate(new Date())
         }
-
-        // Update Firestore
-        await updateDoc(doc(db, collection, merchant.id), updateData)
-
-        // Update local merchant state with type safety
-        setMerchant((prev) => {
-          const updatedMerchant = { ...prev }
-          if (!updatedMerchant.processingHistory) {
-            updatedMerchant.processingHistory = {} as ProcessingHistory
-          }
-          updatedMerchant.processingHistory = {
-            ...updatedMerchant.processingHistory,
-            [historyField]: value,
-            updatedAt: Timestamp.fromDate(new Date())
-          }
-          return updatedMerchant
-        })
-
-        setEditMode(prev => ({ ...prev, [field]: false }))
-        toast({
-          title: "Success",
-          description: "Field updated successfully.",
-        })
-        return
-      }
-
-      // Handle other fields
-      if (isCompanyAddressField(field)) {
-        const addressField = field.split('.')[1] as keyof typeof formData.companyAddress
+      } else if (field.startsWith('bankDetails.')) {
+        const bankField = field.split('.')[1]
+        const fieldName = bankField === 'bankName' ? 'bankName' :
+                         bankField === 'routingNumber' ? 'routingNumber' :
+                         'accountNumber'
         updateData = {
-          [`formData.companyAddress.${addressField}`]: formData.companyAddress[addressField]
+          [`formData.${fieldName}`]: formData.bankDetails[bankField as keyof typeof formData.bankDetails],
+          updatedAt: Timestamp.fromDate(new Date())
         }
-        localUpdateData = {
-          companyAddress: {
-            ...formData.companyAddress
-          }
-        }
-      } else if (isBankDetailsField(field)) {
-        const bankField = field.split('.')[1] as keyof typeof formData.bankDetails
+      } else if (field.startsWith('companyAddress.')) {
+        const addressField = field.split('.')[1]
         updateData = {
-          [`formData.bankDetails.${bankField}`]: formData.bankDetails[bankField]
+          [`formData.companyAddress.${addressField}`]: formData.companyAddress[addressField as keyof typeof formData.companyAddress],
+          updatedAt: Timestamp.fromDate(new Date())
         }
-        localUpdateData = {
-          bankDetails: {
-            ...formData.bankDetails
-          }
-        }
-      } else if (isBeneficialOwnersField(field)) {
-        const [, index, subfield] = field.split('.')
-        const owners = [...formData.beneficialOwners].map((owner): BeneficialOwner => ({
-          firstName: owner.firstName,
-          lastName: owner.lastName,
-          phone: owner.phone || '',
-          email: owner.email || '',
-          title: owner.title || '',
-          ownershipPercentage: owner.ownershipPercentage || '0',
-          dateOfBirth: owner.dateOfBirth || '',
-          ssn: owner.ssn || '',
-          address: owner.address || '',
-          city: owner.city || '',
-          state: owner.state || '',
-          zipCode: owner.zipCode || ''
-        }))
+      } else if (field.startsWith('beneficialOwners.')) {
+        const [_, index, ownerField] = field.split('.')
         updateData = {
-          beneficialOwners: owners
-        }
-        localUpdateData = {
-          beneficialOwners: owners
+          'formData.beneficialOwners': formData.beneficialOwners,
+          updatedAt: Timestamp.fromDate(new Date())
         }
       } else {
         updateData = {
-          [`formData.${field}`]: formData[field as keyof typeof formData]
-        }
-        localUpdateData = {
-          [field]: formData[field as keyof typeof formData]
+          [`formData.${field}`]: formData[field as keyof typeof formData],
+          updatedAt: Timestamp.fromDate(new Date())
         }
       }
 
       // Update document
       const collectionPath = merchant.kind === 'lead' ? 'leads' : 'merchants'
-      await updateDoc(doc(db, collectionPath, merchant.id), {
-        ...updateData,
-        updatedAt: Timestamp.fromDate(new Date())
-      })
+      console.log('Updating document with data:', updateData)
+      await updateDoc(doc(db, collectionPath, merchant.id), updateData)
 
-      // Update local merchant state
-      setMerchant(prev => {
-        const updatedMerchant = { ...prev }
-        const newFormData = updatedMerchant.formData ? { ...updatedMerchant.formData } : {}
-
-        if (isCompanyAddressField(field)) {
-          const addressField = field.split('.')[1] as keyof typeof formData.companyAddress
-          newFormData.companyAddress = {
-            ...(newFormData.companyAddress || {}),
-            [addressField]: formData.companyAddress[addressField]
-          }
-        } else if (isBankDetailsField(field)) {
-          const bankField = field.split('.')[1] as keyof typeof formData.bankDetails
-          newFormData.bankDetails = {
-            ...(newFormData.bankDetails || {
-              bankName: '',
-              routingNumber: '',
-              accountNumber: '',
-              confirmAccountNumber: ''
-            }),
-            [bankField]: formData.bankDetails[bankField]
-          }
-        } else if (isBeneficialOwnersField(field)) {
-          updatedMerchant.beneficialOwners = formData.beneficialOwners.map((owner): BeneficialOwner => ({
-            firstName: owner.firstName,
-            lastName: owner.lastName,
-            phone: owner.phone || '',
-            email: owner.email || '',
-            title: owner.title || '',
-            ownershipPercentage: owner.ownershipPercentage || '0',
-            dateOfBirth: owner.dateOfBirth || '',
-            ssn: owner.ssn || '',
-            address: owner.address || '',
-            city: owner.city || '',
-            state: owner.state || '',
-            zipCode: owner.zipCode || ''
-          }))
-        } else {
-          if (field in formData) {
-            const value = formData[field as keyof typeof formData]
-            if (value !== undefined) {
-              (newFormData as any)[field] = value
+      // Update local merchant state with proper type assertions
+      setMerchant(prev => ({
+        ...prev,
+        formData: {
+          ...prev.formData,
+          ...Object.keys(updateData).reduce((acc, key) => {
+            if (key === 'updatedAt') return acc
+            const value = updateData[key]
+            const path = key.split('.')
+            if (path[0] === 'formData') {
+              path.shift() // Remove 'formData'
+              let current = acc as Record<string, any>
+              for (let i = 0; i < path.length - 1; i++) {
+                current[path[i]] = current[path[i]] || {}
+                current = current[path[i]] as Record<string, any>
+              }
+              current[path[path.length - 1]] = value
             }
-          }
-        }
-
-        const updatedFormData = {
-          ...updatedMerchant.formData,
-          ...newFormData
-        }
-
-        return {
-          ...updatedMerchant,
-          formData: updatedFormData,
-          updatedAt: Timestamp.fromDate(new Date())
-        }
-      })
+            return acc
+          }, { ...prev.formData })
+        },
+        updatedAt: Timestamp.fromDate(new Date())
+      }))
 
       setEditMode(prev => ({ ...prev, [field]: false }))
       toast({
@@ -364,6 +301,17 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
         variant: "destructive",
       })
     }
+  }
+
+  const handleBeneficialOwnerChange = (index: number, field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      beneficialOwners: {
+        owners: prev.beneficialOwners.owners.map((owner, i) => 
+          i === index ? { ...owner, [field]: value } : owner
+        )
+      }
+    }))
   }
 
   return (
@@ -626,6 +574,8 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                           value={formData.companyAddress.state}
                           onChange={(e) => handleInputChange('companyAddress.state', e.target.value)}
                           className="flex-1"
+                          maxLength={2}
+                          placeholder="FL"
                         />
                         <Button
                           size="icon"
@@ -664,6 +614,8 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                           value={formData.companyAddress.zipCode}
                           onChange={(e) => handleInputChange('companyAddress.zipCode', e.target.value)}
                           className="flex-1"
+                          pattern="\d{5}(-\d{4})?"
+                          placeholder="12345"
                         />
                         <Button
                           size="icon"
@@ -841,10 +793,11 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     {editMode['processingHistory.averageTicket'] ? (
                       <>
                         <Input
-                          type="number"
-                          value={formData.processingHistory.averageTicket}
+                          value={formData.processingHistory?.averageTicket ?? ''}
                           onChange={(e) => handleInputChange('processingHistory.averageTicket', e.target.value)}
                           className="flex-1"
+                          type="number"
+                          min="0"
                         />
                         <Button
                           size="icon"
@@ -864,7 +817,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       <>
                         <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.averageTicket}
+                          ${merchant.formData?.processingHistory?.averageTicket || 'Not set'}
                         </div>
                         <Button
                           size="icon"
@@ -884,10 +837,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     {editMode['processingHistory.cardPresentPercentage'] ? (
                       <>
                         <Input
-                          type="number"
-                          value={formData.processingHistory.cardPresentPercentage}
+                          value={formData.processingHistory?.cardPresentPercentage ?? ''}
                           onChange={(e) => handleInputChange('processingHistory.cardPresentPercentage', e.target.value)}
                           className="flex-1"
+                          type="number"
+                          min="0"
+                          max="100"
                         />
                         <Button
                           size="icon"
@@ -907,7 +862,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       <>
                         <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.cardPresentPercentage}%
+                          {merchant.formData?.processingHistory?.cardPresentPercentage || 'Not set'}%
                         </div>
                         <Button
                           size="icon"
@@ -927,7 +882,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     {editMode['processingHistory.currentProcessor'] ? (
                       <>
                         <Input
-                          value={formData.processingHistory.currentProcessor}
+                          value={formData.processingHistory?.currentProcessor ?? ''}
                           onChange={(e) => handleInputChange('processingHistory.currentProcessor', e.target.value)}
                           className="flex-1"
                         />
@@ -949,7 +904,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       <>
                         <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.currentProcessor}
+                          {merchant.formData?.processingHistory?.currentProcessor || 'Not set'}
                         </div>
                         <Button
                           size="icon"
@@ -964,15 +919,17 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label className="font-medium">Ecommerce Percentage</Label>
+                  <Label className="font-medium">E-commerce Percentage</Label>
                   <div className="flex items-center gap-2">
                     {editMode['processingHistory.ecommercePercentage'] ? (
                       <>
                         <Input
-                          type="number"
-                          value={formData.processingHistory.ecommercePercentage}
+                          value={formData.processingHistory?.ecommercePercentage ?? ''}
                           onChange={(e) => handleInputChange('processingHistory.ecommercePercentage', e.target.value)}
                           className="flex-1"
+                          type="number"
+                          min="0"
+                          max="100"
                         />
                         <Button
                           size="icon"
@@ -992,7 +949,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       <>
                         <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.ecommercePercentage}%
+                          {merchant.formData?.processingHistory?.ecommercePercentage || 'Not set'}%
                         </div>
                         <Button
                           size="icon"
@@ -1007,108 +964,16 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 </div>
 
                 <div className="grid gap-2">
-                  <Label className="font-medium">Has Been Terminated</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.hasBeenTerminated'] ? (
-                      <>
-                        <Select
-                          value={formData.processingHistory.hasBeenTerminated}
-                          onValueChange={(value) => handleInputChange('processingHistory.hasBeenTerminated', value)}
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="yes">Yes</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.hasBeenTerminated')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.hasBeenTerminated}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">High Ticket</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.highTicket'] ? (
-                      <>
-                        <Input
-                          type="number"
-                          value={formData.processingHistory.highTicket}
-                          onChange={(e) => handleInputChange('processingHistory.highTicket', e.target.value)}
-                          className="flex-1"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.highTicket')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.highTicket')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.highTicket}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.highTicket')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
                   <Label className="font-medium">Is Currently Processing</Label>
                   <div className="flex items-center gap-2">
                     {editMode['processingHistory.isCurrentlyProcessing'] ? (
                       <>
                         <Select
-                          value={formData.processingHistory.isCurrentlyProcessing}
+                          defaultValue={formData.processingHistory?.isCurrentlyProcessing ?? 'no'}
                           onValueChange={(value) => handleInputChange('processingHistory.isCurrentlyProcessing', value)}
                         >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue />
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="yes">Yes</SelectItem>
@@ -1133,7 +998,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       <>
                         <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.isCurrentlyProcessing}
+                          {merchant.formData?.processingHistory?.isCurrentlyProcessing || 'Not set'}
                         </div>
                         <Button
                           size="icon"
@@ -1148,15 +1013,153 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 </div>
 
                 <div className="grid gap-2">
+                  <Label className="font-medium">Has Been Terminated</Label>
+                  <div className="flex items-center gap-2">
+                    {editMode['processingHistory.hasBeenTerminated'] ? (
+                      <>
+                        <Select
+                          defaultValue={formData.processingHistory?.hasBeenTerminated ?? 'no'}
+                          onValueChange={(value) => handleInputChange('processingHistory.hasBeenTerminated', value)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="yes">Yes</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSave('processingHistory.hasBeenTerminated')}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm text-gray-700 flex-1">
+                          {merchant.formData?.processingHistory?.hasBeenTerminated || 'Not set'}
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {(formData.processingHistory?.hasBeenTerminated === 'yes' || merchant.formData?.processingHistory?.hasBeenTerminated === 'yes') && (
+                  <div className="grid gap-2">
+                    <Label className="font-medium">Termination Explanation</Label>
+                    <div className="flex items-center gap-2">
+                      {editMode['processingHistory.terminationExplanation'] ? (
+                        <>
+                          <Textarea
+                            value={formData.processingHistory?.terminationExplanation ?? ''}
+                            onChange={(e) => handleInputChange('processingHistory.terminationExplanation', e.target.value)}
+                            className="flex-1"
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => handleSave('processingHistory.terminationExplanation')}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => toggleEdit('processingHistory.terminationExplanation')}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm text-gray-700 flex-1">
+                            {merchant.formData?.processingHistory?.terminationExplanation || 'Not set'}
+                          </div>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => toggleEdit('processingHistory.terminationExplanation')}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid gap-2">
+                  <Label className="font-medium">High Ticket</Label>
+                  <div className="flex items-center gap-2">
+                    {editMode['processingHistory.highTicket'] ? (
+                      <>
+                        <Input
+                          value={formData.processingHistory?.highTicket ?? ''}
+                          onChange={(e) => handleInputChange('processingHistory.highTicket', e.target.value)}
+                          className="flex-1"
+                          type="number"
+                          min="0"
+                        />
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleSave('processingHistory.highTicket')}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('processingHistory.highTicket')}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="text-sm text-gray-700 flex-1">
+                          ${merchant.formData?.processingHistory?.highTicket || 'Not set'}
+                        </div>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => toggleEdit('processingHistory.highTicket')}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-2">
                   <Label className="font-medium">Monthly Volume</Label>
                   <div className="flex items-center gap-2">
                     {editMode['processingHistory.monthlyVolume'] ? (
                       <>
                         <Input
-                          type="number"
-                          value={formData.processingHistory.monthlyVolume}
+                          value={formData.processingHistory?.monthlyVolume ?? ''}
                           onChange={(e) => handleInputChange('processingHistory.monthlyVolume', e.target.value)}
                           className="flex-1"
+                          type="number"
+                          min="0"
                         />
                         <Button
                           size="icon"
@@ -1176,54 +1179,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       <>
                         <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.monthlyVolume}
+                          ${merchant.formData?.processingHistory?.monthlyVolume || 'Not set'}
                         </div>
                         <Button
                           size="icon"
                           variant="ghost"
                           onClick={() => toggleEdit('processingHistory.monthlyVolume')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Termination Explanation</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.terminationExplanation'] ? (
-                      <>
-                        <Textarea
-                          value={formData.processingHistory.terminationExplanation}
-                          onChange={(e) => handleInputChange('processingHistory.terminationExplanation', e.target.value)}
-                          className="flex-1"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.terminationExplanation')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.terminationExplanation')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.terminationExplanation}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.terminationExplanation')}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -1357,7 +1318,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       <>
                         <div className="text-sm text-gray-700 flex-1">
-                          {merchant.formData?.bankDetails?.bankName}
+                          {merchant.formData?.bankName || 'Not set'}
                         </div>
                         <Button
                           size="icon"
@@ -1400,7 +1361,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       <>
                         <div className="text-sm text-gray-700 flex-1">
-                          {merchant.formData?.bankDetails?.routingNumber}
+                          {merchant.formData?.routingNumber || 'Not set'}
                         </div>
                         <Button
                           size="icon"
@@ -1443,7 +1404,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       <>
                         <div className="text-sm text-gray-700 flex-1">
-                          {merchant.formData?.bankDetails?.accountNumber ? '••••••••' : ''}
+                          {merchant.formData?.accountNumber ? '•••••••' : 'Not set'}
                         </div>
                         <Button
                           size="icon"
@@ -1464,579 +1425,564 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
             <AccordionTrigger>Beneficial Owners</AccordionTrigger>
             <AccordionContent>
               <div className="space-y-4">
-                {formData.beneficialOwners.map((owner, index) => (
-                  <div key={index} className="p-4 border rounded-lg space-y-2">
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Owner {index + 1}</Label>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-sm">First Name</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.firstName`] ? (
-                              <>
-                                <Input
-                                  value={owner.firstName}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, firstName: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.firstName`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.firstName`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.firstName}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.firstName`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                {formData.beneficialOwners?.owners?.length === 0 ? (
+                  <div className="text-sm text-gray-500">No beneficial owners added</div>
+                ) : (
+                  formData.beneficialOwners?.owners?.map((owner, index) => (
+                    <div key={index} className="p-4 border rounded-lg space-y-2">
+                      <div className="grid gap-2">
+                        <Label className="font-medium">Owner {index + 1}</Label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <Label className="text-sm">First Name</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.firstName`] ? (
+                                <>
+                                  <Input
+                                    value={owner.firstName}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'firstName', e.target.value)}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.firstName`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.firstName`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.firstName}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.firstName`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <Label className="text-sm">Last Name</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.lastName`] ? (
-                              <>
-                                <Input
-                                  value={owner.lastName}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, lastName: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.lastName`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.lastName`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.lastName}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.lastName`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">Last Name</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.lastName`] ? (
+                                <>
+                                  <Input
+                                    value={owner.lastName}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'lastName', e.target.value)}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.lastName`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.lastName`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.lastName}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.lastName`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">Title</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.title`] ? (
-                              <>
-                                <Input
-                                  value={owner.title}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, title: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.title`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.title`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.title}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.title`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">Title</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.title`] ? (
+                                <>
+                                  <Input
+                                    value={owner.title}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'title', e.target.value)}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.title`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.title`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.title}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.title`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">Date of Birth</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.dateOfBirth`] ? (
-                              <>
-                                <Input
-                                  type="date"
-                                  value={owner.dateOfBirth}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, dateOfBirth: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.dateOfBirth`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.dateOfBirth`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.dateOfBirth}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.dateOfBirth`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">Date of Birth</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.dateOfBirth`] ? (
+                                <>
+                                  <Input
+                                    type="date"
+                                    value={owner.dateOfBirth}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'dateOfBirth', e.target.value)}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.dateOfBirth`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.dateOfBirth`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.dateOfBirth}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.dateOfBirth`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">SSN</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.ssn`] ? (
-                              <>
-                                <Input
-                                  type="password"
-                                  value={owner.ssn}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, ssn: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                  pattern="\d{3}-\d{2}-\d{4}"
-                                  placeholder="XXX-XX-XXXX"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.ssn`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.ssn`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.ssn ? "XXX-XX-" + owner.ssn.slice(-4) : ""}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.ssn`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">SSN</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.ssn`] ? (
+                                <>
+                                  <Input
+                                    type="password"
+                                    value={owner.ssn}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'ssn', e.target.value)}
+                                    className="flex-1"
+                                    pattern="\d{3}-\d{2}-\d{4}"
+                                    placeholder="XXX-XX-XXXX"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.ssn`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.ssn`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.ssn ? "XXX-XX-" + owner.ssn.slice(-4) : ""}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.ssn`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">Address</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.address`] ? (
-                              <>
-                                <Input
-                                  value={owner.address}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, address: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.address`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.address`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.address}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.address`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">Address</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.address`] ? (
+                                <>
+                                  <Input
+                                    value={owner.address}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'address', e.target.value)}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.address`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.address`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.address}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.address`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">City</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.city`] ? (
-                              <>
-                                <Input
-                                  value={owner.city}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, city: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.city`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.city`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.city}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.city`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">City</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.city`] ? (
+                                <>
+                                  <Input
+                                    value={owner.city}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'city', e.target.value)}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.city`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.city`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.city}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.city`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">State</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.state`] ? (
-                              <>
-                                <Input
-                                  value={owner.state}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, state: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                  maxLength={2}
-                                  placeholder="FL"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.state`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.state`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.state}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.state`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">State</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.state`] ? (
+                                <>
+                                  <Input
+                                    value={owner.state}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'state', e.target.value)}
+                                    className="flex-1"
+                                    maxLength={2}
+                                    placeholder="FL"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.state`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.state`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.state}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.state`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">ZIP Code</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.zipCode`] ? (
-                              <>
-                                <Input
-                                  value={owner.zipCode}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, zipCode: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                  pattern="\d{5}(-\d{4})?"
-                                  placeholder="12345"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.zipCode`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.zipCode`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.zipCode}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.zipCode`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">ZIP Code</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.zipCode`] ? (
+                                <>
+                                  <Input
+                                    value={owner.zipCode}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'zipCode', e.target.value)}
+                                    className="flex-1"
+                                    pattern="\d{5}(-\d{4})?"
+                                    placeholder="12345"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.zipCode`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.zipCode`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.zipCode}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.zipCode`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">Phone</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.phone`] ? (
-                              <>
-                                <Input
-                                  type="tel"
-                                  value={owner.phone}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, phone: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                  placeholder="(123) 456-7890"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.phone`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.phone`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.phone}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.phone`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">Phone</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.phone`] ? (
+                                <>
+                                  <Input
+                                    type="tel"
+                                    value={owner.phone}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'phone', e.target.value)}
+                                    className="flex-1"
+                                    placeholder="(123) 456-7890"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.phone`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.phone`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.phone}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.phone`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">Email</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.email`] ? (
-                              <>
-                                <Input
-                                  type="email"
-                                  value={owner.email}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, email: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.email`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.email`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.email}
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.email`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">Email</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.email`] ? (
+                                <>
+                                  <Input
+                                    type="email"
+                                    value={owner.email}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'email', e.target.value)}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.email`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.email`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.email}
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.email`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
 
-                        <div>
-                          <Label className="text-sm">Ownership Percentage</Label>
-                          <div className="flex items-center gap-2">
-                            {editMode[`beneficialOwners.${index}.ownershipPercentage`] ? (
-                              <>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  value={owner.ownershipPercentage}
-                                  onChange={(e) => {
-                                    const newOwners = [...formData.beneficialOwners];
-                                    newOwners[index] = { ...owner, ownershipPercentage: e.target.value };
-                                    setFormData(prev => ({ ...prev, beneficialOwners: newOwners }));
-                                  }}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => handleSave(`beneficialOwners.${index}.ownershipPercentage`)}
-                                >
-                                  <Check className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.ownershipPercentage`)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-sm text-gray-700 flex-1">
-                                  {owner.ownershipPercentage}%
-                                </div>
-                                <Button
-                                  size="icon"
-                                  variant="ghost"
-                                  onClick={() => toggleEdit(`beneficialOwners.${index}.ownershipPercentage`)}
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
+                          <div>
+                            <Label className="text-sm">Ownership Percentage</Label>
+                            <div className="flex items-center gap-2">
+                              {editMode[`beneficialOwners.${index}.ownershipPercentage`] ? (
+                                <>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={owner.ownershipPercentage}
+                                    onChange={(e) => handleBeneficialOwnerChange(index, 'ownershipPercentage', e.target.value)}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => handleSave(`beneficialOwners.${index}.ownershipPercentage`)}
+                                  >
+                                    <Check className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.ownershipPercentage`)}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-sm text-gray-700 flex-1">
+                                    {owner.ownershipPercentage}%
+                                  </div>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    onClick={() => toggleEdit(`beneficialOwners.${index}.ownershipPercentage`)}
+                                  >
+                                    <Pencil className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
+                <Button
+                  onClick={() => {
+                    setFormData(prev => ({
+                      ...prev,
+                      beneficialOwners: {
+                        owners: [
+                          ...(prev.beneficialOwners?.owners || []),
+                          {
+                            firstName: '',
+                            lastName: '',
+                            title: '',
+                            dateOfBirth: '',
+                            ssn: '',
+                            address: '',
+                            city: '',
+                            state: '',
+                            zipCode: '',
+                            phone: '',
+                            email: '',
+                            ownershipPercentage: ''
+                          }
+                        ]
+                      }
+                    }))
+                  }}
+                  className="w-full"
+                >
+                  Add Beneficial Owner
+                </Button>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -2122,844 +2068,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                           size="icon"
                           variant="ghost"
                           onClick={() => toggleEdit('customerServicePhone')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="processingHistory">
-            <AccordionTrigger>Processing History</AccordionTrigger>
-            <AccordionContent>
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label className="font-medium">Average Ticket</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.averageTicket'] ? (
-                      <>
-                        <Input
-                          value={formData.processingHistory?.averageTicket ?? ''}
-                          onChange={(e) => handleInputChange('processingHistory.averageTicket', e.target.value)}
-                          className="flex-1"
-                          type="number"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.averageTicket')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.averageTicket')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.averageTicket}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.averageTicket')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Card Present Percentage</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.cardPresentPercentage'] ? (
-                      <>
-                        <Input
-                          value={formData.processingHistory.cardPresentPercentage}
-                          onChange={(e) => handleInputChange('processingHistory.cardPresentPercentage', e.target.value)}
-                          className="flex-1"
-                          type="number"
-                          min="0"
-                          max="100"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.cardPresentPercentage')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.cardPresentPercentage')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.cardPresentPercentage}%
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.cardPresentPercentage')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Current Processor</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.currentProcessor'] ? (
-                      <>
-                        <Input
-                          value={formData.processingHistory.currentProcessor}
-                          onChange={(e) => handleInputChange('processingHistory.currentProcessor', e.target.value)}
-                          className="flex-1"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.currentProcessor')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.currentProcessor')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.currentProcessor}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.currentProcessor')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">E-commerce Percentage</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.ecommercePercentage'] ? (
-                      <>
-                        <Input
-                          value={formData.processingHistory.ecommercePercentage}
-                          onChange={(e) => handleInputChange('processingHistory.ecommercePercentage', e.target.value)}
-                          className="flex-1"
-                          type="number"
-                          min="0"
-                          max="100"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.ecommercePercentage')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.ecommercePercentage')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.ecommercePercentage}%
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.ecommercePercentage')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Has Been Terminated</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.hasBeenTerminated'] ? (
-                      <>
-                        <Select
-                          defaultValue={formData.processingHistory.hasBeenTerminated}
-                          onValueChange={(value) => handleInputChange('processingHistory.hasBeenTerminated', value)}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="yes">Yes</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.hasBeenTerminated')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.hasBeenTerminated}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {formData.processingHistory.hasBeenTerminated === 'yes' && (
-                  <div className="grid gap-2">
-                    <Label className="font-medium">Termination Explanation</Label>
-                    <div className="flex items-center gap-2">
-                      {editMode['processingHistory.terminationExplanation'] ? (
-                        <>
-                          <Input
-                            value={formData.processingHistory.terminationExplanation}
-                            onChange={(e) => handleInputChange('processingHistory.terminationExplanation', e.target.value)}
-                            className="flex-1"
-                          />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleSave('processingHistory.terminationExplanation')}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => toggleEdit('processingHistory.terminationExplanation')}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-sm text-gray-700 flex-1">
-                            {merchant.processingHistory?.terminationExplanation}
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => toggleEdit('processingHistory.terminationExplanation')}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">High Ticket</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.highTicket'] ? (
-                      <>
-                        <Input
-                          value={formData.processingHistory.highTicket}
-                          onChange={(e) => handleInputChange('processingHistory.highTicket', e.target.value)}
-                          className="flex-1"
-                          type="number"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.highTicket')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.highTicket')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.highTicket}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.highTicket')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Currently Processing</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.isCurrentlyProcessing'] ? (
-                      <>
-                        <Select
-                          defaultValue={formData.processingHistory.isCurrentlyProcessing}
-                          onValueChange={(value) => handleInputChange('processingHistory.isCurrentlyProcessing', value)}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="yes">Yes</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.isCurrentlyProcessing')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.isCurrentlyProcessing')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.isCurrentlyProcessing}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.isCurrentlyProcessing')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Monthly Volume</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.monthlyVolume'] ? (
-                      <>
-                        <Input
-                          value={formData.processingHistory.monthlyVolume}
-                          onChange={(e) => handleInputChange('processingHistory.monthlyVolume', e.target.value)}
-                          className="flex-1"
-                          type="number"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.monthlyVolume')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.monthlyVolume')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.monthlyVolume}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.monthlyVolume')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="processingHistory">
-            <AccordionTrigger>Processing History</AccordionTrigger>
-            <AccordionContent>
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label className="font-medium">Average Ticket</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.averageTicket'] ? (
-                      <>
-                        <Input
-                          type="number"
-                          value={formData.processingHistory.averageTicket}
-                          onChange={(e) =>
-                            handleInputChange('processingHistory.averageTicket', e.target.value)
-                          }
-                          className="flex-1"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('averageTicket')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('averageTicket')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.averageTicket || 'Not set'}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('averageTicket')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Card Present Percentage</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode.cardPresentPercentage ? (
-                      <>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={formData.processingHistory.cardPresentPercentage}
-                          onChange={(e) =>
-                            handleInputChange('processingHistory.cardPresentPercentage', e.target.value)
-                          }
-                          className="flex-1"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('cardPresentPercentage')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('cardPresentPercentage')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.cardPresentPercentage || 'Not set'}%
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('cardPresentPercentage')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Current Processor</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode.currentProcessor ? (
-                      <>
-                        <Input
-                          value={formData.processingHistory.currentProcessor}
-                          onChange={(e) =>
-                            handleInputChange('processingHistory.currentProcessor', e.target.value)
-                          }
-                          className="flex-1"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('currentProcessor')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('currentProcessor')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.currentProcessor || 'Not set'}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('currentProcessor')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Ecommerce Percentage</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode.ecommercePercentage ? (
-                      <>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={formData.processingHistory.ecommercePercentage}
-                          onChange={(e) =>
-                            handleInputChange('processingHistory.ecommercePercentage', e.target.value)
-                          }
-                          className="flex-1"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('ecommercePercentage')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('ecommercePercentage')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.ecommercePercentage || 'Not set'}%
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('ecommercePercentage')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Currently Processing?</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.isCurrentlyProcessing'] ? (
-                      <>
-                        <Select
-                          value={formData.processingHistory?.isCurrentlyProcessing ?? 'no'}
-                          onValueChange={(value) =>
-                            handleInputChange('processingHistory.isCurrentlyProcessing', value)
-                          }
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Select..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="yes">Yes</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.isCurrentlyProcessing')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.isCurrentlyProcessing')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.isCurrentlyProcessing || 'Not set'}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('isCurrentlyProcessing')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Has Been Terminated?</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode['processingHistory.hasBeenTerminated'] ? (
-                      <>
-                        <Select
-                          value={formData.processingHistory?.hasBeenTerminated ?? 'no'}
-                          onValueChange={(value) =>
-                            handleInputChange('processingHistory.hasBeenTerminated', value)
-                          }
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Select..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="yes">Yes</SelectItem>
-                            <SelectItem value="no">No</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('processingHistory.hasBeenTerminated')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.hasBeenTerminated || 'Not set'}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {formData.processingHistory?.hasBeenTerminated === 'yes' && (
-                  <div className="grid gap-2">
-                    <Label className="font-medium">Termination Explanation</Label>
-                    <div className="flex items-center gap-2">
-                      {editMode.terminationExplanation ? (
-                        <>
-                          <Textarea
-                            value={formData.processingHistory.terminationExplanation}
-                            onChange={(e) =>
-                              handleInputChange('processingHistory.terminationExplanation', e.target.value)
-                            }
-                            className="flex-1"
-                          />
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => handleSave('terminationExplanation')}
-                          >
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => toggleEdit('terminationExplanation')}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-sm text-gray-700 flex-1">
-                            {merchant.processingHistory?.terminationExplanation || 'Not set'}
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => toggleEdit('terminationExplanation')}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">High Ticket</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode.highTicket ? (
-                      <>
-                        <Input
-                          type="number"
-                          value={formData.processingHistory.highTicket}
-                          onChange={(e) =>
-                            handleInputChange('processingHistory.highTicket', e.target.value)
-                          }
-                          className="flex-1"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('highTicket')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('highTicket')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.highTicket || 'Not set'}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('highTicket')}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label className="font-medium">Monthly Volume</Label>
-                  <div className="flex items-center gap-2">
-                    {editMode.monthlyVolume ? (
-                      <>
-                        <Input
-                          type="number"
-                          value={formData.processingHistory.monthlyVolume}
-                          onChange={(e) =>
-                            handleInputChange('processingHistory.monthlyVolume', e.target.value)
-                          }
-                          className="flex-1"
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleSave('monthlyVolume')}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('monthlyVolume')}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-sm text-gray-700 flex-1">
-                          {merchant.processingHistory?.monthlyVolume || 'Not set'}
-                        </div>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => toggleEdit('monthlyVolume')}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
