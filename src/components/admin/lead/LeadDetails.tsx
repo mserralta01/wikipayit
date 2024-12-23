@@ -92,6 +92,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       const updatedFormData: FormData = {
         ...prev,
         processingHistory: {
+          ...prev.processingHistory,
           averageTicket: initialMerchant.formData?.processingHistory?.averageTicket?.toString() || '',
           cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage?.toString() || '',
           currentProcessor: initialMerchant.formData?.processingHistory?.currentProcessor || '',
@@ -195,25 +196,20 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                          bankField === 'routingNumber' ? 'routingNumber' :
                          'accountNumber'
         updateData = {
-          [`formData.${fieldName}`]: formData.bankDetails[bankField as keyof typeof formData.bankDetails],
-          updatedAt: Timestamp.fromDate(new Date())
+          [`formData.${fieldName}`]: formData.bankDetails[bankField as keyof typeof formData.bankDetails]
         }
       } else if (field.startsWith('companyAddress.')) {
         const addressField = field.split('.')[1]
         updateData = {
-          [`formData.companyAddress.${addressField}`]: formData.companyAddress[addressField as keyof typeof formData.companyAddress],
-          updatedAt: Timestamp.fromDate(new Date())
+          [`formData.companyAddress.${addressField}`]: formData.companyAddress[addressField as keyof typeof formData.companyAddress]
         }
       } else if (field.startsWith('beneficialOwners.')) {
-        const [_, index, ownerField] = field.split('.')
         updateData = {
-          'formData.beneficialOwners': formData.beneficialOwners,
-          updatedAt: Timestamp.fromDate(new Date())
+          'formData.beneficialOwners': formData.beneficialOwners
         }
       } else {
         updateData = {
-          [`formData.${field}`]: formData[field as keyof typeof formData],
-          updatedAt: Timestamp.fromDate(new Date())
+          [`formData.${field}`]: formData[field as keyof typeof formData]
         }
       }
 
@@ -222,26 +218,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       console.log('Updating document with data:', updateData)
       await updateDoc(doc(db, collectionPath, merchant.id), updateData)
 
-      // Update local merchant state with proper type assertions
+      // Update local merchant state
       setMerchant(prev => ({
         ...prev,
         formData: {
           ...prev.formData,
-          ...Object.keys(updateData).reduce((acc, key) => {
-            if (key === 'updatedAt') return acc
-            const value = updateData[key]
-            const path = key.split('.')
-            if (path[0] === 'formData') {
-              path.shift() // Remove 'formData'
-              let current = acc as Record<string, any>
-              for (let i = 0; i < path.length - 1; i++) {
-                current[path[i]] = current[path[i]] || {}
-                current = current[path[i]] as Record<string, any>
-              }
-              current[path[path.length - 1]] = value
-            }
-            return acc
-          }, { ...prev.formData })
+          ...updateData.formData
         },
         updatedAt: Timestamp.fromDate(new Date())
       }))
@@ -316,7 +298,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
 
   return (
     <div className="flex gap-6">
-      <div className="flex flex-col w-[35%] min-w-[400px]">
+      <div className="flex flex-col w-[25%] min-w-[400px]">
         <Card className="mb-4 w-full">
           <CardHeader className="space-y-4 pb-4">
             <div className="flex flex-row items-center justify-between">
