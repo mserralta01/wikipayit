@@ -329,8 +329,8 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
           </CardHeader>
           <CardContent>
             <Accordion type="single" collapsible className="w-full">
-              <AccordionItem value="basic">
-                <AccordionTrigger>Basic Information</AccordionTrigger>
+              <AccordionItem value="business">
+                <AccordionTrigger>Business</AccordionTrigger>
                 <AccordionContent>
                   <div className="grid gap-4">
                     <div className="grid gap-2">
@@ -374,61 +374,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                         )}
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label className="font-medium">DBA</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode.dba ? (
-                          <>
-                            <Input
-                              value={formData.dba}
-                              onChange={(e) => handleInputChange('dba', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('dba')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('dba')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.dba}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('dba')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Contact Email</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.email}
-                      </div>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="contact">
-                <AccordionTrigger>Contact Information</AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label className="font-medium">Phone</Label>
                       <div className="flex items-center gap-2">
@@ -629,14 +574,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                         )}
                       </div>
                     </div>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="additionalBusiness">
-                <AccordionTrigger>Additional Business Information</AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-4">
                     <div className="grid gap-2">
                       <Label className="font-medium">Business Description</Label>
                       <div className="flex items-center gap-2">
@@ -763,7 +700,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   </div>
                 </AccordionContent>
               </AccordionItem>
-
               <AccordionItem value="processingHistory">
                 <AccordionTrigger>Processing History</AccordionTrigger>
                 <AccordionContent>
