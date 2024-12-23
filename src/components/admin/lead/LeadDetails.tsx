@@ -12,7 +12,8 @@ import {
   timestampToString, 
   ProcessingHistory, 
   FormData,
-  BeneficialOwner 
+  BeneficialOwner,
+  BankDetails
 } from "@/types/merchant"
 import { doc, updateDoc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
@@ -29,6 +30,28 @@ interface LeadDetailsProps {
     kind?: 'lead' | 'merchant'
   }
 }
+
+const formatPhoneNumber = (value: string): string => {
+  // Remove all non-digits
+  const numbers = value.replace(/\D/g, '');
+  
+  // Format the number
+  if (numbers.length <= 3) {
+    return `(${numbers}`;
+  }
+  if (numbers.length <= 6) {
+    return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
+  }
+  return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6, 10)}`;
+};
+
+const formatWebsite = (value: string): string => {
+  if (!value) return value;
+  if (!/^https?:\/\//i.test(value)) {
+    return `https://${value}`;
+  }
+  return value;
+};
 
 export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const { toast } = useToast()
@@ -60,6 +83,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       bankName: initialMerchant.formData?.bankDetails?.bankName || '',
       routingNumber: initialMerchant.formData?.bankDetails?.routingNumber || '',
       accountNumber: initialMerchant.formData?.bankDetails?.accountNumber || '',
+      confirmAccountNumber: initialMerchant.formData?.bankDetails?.confirmAccountNumber || ''
     },
     processingHistory: {
       averageTicket: initialMerchant.formData?.processingHistory?.averageTicket || 0,
@@ -101,7 +125,8 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
         bankDetails: {
           bankName: initialMerchant.formData?.bankDetails?.bankName || '',
           routingNumber: initialMerchant.formData?.bankDetails?.routingNumber || '',
-          accountNumber: initialMerchant.formData?.bankDetails?.accountNumber || ''
+          accountNumber: initialMerchant.formData?.bankDetails?.accountNumber || '',
+          confirmAccountNumber: initialMerchant.formData?.bankDetails?.confirmAccountNumber || ''
         },
         beneficialOwners: {
           owners: initialMerchant.formData?.beneficialOwners?.owners || []
@@ -133,7 +158,21 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   }
 
   const handleInputChange = (field: string, value: string | number): void => {
-    if (field.startsWith('processingHistory.')) {
+    if (field === 'phone') {
+      // Format phone number as user types
+      const formattedPhone = formatPhoneNumber(value as string);
+      setFormData(prev => ({
+        ...prev,
+        [field]: formattedPhone
+      }));
+    } else if (field === 'website') {
+      // Format website URL
+      const formattedWebsite = formatWebsite(value as string);
+      setFormData(prev => ({
+        ...prev,
+        [field]: formattedWebsite
+      }));
+    } else if (field.startsWith('processingHistory.')) {
       const historyField = field.split('.')[1] as keyof ProcessingHistory
       setFormData(prev => ({
         ...prev,
@@ -205,7 +244,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
           updatedAt: Timestamp.fromDate(new Date())
         };
 
-        // Create a new bank details object with all existing values
         const updatedBankDetails: BankDetails = {
           ...formData.bankDetails,
           [bankField]: value
@@ -338,6 +376,18 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     }))
   }
 
+  const handleBlur = async (field: string) => {
+    if (editMode[field]) {
+      await handleSave(field);
+    }
+  };
+
+  const handleFieldClick = (field: string) => {
+    if (!editMode[field]) {
+      setEditMode(prev => ({ ...prev, [field]: true }));
+    }
+  };
+
   return (
     <div className="flex gap-6">
       <div className="flex flex-col w-[25%] min-w-[400px]">
@@ -370,394 +420,260 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <Accordion type="single" collapsible className="w-full">
+            <Accordion type="single" collapsible className="w-full space-y-1">
               <AccordionItem value="business">
                 <AccordionTrigger>Business</AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <div className="flex items-center gap-2">
-                        <Building className="h-5 w-5" />
-                        <div className="flex-1 flex items-center justify-between">
-                          {editMode.businessName ? (
-                            <>
-                              <Input
-                                value={formData.businessName}
-                                onChange={(e) => handleInputChange('businessName', e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('businessName')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('businessName')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
+                <AccordionContent className="pt-0 pb-1">
+                  <div className="grid gap-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <Building className="h-5 w-5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          {editMode.dba ? (
+                            <Input
+                              value={formData.dba}
+                              onChange={(e) => handleInputChange('dba', e.target.value)}
+                              onBlur={() => handleBlur('dba')}
+                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleBlur('dba');
+                                }
+                              }}
+                              className="h-7 min-w-0 py-0.5 px-1.5"
+                              autoFocus
+                            />
                           ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.businessName || merchant.businessName}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('businessName')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <div 
+                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                              onClick={() => handleFieldClick('dba')}
+                            >
+                              {merchant.formData?.dba || 'Click to edit'}
+                            </div>
                           )}
                         </div>
+                      </div>
+                      <div className="min-w-[100px] text-right">
+                        {editMode.yearEstablished ? (
+                          <Input
+                            value={formData.yearEstablished}
+                            onChange={(e) => handleInputChange('yearEstablished', e.target.value)}
+                            onBlur={() => handleBlur('yearEstablished')}
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('yearEstablished');
+                              }
+                            }}
+                            className="h-7 min-w-0 py-0.5 px-1.5"
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('yearEstablished')}
+                          >
+                            {merchant.formData?.yearEstablished || 'Year'}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-5 w-5" />
-                        <div className="flex-1 flex items-center justify-between">
-                          {editMode.phone ? (
-                            <>
-                              <Input
-                                value={formData.phone}
-                                onChange={(e) => handleInputChange('phone', e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('phone')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('phone')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.phone}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('phone')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-5 w-5" />
+                      <div className="flex-1">
+                        {editMode.phone ? (
+                          <Input
+                            value={formData.phone}
+                            onChange={(e) => handleInputChange('phone', e.target.value)}
+                            onBlur={() => handleBlur('phone')}
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('phone');
+                              }
+                            }}
+                            className="h-7 min-w-0 py-0.5 px-1.5"
+                            maxLength={14}
+                            placeholder="(555) 555-5555"
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer"
+                            onClick={() => handleFieldClick('phone')}
+                          >
+                            {merchant.formData?.phone}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        <div className="flex-1 flex items-center justify-between">
-                          {editMode['companyAddress.street'] ? (
-                            <>
-                              <Input
-                                value={formData.companyAddress.street}
-                                onChange={(e) => handleInputChange('companyAddress.street', e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('companyAddress.street')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('companyAddress.street')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.companyAddress?.street}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('companyAddress.street')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5" />
+                      <div className="flex-1">
+                        {editMode['companyAddress.street'] ? (
+                          <Input
+                            value={formData.companyAddress.street}
+                            onChange={(e) => handleInputChange('companyAddress.street', e.target.value)}
+                            onBlur={() => handleBlur('companyAddress.street')}
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('companyAddress.street');
+                              }
+                            }}
+                            className="flex-1"
+                            placeholder="Street Address"
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('companyAddress.street')}
+                          >
+                            {merchant.formData?.companyAddress?.street || 'Enter street address'}
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        <div className="flex-1 flex items-center justify-between">
+                    </div>
+                    
+                    <div className="flex items-center gap-2 pl-7">
+                      <div className="flex-1 flex gap-1 min-w-0">
+                        <div className="flex-[2] min-w-0">
                           {editMode['companyAddress.city'] ? (
-                            <>
-                              <Input
-                                value={formData.companyAddress.city}
-                                onChange={(e) => handleInputChange('companyAddress.city', e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('companyAddress.city')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('companyAddress.city')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <Input
+                              value={formData.companyAddress.city}
+                              onChange={(e) => handleInputChange('companyAddress.city', e.target.value)}
+                              onBlur={() => handleBlur('companyAddress.city')}
+                              placeholder="City"
+                              autoFocus
+                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleBlur('companyAddress.city');
+                                }
+                              }}
+                            />
                           ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.companyAddress?.city}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('companyAddress.city')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <div 
+                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                              onClick={() => handleFieldClick('companyAddress.city')}
+                            >
+                              {merchant.formData?.companyAddress?.city || 'City'}
+                            </div>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        <div className="flex-1 flex items-center justify-between">
+                        
+                        <div className="w-20 flex-shrink-0">
                           {editMode['companyAddress.state'] ? (
-                            <>
-                              <Input
-                                value={formData.companyAddress.state}
-                                onChange={(e) => handleInputChange('companyAddress.state', e.target.value)}
-                                className="flex-1"
-                                maxLength={2}
-                                placeholder="FL"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('companyAddress.state')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('companyAddress.state')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <Input
+                              value={formData.companyAddress.state}
+                              onChange={(e) => handleInputChange('companyAddress.state', e.target.value)}
+                              onBlur={() => handleBlur('companyAddress.state')}
+                              maxLength={2}
+                              placeholder="ST"
+                              className="uppercase"
+                              autoFocus
+                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleBlur('companyAddress.state');
+                                }
+                              }}
+                            />
                           ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.companyAddress?.state}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('companyAddress.state')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <div 
+                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer text-center"
+                              onClick={() => handleFieldClick('companyAddress.state')}
+                            >
+                              {merchant.formData?.companyAddress?.state?.toUpperCase() || 'ST'}
+                            </div>
                           )}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5" />
-                        <div className="flex-1 flex items-center justify-between">
+                        
+                        <div className="w-24 flex-shrink-0">
                           {editMode['companyAddress.zipCode'] ? (
-                            <>
-                              <Input
-                                value={formData.companyAddress.zipCode}
-                                onChange={(e) => handleInputChange('companyAddress.zipCode', e.target.value)}
-                                className="flex-1"
-                                pattern="\d{5}(-\d{4})?"
-                                placeholder="12345"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('companyAddress.zipCode')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('companyAddress.zipCode')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <Input
+                              value={formData.companyAddress.zipCode}
+                              onChange={(e) => handleInputChange('companyAddress.zipCode', e.target.value)}
+                              onBlur={() => handleBlur('companyAddress.zipCode')}
+                              pattern="\d{5}(-\d{4})?"
+                              placeholder="ZIP"
+                              autoFocus
+                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleBlur('companyAddress.zipCode');
+                                }
+                              }}
+                            />
                           ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.companyAddress?.zipCode}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('companyAddress.zipCode')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <div 
+                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                              onClick={() => handleFieldClick('companyAddress.zipCode')}
+                            >
+                              {merchant.formData?.companyAddress?.zipCode || 'ZIP'}
+                            </div>
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-5 w-5" />
-                        <div className="flex-1 flex items-center justify-between">
-                          {editMode.businessDescription ? (
-                            <>
-                              <Input
-                                value={formData.businessDescription}
-                                onChange={(e) => handleInputChange('businessDescription', e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('businessDescription')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('businessDescription')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.businessDescription}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('businessDescription')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      <div className="flex-1">
+                        {editMode.businessDescription ? (
+                          <Input
+                            value={formData.businessDescription}
+                            onChange={(e) => handleInputChange('businessDescription', e.target.value)}
+                            onBlur={() => handleBlur('businessDescription')}
+                            className="flex-1"
+                            autoFocus
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('businessDescription');
+                              }
+                            }}
+                          />
+                        ) : (
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('businessDescription')}
+                          >
+                            {merchant.formData?.businessDescription}
+                          </div>
+                        )}
                       </div>
                     </div>
-                    <div className="grid gap-2">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-5 w-5" />
-                        <div className="flex-1 flex items-center justify-between">
-                          {editMode.yearEstablished ? (
-                            <>
-                              <Input
-                                value={formData.yearEstablished}
-                                onChange={(e) => handleInputChange('yearEstablished', e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('yearEstablished')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('yearEstablished')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.yearEstablished}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('yearEstablished')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <div className="flex items-center gap-2">
-                        <Globe className="h-5 w-5" />
-                        <div className="flex-1 flex items-center justify-between">
-                          {editMode.website ? (
-                            <>
-                              <Input
-                                value={formData.website}
-                                onChange={(e) => handleInputChange('website', e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('website')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('website')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.website}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('website')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                    <div className="flex items-center gap-2">
+                      <Globe className="h-5 w-5" />
+                      <div className="flex-1">
+                        {editMode.website ? (
+                          <Input
+                            value={formData.website}
+                            onChange={(e) => handleInputChange('website', e.target.value)}
+                            onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
+                              // Format website on blur to ensure https:// is added
+                              handleInputChange('website', e.target.value);
+                              handleBlur('website');
+                            }}
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('website');
+                              }
+                            }}
+                            className="h-7 min-w-0 py-0.5 px-1.5"
+                            placeholder="https://example.com"
+                            autoFocus
+                          />
+                        ) : (
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('website')}
+                          >
+                            {merchant.formData?.website}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -771,42 +687,27 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Average Ticket</Label>
                       <div className="flex items-center gap-2">
                         {editMode['processingHistory.averageTicket'] ? (
-                          <>
-                            <Input
-                              value={formData.processingHistory?.averageTicket ?? ''}
-                              onChange={(e) => handleInputChange('processingHistory.averageTicket', e.target.value)}
-                              className="flex-1"
-                              type="number"
-                              min="0"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('processingHistory.averageTicket')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.averageTicket')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.processingHistory?.averageTicket ?? ''}
+                            onChange={(e) => handleInputChange('processingHistory.averageTicket', e.target.value)}
+                            onBlur={() => handleBlur('processingHistory.averageTicket')}
+                            className="flex-1"
+                            type="number"
+                            min="0"
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('processingHistory.averageTicket');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              ${merchant.formData?.processingHistory?.averageTicket || 'Not set'}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.averageTicket')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('processingHistory.averageTicket')}
+                          >
+                            ${merchant.formData?.processingHistory?.averageTicket || 'Not set'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -815,43 +716,28 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Card Present Percentage</Label>
                       <div className="flex items-center gap-2">
                         {editMode['processingHistory.cardPresentPercentage'] ? (
-                          <>
-                            <Input
-                              value={formData.processingHistory?.cardPresentPercentage ?? ''}
-                              onChange={(e) => handleInputChange('processingHistory.cardPresentPercentage', e.target.value)}
-                              className="flex-1"
-                              type="number"
-                              min="0"
-                              max="100"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('processingHistory.cardPresentPercentage')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.cardPresentPercentage')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.processingHistory?.cardPresentPercentage ?? ''}
+                            onChange={(e) => handleInputChange('processingHistory.cardPresentPercentage', e.target.value)}
+                            onBlur={() => handleBlur('processingHistory.cardPresentPercentage')}
+                            className="flex-1"
+                            type="number"
+                            min="0"
+                            max="100"
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('processingHistory.cardPresentPercentage');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.processingHistory?.cardPresentPercentage || 'Not set'}%
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.cardPresentPercentage')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('processingHistory.cardPresentPercentage')}
+                          >
+                            {merchant.formData?.processingHistory?.cardPresentPercentage || 'Not set'}%
+                          </div>
                         )}
                       </div>
                     </div>
@@ -860,40 +746,25 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Current Processor</Label>
                       <div className="flex items-center gap-2">
                         {editMode['processingHistory.currentProcessor'] ? (
-                          <>
-                            <Input
-                              value={formData.processingHistory?.currentProcessor ?? ''}
-                              onChange={(e) => handleInputChange('processingHistory.currentProcessor', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('processingHistory.currentProcessor')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.currentProcessor')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.processingHistory?.currentProcessor ?? ''}
+                            onChange={(e) => handleInputChange('processingHistory.currentProcessor', e.target.value)}
+                            onBlur={() => handleBlur('processingHistory.currentProcessor')}
+                            className="flex-1"
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('processingHistory.currentProcessor');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.processingHistory?.currentProcessor || 'Not set'}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.currentProcessor')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('processingHistory.currentProcessor')}
+                          >
+                            {merchant.formData?.processingHistory?.currentProcessor || 'Not set'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -902,43 +773,28 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">E-commerce Percentage</Label>
                       <div className="flex items-center gap-2">
                         {editMode['processingHistory.ecommercePercentage'] ? (
-                          <>
-                            <Input
-                              value={formData.processingHistory?.ecommercePercentage ?? ''}
-                              onChange={(e) => handleInputChange('processingHistory.ecommercePercentage', e.target.value)}
-                              className="flex-1"
-                              type="number"
-                              min="0"
-                              max="100"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('processingHistory.ecommercePercentage')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.ecommercePercentage')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.processingHistory?.ecommercePercentage ?? ''}
+                            onChange={(e) => handleInputChange('processingHistory.ecommercePercentage', e.target.value)}
+                            onBlur={() => handleBlur('processingHistory.ecommercePercentage')}
+                            className="flex-1"
+                            type="number"
+                            min="0"
+                            max="100"
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('processingHistory.ecommercePercentage');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.processingHistory?.ecommercePercentage || 'Not set'}%
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.ecommercePercentage')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('processingHistory.ecommercePercentage')}
+                          >
+                            {merchant.formData?.processingHistory?.ecommercePercentage || 'Not set'}%
+                          </div>
                         )}
                       </div>
                     </div>
@@ -947,47 +803,25 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Is Currently Processing</Label>
                       <div className="flex items-center gap-2">
                         {editMode['processingHistory.isCurrentlyProcessing'] ? (
-                          <>
-                            <Select
-                              defaultValue={formData.processingHistory?.isCurrentlyProcessing ?? 'no'}
-                              onValueChange={(value) => handleInputChange('processingHistory.isCurrentlyProcessing', value)}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="yes">Yes</SelectItem>
-                                <SelectItem value="no">No</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('processingHistory.isCurrentlyProcessing')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.isCurrentlyProcessing')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Select
+                            defaultValue={formData.processingHistory?.isCurrentlyProcessing ?? 'no'}
+                            onValueChange={(value) => handleInputChange('processingHistory.isCurrentlyProcessing', value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="yes">Yes</SelectItem>
+                              <SelectItem value="no">No</SelectItem>
+                            </SelectContent>
+                          </Select>
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.processingHistory?.isCurrentlyProcessing || 'Not set'}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.isCurrentlyProcessing')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('processingHistory.isCurrentlyProcessing')}
+                          >
+                            {merchant.formData?.processingHistory?.isCurrentlyProcessing || 'Not set'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -996,47 +830,25 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Has Been Terminated</Label>
                       <div className="flex items-center gap-2">
                         {editMode['processingHistory.hasBeenTerminated'] ? (
-                          <>
-                            <Select
-                              defaultValue={formData.processingHistory?.hasBeenTerminated ?? 'no'}
-                              onValueChange={(value) => handleInputChange('processingHistory.hasBeenTerminated', value)}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="yes">Yes</SelectItem>
-                                <SelectItem value="no">No</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('processingHistory.hasBeenTerminated')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Select
+                            defaultValue={formData.processingHistory?.hasBeenTerminated ?? 'no'}
+                            onValueChange={(value) => handleInputChange('processingHistory.hasBeenTerminated', value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="yes">Yes</SelectItem>
+                              <SelectItem value="no">No</SelectItem>
+                            </SelectContent>
+                          </Select>
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.processingHistory?.hasBeenTerminated || 'Not set'}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.hasBeenTerminated')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('processingHistory.hasBeenTerminated')}
+                          >
+                            {merchant.formData?.processingHistory?.hasBeenTerminated || 'Not set'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1046,40 +858,25 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                         <Label className="font-medium">Termination Explanation</Label>
                         <div className="flex items-center gap-2">
                           {editMode['processingHistory.terminationExplanation'] ? (
-                            <>
-                              <Textarea
-                                value={formData.processingHistory?.terminationExplanation ?? ''}
-                                onChange={(e) => handleInputChange('processingHistory.terminationExplanation', e.target.value)}
-                                className="flex-1"
-                              />
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleSave('processingHistory.terminationExplanation')}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('processingHistory.terminationExplanation')}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <Textarea
+                              value={formData.processingHistory?.terminationExplanation ?? ''}
+                              onChange={(e) => handleInputChange('processingHistory.terminationExplanation', e.target.value)}
+                              onBlur={() => handleBlur('processingHistory.terminationExplanation')}
+                              className="flex-1"
+                              onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+                                if (e.key === 'Enter' && !e.shiftKey) {  // Allow shift+enter for new lines
+                                  e.preventDefault();
+                                  handleBlur('processingHistory.terminationExplanation');
+                                }
+                              }}
+                            />
                           ) : (
-                            <>
-                              <div className="text-sm text-gray-700 flex-1">
-                                {merchant.formData?.processingHistory?.terminationExplanation || 'Not set'}
-                              </div>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => toggleEdit('processingHistory.terminationExplanation')}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            </>
+                            <div 
+                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                              onClick={() => handleFieldClick('processingHistory.terminationExplanation')}
+                            >
+                              {merchant.formData?.processingHistory?.terminationExplanation || 'Not set'}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1089,42 +886,27 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">High Ticket</Label>
                       <div className="flex items-center gap-2">
                         {editMode['processingHistory.highTicket'] ? (
-                          <>
-                            <Input
-                              value={formData.processingHistory?.highTicket ?? ''}
-                              onChange={(e) => handleInputChange('processingHistory.highTicket', e.target.value)}
-                              className="flex-1"
-                              type="number"
-                              min="0"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('processingHistory.highTicket')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.highTicket')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.processingHistory?.highTicket ?? ''}
+                            onChange={(e) => handleInputChange('processingHistory.highTicket', e.target.value)}
+                            onBlur={() => handleBlur('processingHistory.highTicket')}
+                            className="flex-1"
+                            type="number"
+                            min="0"
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('processingHistory.highTicket');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              ${merchant.formData?.processingHistory?.highTicket || 'Not set'}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.highTicket')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('processingHistory.highTicket')}
+                          >
+                            ${merchant.formData?.processingHistory?.highTicket || 'Not set'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1133,42 +915,27 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Monthly Volume</Label>
                       <div className="flex items-center gap-2">
                         {editMode['processingHistory.monthlyVolume'] ? (
-                          <>
-                            <Input
-                              value={formData.processingHistory?.monthlyVolume ?? ''}
-                              onChange={(e) => handleInputChange('processingHistory.monthlyVolume', e.target.value)}
-                              className="flex-1"
-                              type="number"
-                              min="0"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('processingHistory.monthlyVolume')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.monthlyVolume')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.processingHistory?.monthlyVolume ?? ''}
+                            onChange={(e) => handleInputChange('processingHistory.monthlyVolume', e.target.value)}
+                            onBlur={() => handleBlur('processingHistory.monthlyVolume')}
+                            className="flex-1"
+                            type="number"
+                            min="0"
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('processingHistory.monthlyVolume');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              ${merchant.formData?.processingHistory?.monthlyVolume || 'Not set'}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('processingHistory.monthlyVolume')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('processingHistory.monthlyVolume')}
+                          >
+                            ${merchant.formData?.processingHistory?.monthlyVolume || 'Not set'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1184,40 +951,26 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Business Type</Label>
                       <div className="flex items-center gap-2">
                         {editMode.businessType ? (
-                          <>
-                            <Input
-                              value={formData.businessType}
-                              onChange={(e) => handleInputChange('businessType', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('businessType')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('businessType')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.businessType}
+                            onChange={(e) => handleInputChange('businessType', e.target.value)}
+                            onBlur={() => handleBlur('businessType')}
+                            className="flex-1"
+                            autoFocus
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('businessType');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.businessType}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('businessType')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('businessType')}
+                          >
+                            {merchant.formData?.businessType}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1225,40 +978,26 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Tax ID</Label>
                       <div className="flex items-center gap-2">
                         {editMode.taxId ? (
-                          <>
-                            <Input
-                              value={formData.taxId}
-                              onChange={(e) => handleInputChange('taxId', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('taxId')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('taxId')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.taxId}
+                            onChange={(e) => handleInputChange('taxId', e.target.value)}
+                            onBlur={() => handleBlur('taxId')}
+                            className="flex-1"
+                            autoFocus
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('taxId');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.taxId}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('taxId')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('taxId')}
+                          >
+                            {merchant.formData?.taxId}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1274,40 +1013,26 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Bank Name</Label>
                       <div className="flex items-center gap-2">
                         {editMode['bankDetails.bankName'] ? (
-                          <>
-                            <Input
-                              value={formData.bankDetails.bankName}
-                              onChange={(e) => handleInputChange('bankDetails.bankName', e.target.value)}
-                              className="flex-1"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('bankDetails.bankName')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('bankDetails.bankName')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.bankDetails.bankName}
+                            onChange={(e) => handleInputChange('bankDetails.bankName', e.target.value)}
+                            onBlur={() => handleBlur('bankDetails.bankName')}
+                            className="flex-1"
+                            autoFocus
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('bankDetails.bankName');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.bankName || 'Not set'}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('bankDetails.bankName')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('bankDetails.bankName')}
+                          >
+                            {merchant.formData?.bankDetails?.bankName || 'Click to edit'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1316,41 +1041,27 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Routing Number</Label>
                       <div className="flex items-center gap-2">
                         {editMode['bankDetails.routingNumber'] ? (
-                          <>
-                            <Input
-                              value={formData.bankDetails.routingNumber}
-                              onChange={(e) => handleInputChange('bankDetails.routingNumber', e.target.value)}
-                              className="flex-1"
-                              maxLength={9}
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('bankDetails.routingNumber')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('bankDetails.routingNumber')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.bankDetails.routingNumber}
+                            onChange={(e) => handleInputChange('bankDetails.routingNumber', e.target.value)}
+                            onBlur={() => handleBlur('bankDetails.routingNumber')}
+                            className="flex-1"
+                            maxLength={9}
+                            autoFocus
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('bankDetails.routingNumber');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.routingNumber || 'Not set'}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('bankDetails.routingNumber')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('bankDetails.routingNumber')}
+                          >
+                            {merchant.formData?.bankDetails?.routingNumber || 'Click to edit'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1359,41 +1070,27 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Account Number</Label>
                       <div className="flex items-center gap-2">
                         {editMode['bankDetails.accountNumber'] ? (
-                          <>
-                            <Input
-                              value={formData.bankDetails.accountNumber}
-                              onChange={(e) => handleInputChange('bankDetails.accountNumber', e.target.value)}
-                              className="flex-1"
-                              type="password"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('bankDetails.accountNumber')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('bankDetails.accountNumber')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.bankDetails.accountNumber}
+                            onChange={(e) => handleInputChange('bankDetails.accountNumber', e.target.value)}
+                            onBlur={() => handleBlur('bankDetails.accountNumber')}
+                            className="flex-1"
+                            type="password"
+                            autoFocus
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('bankDetails.accountNumber');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.accountNumber ? '•••••••' : 'Not set'}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('bankDetails.accountNumber')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('bankDetails.accountNumber')}
+                          >
+                            {merchant.formData?.bankDetails?.accountNumber ? '•••••••' : 'Click to edit'}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1410,47 +1107,33 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     ) : (
                       formData.beneficialOwners?.owners?.map((owner, index) => (
                         <div key={index} className="p-4 border rounded-lg space-y-2">
-                          <div className="grid gap-2">
+                          <div className="grid gap-0.5">
                             <Label className="font-medium">Owner {index + 1}</Label>
                             <div className="grid grid-cols-2 gap-4">
                               <div>
                                 <Label className="text-sm">First Name</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.firstName`] ? (
-                                    <>
-                                      <Input
-                                        value={owner.firstName}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'firstName', e.target.value)}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.firstName`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.firstName`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      value={owner.firstName}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'firstName', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.firstName`)}
+                                      className="flex-1"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.firstName`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.firstName}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.firstName`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.firstName`)}
+                                    >
+                                      {owner.firstName}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1458,40 +1141,26 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">Last Name</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.lastName`] ? (
-                                    <>
-                                      <Input
-                                        value={owner.lastName}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'lastName', e.target.value)}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.lastName`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.lastName`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      value={owner.lastName}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'lastName', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.lastName`)}
+                                      className="flex-1"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.lastName`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.lastName}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.lastName`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.lastName`)}
+                                    >
+                                      {owner.lastName}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1500,40 +1169,26 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">Title</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.title`] ? (
-                                    <>
-                                      <Input
-                                        value={owner.title}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'title', e.target.value)}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.title`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.title`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      value={owner.title}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'title', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.title`)}
+                                      className="flex-1"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.title`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.title}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.title`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.title`)}
+                                    >
+                                      {owner.title}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1542,41 +1197,27 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">Date of Birth</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.dateOfBirth`] ? (
-                                    <>
-                                      <Input
-                                        type="date"
-                                        value={owner.dateOfBirth}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'dateOfBirth', e.target.value)}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.dateOfBirth`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.dateOfBirth`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      type="date"
+                                      value={owner.dateOfBirth}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'dateOfBirth', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.dateOfBirth`)}
+                                      className="flex-1"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.dateOfBirth`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.dateOfBirth}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.dateOfBirth`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.dateOfBirth`)}
+                                    >
+                                      {owner.dateOfBirth}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1585,43 +1226,29 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">SSN</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.ssn`] ? (
-                                    <>
-                                      <Input
-                                        type="password"
-                                        value={owner.ssn}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'ssn', e.target.value)}
-                                        className="flex-1"
-                                        pattern="\d{3}-\d{2}-\d{4}"
-                                        placeholder="XXX-XX-XXXX"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.ssn`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.ssn`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      type="password"
+                                      value={owner.ssn}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'ssn', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.ssn`)}
+                                      className="flex-1"
+                                      pattern="\d{3}-\d{2}-\d{4}"
+                                      placeholder="XXX-XX-XXXX"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.ssn`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.ssn ? "XXX-XX-" + owner.ssn.slice(-4) : ""}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.ssn`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.ssn`)}
+                                    >
+                                      {owner.ssn ? "XXX-XX-" + owner.ssn.slice(-4) : ""}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1630,40 +1257,26 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">Address</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.address`] ? (
-                                    <>
-                                      <Input
-                                        value={owner.address}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'address', e.target.value)}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.address`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.address`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      value={owner.address}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'address', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.address`)}
+                                      className="flex-1"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.address`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.address}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.address`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.address`)}
+                                    >
+                                      {owner.address}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1672,40 +1285,26 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">City</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.city`] ? (
-                                    <>
-                                      <Input
-                                        value={owner.city}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'city', e.target.value)}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.city`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.city`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      value={owner.city}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'city', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.city`)}
+                                      className="flex-1"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.city`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.city}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.city`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.city`)}
+                                    >
+                                      {owner.city}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1714,42 +1313,28 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">State</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.state`] ? (
-                                    <>
-                                      <Input
-                                        value={owner.state}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'state', e.target.value)}
-                                        className="flex-1"
-                                        maxLength={2}
-                                        placeholder="FL"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.state`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.state`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      value={owner.state}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'state', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.state`)}
+                                      className="flex-1"
+                                      maxLength={2}
+                                      placeholder="FL"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.state`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.state}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.state`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.state`)}
+                                    >
+                                      {owner.state}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1758,42 +1343,28 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">ZIP Code</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.zipCode`] ? (
-                                    <>
-                                      <Input
-                                        value={owner.zipCode}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'zipCode', e.target.value)}
-                                        className="flex-1"
-                                        pattern="\d{5}(-\d{4})?"
-                                        placeholder="12345"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.zipCode`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.zipCode`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      value={owner.zipCode}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'zipCode', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.zipCode`)}
+                                      className="flex-1"
+                                      pattern="\d{5}(-\d{4})?"
+                                      placeholder="12345"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.zipCode`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.zipCode}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.zipCode`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.zipCode`)}
+                                    >
+                                      {owner.zipCode}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1802,42 +1373,28 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">Phone</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.phone`] ? (
-                                    <>
-                                      <Input
-                                        type="tel"
-                                        value={owner.phone}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'phone', e.target.value)}
-                                        className="flex-1"
-                                        placeholder="(123) 456-7890"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.phone`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.phone`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      type="tel"
+                                      value={owner.phone}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'phone', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.phone`)}
+                                      className="flex-1"
+                                      placeholder="(123) 456-7890"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.phone`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.phone}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.phone`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.phone`)}
+                                    >
+                                      {owner.phone}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1846,41 +1403,27 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">Email</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.email`] ? (
-                                    <>
-                                      <Input
-                                        type="email"
-                                        value={owner.email}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'email', e.target.value)}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.email`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.email`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      type="email"
+                                      value={owner.email}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'email', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.email`)}
+                                      className="flex-1"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.email`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.email}
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.email`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.email`)}
+                                    >
+                                      {owner.email}
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1889,43 +1432,29 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                                 <Label className="text-sm">Ownership Percentage</Label>
                                 <div className="flex items-center gap-2">
                                   {editMode[`beneficialOwners.${index}.ownershipPercentage`] ? (
-                                    <>
-                                      <Input
-                                        type="number"
-                                        min="0"
-                                        max="100"
-                                        value={owner.ownershipPercentage}
-                                        onChange={(e) => handleBeneficialOwnerChange(index, 'ownershipPercentage', e.target.value)}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => handleSave(`beneficialOwners.${index}.ownershipPercentage`)}
-                                      >
-                                        <Check className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.ownershipPercentage`)}
-                                      >
-                                        <X className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <Input
+                                      type="number"
+                                      min="0"
+                                      max="100"
+                                      value={owner.ownershipPercentage}
+                                      onChange={(e) => handleBeneficialOwnerChange(index, 'ownershipPercentage', e.target.value)}
+                                      onBlur={() => handleBlur(`beneficialOwners.${index}.ownershipPercentage`)}
+                                      className="flex-1"
+                                      autoFocus
+                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          handleBlur(`beneficialOwners.${index}.ownershipPercentage`);
+                                        }
+                                      }}
+                                    />
                                   ) : (
-                                    <>
-                                      <div className="text-sm text-gray-700 flex-1">
-                                        {owner.ownershipPercentage}%
-                                      </div>
-                                      <Button
-                                        size="icon"
-                                        variant="ghost"
-                                        onClick={() => toggleEdit(`beneficialOwners.${index}.ownershipPercentage`)}
-                                      >
-                                        <Pencil className="h-4 w-4" />
-                                      </Button>
-                                    </>
+                                    <div 
+                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.ownershipPercentage`)}
+                                    >
+                                      {owner.ownershipPercentage}%
+                                    </div>
                                   )}
                                 </div>
                               </div>
@@ -1975,41 +1504,27 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Customer Service Email</Label>
                       <div className="flex items-center gap-2">
                         {editMode.customerServiceEmail ? (
-                          <>
-                            <Input
-                              value={formData.customerServiceEmail}
-                              onChange={(e) => handleInputChange('customerServiceEmail', e.target.value)}
-                              className="flex-1"
-                              type="email"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('customerServiceEmail')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('customerServiceEmail')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.customerServiceEmail}
+                            onChange={(e) => handleInputChange('customerServiceEmail', e.target.value)}
+                            onBlur={() => handleBlur('customerServiceEmail')}
+                            className="flex-1"
+                            type="email"
+                            autoFocus
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('customerServiceEmail');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.customerServiceEmail}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('customerServiceEmail')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('customerServiceEmail')}
+                          >
+                            {merchant.formData?.customerServiceEmail}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -2017,41 +1532,27 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <Label className="font-medium">Customer Service Phone</Label>
                       <div className="flex items-center gap-2">
                         {editMode.customerServicePhone ? (
-                          <>
-                            <Input
-                              value={formData.customerServicePhone}
-                              onChange={(e) => handleInputChange('customerServicePhone', e.target.value)}
-                              className="flex-1"
-                              type="tel"
-                            />
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => handleSave('customerServicePhone')}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('customerServicePhone')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <Input
+                            value={formData.customerServicePhone}
+                            onChange={(e) => handleInputChange('customerServicePhone', e.target.value)}
+                            onBlur={() => handleBlur('customerServicePhone')}
+                            className="flex-1"
+                            type="tel"
+                            autoFocus
+                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleBlur('customerServicePhone');
+                              }
+                            }}
+                          />
                         ) : (
-                          <>
-                            <div className="text-sm text-gray-700 flex-1">
-                              {merchant.formData?.customerServicePhone}
-                            </div>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              onClick={() => toggleEdit('customerServicePhone')}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                          </>
+                          <div 
+                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
+                            onClick={() => handleFieldClick('customerServicePhone')}
+                          >
+                            {merchant.formData?.customerServicePhone}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -2066,7 +1567,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     <div>
                       <Label className="font-medium">Bank Statements</Label>
                       <div className="mt-2 space-y-2">
-                        {merchant.bank_statements?.map((url, index) => (
+                        {merchant.bank_statements?.map((url: string, index: number) => (
                           <div key={index} className="flex items-center gap-2">
                             <a 
                               href={url} 
@@ -2087,7 +1588,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     <div>
                       <Label className="font-medium">Driver's License</Label>
                       <div className="mt-2 space-y-2">
-                        {merchant.drivers_license?.map((url, index) => (
+                        {merchant.drivers_license?.map((url: string, index: number) => (
                           <div key={index} className="flex items-center gap-2">
                             <a 
                               href={url} 
@@ -2108,7 +1609,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     <div>
                       <Label className="font-medium">Voided Check</Label>
                       <div className="mt-2 space-y-2">
-                        {merchant.voided_check?.map((url, index) => (
+                        {merchant.voided_check?.map((url: string, index: number) => (
                           <div key={index} className="flex items-center gap-2">
                             <a 
                               href={url} 

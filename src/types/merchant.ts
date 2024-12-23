@@ -73,8 +73,6 @@ export const merchantSchema = z.object({
   }).optional(),
 })
 
-export type BankDetails = z.infer<typeof bankDetailsSchema>
-
 export type BeneficialOwner = {
   firstName: string
   lastName: string
@@ -115,6 +113,7 @@ export interface BankDetails {
   bankName: string;
   routingNumber: string;
   accountNumber: string;
+  confirmAccountNumber: string;
 }
 
 export interface FormData {
@@ -157,6 +156,7 @@ export interface FormData {
 export interface Merchant {
   id: string;
   email: string;
+  businessName?: string;
   formData?: FormData;
   createdAt: any;
   updatedAt: any;
@@ -164,6 +164,9 @@ export interface Merchant {
   pipelineStatus?: MerchantStatus;
   currentStep?: number;
   uid?: string;
+  bank_statements?: string[];
+  drivers_license?: string[];
+  voided_check?: string[];
 }
 
 // Application interface that extends Merchant but with its own status type
