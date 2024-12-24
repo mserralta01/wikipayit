@@ -97,10 +97,10 @@ export const merchantCommunication = {
   },
 
   async logActivity(activity: CommunicationActivity): Promise<void> {
-    const activitiesRef = collection(db, 'activities')
+    const communicationsRef = collection(db, `leads/${activity.merchantId}/communications`)
     const timestamp = Timestamp.now()
 
-    await addDoc(activitiesRef, {
+    await addDoc(communicationsRef, {
       ...activity,
       timestamp: timestamp.toDate()
     })
@@ -108,11 +108,9 @@ export const merchantCommunication = {
 
   async getEmailThreads(merchantId: string): Promise<Activity[]> {
     try {
-      const activitiesRef = collection(db, 'activities')
       const q = query(
-        activitiesRef,
-        where('merchantId', '==', merchantId),
-        where('type', '==', 'email_sent'),
+        collection(db, `leads/${merchantId}/communications`),
+        where('type', '==', 'email'),
         orderBy('timestamp', 'desc')
       )
 
@@ -129,10 +127,8 @@ export const merchantCommunication = {
 
   async getActivities(merchantId: string, type: 'note' | 'phone_call' | 'email_sent'): Promise<Activity[]> {
     try {
-      const activitiesRef = collection(db, 'activities')
       const q = query(
-        activitiesRef,
-        where('merchantId', '==', merchantId),
+        collection(db, `leads/${merchantId}/communications`),
         where('type', '==', type),
         orderBy('timestamp', 'desc')
       )
@@ -188,3 +184,15 @@ export const merchantCommunication = {
     }
   }
 }
+
+// Initialize the activities collection with a basic structure
+export const initializeActivities = async () => {
+  const activitiesRef = collection(db, 'activities');
+  // Add a sample document to create the collection
+  await addDoc(activitiesRef, {
+    merchantId: '',
+    type: 'system',
+    timestamp: Timestamp.now(),
+    message: 'Collection initialized'
+  });
+};

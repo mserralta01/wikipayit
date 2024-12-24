@@ -73,8 +73,6 @@ export const merchantSchema = z.object({
   }).optional(),
 })
 
-export type BankDetails = z.infer<typeof bankDetailsSchema>
-
 export type BeneficialOwner = {
   firstName: string
   lastName: string
@@ -100,187 +98,106 @@ export function timestampToString(value: string | Timestamp | undefined): string
 }
 
 export interface ProcessingHistory {
-  averageTicket: number | string
-  cardPresentPercentage: number | string
-  currentProcessor: string
-  ecommercePercentage: number | string
-  hasBeenTerminated: 'yes' | 'no'
-  highTicket: number | string
-  isCurrentlyProcessing: 'yes' | 'no'
-  monthlyVolume: number | string
-  terminationExplanation: string
-  updatedAt?: string | Timestamp
+  averageTicket: number;
+  cardPresentPercentage: number;
+  currentProcessor: string;
+  ecommercePercentage: number;
+  hasBeenTerminated: 'yes' | 'no';
+  highTicket: number;
+  isCurrentlyProcessing: 'yes' | 'no';
+  monthlyVolume: number;
+  terminationExplanation: string;
 }
 
 export interface FormData {
-  businessName: string
-  dba: string
-  phone: string
-  businessType: string
-  taxId: string
-  businessDescription: string
-  yearEstablished: string
-  website: string
-  customerServiceEmail: string
-  customerServicePhone: string
+  businessName: string;
+  dba: string;
+  phone: string;
+  email?: string;
+  businessType: string;
+  taxId: string;
+  businessDescription: string;
+  yearEstablished: string;
+  website: string;
+  customerServiceEmail: string;
+  customerServicePhone: string;
   companyAddress: {
-    street: string
-    city: string
-    state: string
-    zipCode: string
-  }
-  bankDetails: {
-    bankName: string
-    routingNumber: string
-    accountNumber: string
-  }
-  processingHistory: ProcessingHistory
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  // Bank details moved to root level of FormData
+  bankName: string;
+  routingNumber: string;
+  accountNumber: string;
+  confirmAccountNumber: string;
+  processingHistory: ProcessingHistory;
   beneficialOwners: {
     owners: Array<{
-      firstName: string
-      lastName: string
-      phone?: string
-      email?: string
-      title?: string
-      ownershipPercentage?: string
-      dateOfBirth?: string
-      ssn?: string
-      address?: string
-      city?: string
-      state?: string
-      zipCode?: string
-    }>
-  }
+      firstName: string;
+      lastName: string;
+      phone?: string;
+      email?: string;
+      title?: string;
+      ownershipPercentage?: string;
+      dateOfBirth?: string;
+      ssn?: string;
+      address?: string;
+      city?: string;
+      state?: string;
+      zipCode?: string;
+    }>;
+  };
+  monthlyVolume?: number;
+  averageTicket?: number;
 }
 
-export type Merchant = {
-  id: string
-  email: string
-  phone?: string
-  businessName?: string
-  dba?: string
-  status?: MerchantStatus
-  pipelineStatus?: MerchantStatus
-  createdAt: string | Timestamp
-  updatedAt: string | Timestamp
-  position?: number
-  pricing?: PricingDetails
-  notes?: Note[]
-  bank_statements?: string[]
-  drivers_license?: string[]
-  voided_check?: string[]
-  currentStep?: number
-  uid?: string
-
-  formData?: {
-    businessName?: string
-    dba?: string
-    phone?: string
-    email?: string
-    taxId?: string
-    businessType?: string
-    businessDescription?: string
-    yearEstablished?: string
-    website?: string
-    customerServiceEmail?: string
-    customerServicePhone?: string
-    monthlyVolume?: string
-    averageTicket?: string
-    bankName?: string
-    routingNumber?: string
-    accountNumber?: string
-    companyAddress?: {
-      street?: string
-      city?: string
-      state?: string
-      zipCode?: string
-    }
-    beneficialOwners?: {
-      owners: Array<{
-        firstName: string
-        lastName: string
-        title?: string
-        dateOfBirth?: string
-        ssn?: string
-        address?: string
-        city?: string
-        state?: string
-        zipCode?: string
-        phone?: string
-        email?: string
-        ownershipPercentage?: string
-      }>
-    }
-    processingHistory?: {
-      averageTicket?: number
-      cardPresentPercentage?: number
-      currentProcessor?: string
-      ecommercePercentage?: number
-      hasBeenTerminated?: 'yes' | 'no'
-      highTicket?: number
-      isCurrentlyProcessing?: 'yes' | 'no'
-      monthlyVolume?: number
-      terminationExplanation?: string
-      updatedAt?: string | Timestamp
-    }
-  }
-
-  [key: string]: any
+export interface Lead {
+  id: string;
+  email: string;
+  createdAt: any;
+  updatedAt: any;
+  formData?: FormData;
+  status?: string;
+  pipelineStatus?: MerchantStatus;
+  businessName?: string;
+  position?: number;
+  dba?: string;
+  phone?: string;
+  businessDescription?: string;
+  companyAddress?: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+  customerServiceEmail?: string;
+  customerServicePhone?: string;
+  taxId?: string;
+  businessType?: string;
+  yearEstablished?: string;
+  website?: string;
+  currentProcessor?: string;
+  monthlyVolume?: number;
+  averageTicket?: number;
+  highTicket?: number;
+  beneficialOwners?: BeneficialOwner[];
+  pricing?: PricingDetails;
+  currentStep?: number;
+  uid?: string;
+  bank_statements?: string[];
+  drivers_license?: string[];
+  voided_check?: string[];
+  kind?: 'lead' | 'merchant';
+  companyName?: string;
 }
 
-// Application interface that extends Merchant but with its own status type
-export interface Application extends Omit<Merchant, 'status'> {
-  status?: ApplicationStatus
-}
-
-export type Lead = {
-  id: string
-  email: string
-  phone?: string
-  companyName?: string
-  currentStep?: number
-  status?: MerchantStatus
-  pipelineStatus?: MerchantStatus
-  createdAt: string | Timestamp
-  updatedAt: string | Timestamp
-  position?: number
-  processingHistory?: ProcessingHistory
-  bank_statements?: string[]
-  drivers_license?: string[]
-  voided_check?: string[]
-  uid?: string
-
-  formData?: {
-    businessName?: string
-    dba?: string
-    phone?: string
-    taxId?: string
-    businessType?: string
-    businessDescription?: string
-    yearEstablished?: string
-    website?: string
-    customerServiceEmail?: string
-    customerServicePhone?: string
-    monthlyVolume?: string
-    averageTicket?: string
-    companyAddress?: {
-      street?: string
-      city?: string
-      state?: string
-      zipCode?: string
-    }
-    beneficialOwners?: {
-      owners: Array<{
-        firstName: string
-        lastName: string
-        phone?: string
-      }>
-    }
-    bankDetails?: BankDetails
-  }
-
-  [key: string]: any
-}
+// Add these type aliases
+export type Merchant = Lead;
+export type MerchantDTO = Lead;
 
 // Provide a placeholder for Activity if needed by any service
 export type Activity = any
+
+export type MerchantWithFormData = Lead & Partial<FormData>;

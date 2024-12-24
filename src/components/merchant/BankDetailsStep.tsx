@@ -1,18 +1,25 @@
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { bankDetailsSchema, type BankDetails } from "../../types/merchant"
+import { bankDetailsSchema } from "../../types/merchant"
 import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Alert } from "../ui/alert"
 import { useState, forwardRef, useImperativeHandle } from "react"
+
+export type BankDetailsFields = {
+  bankName: string;
+  routingNumber: string;
+  accountNumber: string;
+  confirmAccountNumber: string;
+}
 
 export type BankDetailsStepHandle = {
   submit: () => Promise<void>
 }
 
 type BankDetailsStepProps = {
-  initialData?: Partial<BankDetails>
-  onSave: (data: BankDetails) => Promise<void>
+  initialData?: Partial<BankDetailsFields>
+  onSave: (data: BankDetailsFields) => Promise<void>
   onContinue?: () => void
 }
 
@@ -28,7 +35,7 @@ export const BankDetailsStep = forwardRef<BankDetailsStepHandle, BankDetailsStep
       watch,
       formState: { errors },
       trigger
-    } = useForm<BankDetails>({
+    } = useForm<BankDetailsFields>({
       resolver: zodResolver(bankDetailsSchema),
       defaultValues: {
         bankName: initialData.bankName || "",
@@ -48,7 +55,7 @@ export const BankDetailsStep = forwardRef<BankDetailsStepHandle, BankDetailsStep
             throw new Error("Please fix all validation errors before proceeding")
           }
           
-          const formData = await new Promise<BankDetails>((resolve) => {
+          const formData = await new Promise<BankDetailsFields>((resolve) => {
             handleSubmit((data) => {
               resolve(data)
             })()
@@ -69,7 +76,7 @@ export const BankDetailsStep = forwardRef<BankDetailsStepHandle, BankDetailsStep
       }
     }))
 
-    const onSubmit = async (data: BankDetails) => {
+    const onSubmit = async (data: BankDetailsFields) => {
       try {
         await onSave(data)
         if (onContinue) {

@@ -16,22 +16,21 @@ export const validateServiceItem = (item: ServiceResponse): item is ServiceRespo
 }
 
 export const createServiceItem = (item: ServiceResponse & { id: string; pipelineStatus: 'lead' | 'approved' }): ServiceItem => {
+  const { id, pipelineStatus, ...rest } = item;
   if ('formData' in item) {
     return {
-      ...item,
+      ...rest,
+      id,
       kind: 'lead',
-      type: 'lead',
-      id: item.id,
-      pipelineStatus: 'lead'
-    } as ServiceLead
+      pipelineStatus
+    } as ServiceLead;
   }
   return {
-    ...item,
+    ...rest,
+    id,
     kind: 'merchant',
-    type: 'merchant',
-    id: item.id,
-    pipelineStatus: 'lead'
-  } as ServiceMerchant
+    pipelineStatus
+  } as ServiceMerchant;
 }
 
 export const calculatePipelineStatus = (progress: number): PipelineStatus => {
@@ -94,17 +93,16 @@ export const calculateProgress = (item: ServiceItem | PipelineItem): number => {
 }
 
 export const transformToPipelineItem = (item: ServiceItem): PipelineItem => {
-  // Preserve the pipelineStatus rather than forcing 'lead'
   if (item.kind === 'lead') {
-    return { 
-      ...item, 
-      pipelineStatus: item.pipelineStatus || 'lead' 
-    } as PipelineLead
+    return {
+      ...item,
+      pipelineStatus: item.pipelineStatus || 'lead'
+    } as PipelineLead;
   }
-  return { 
-    ...item, 
-    pipelineStatus: item.pipelineStatus || 'lead' 
-  } as PipelineMerchant
+  return {
+    ...item,
+    pipelineStatus: item.pipelineStatus || 'lead'
+  } as PipelineMerchant;
 }
 
 export const transformServiceResponse = (items: ServiceResponse[]): PipelineItem[] => {

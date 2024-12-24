@@ -23,6 +23,41 @@ export interface BaseLead extends Omit<Lead, 'id'> {
   type: 'lead';
 }
 
+// Update the owner type in PipelineFormData
+export interface BeneficialOwnerData {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  title?: string;
+  dateOfBirth?: string;
+  ssn?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  ownershipPercentage?: string;
+}
+
+// First, let's define a simpler FormData type for pipeline items
+export interface PipelineFormData {
+  businessName?: string;
+  dba?: string;
+  phone?: string;
+  taxId?: string;
+  businessType?: string;
+  yearEstablished?: string;
+  monthlyVolume?: string;
+  averageTicket?: string;
+  beneficialOwners?: {
+    owners: BeneficialOwnerData[];
+  };
+  bankName?: string;
+  routingNumber?: string;
+  accountNumber?: string;
+  confirmAccountNumber?: string;
+}
+
 // Add BasePipelineItem interface
 export interface BasePipelineItem {
   id: string;
@@ -34,24 +69,7 @@ export interface BasePipelineItem {
   updatedAt: string;
   phone?: string;
   position?: number; // <-- Added position here to unify usage across all PipelineItems
-  formData?: {
-    businessName?: string;
-    dba?: string;
-    phone?: string;
-    taxId?: string;
-    businessType?: string;
-    yearEstablished?: string;
-    monthlyVolume?: string;
-    averageTicket?: string;
-    beneficialOwners?: {
-      owners: Array<{
-        firstName: string;
-        lastName: string;
-        phone?: string;
-      }>;
-    };
-    bankDetails?: any;
-  };
+  formData?: PipelineFormData;
 }
 
 // Pipeline types
@@ -72,26 +90,9 @@ export interface PipelineLead extends BasePipelineItem {
 export type PipelineItem = PipelineMerchant | PipelineLead;
 
 // Service types
-export interface ServiceMerchant extends BaseMerchant {
+export interface ServiceMerchant extends Omit<Lead, 'formData'> {
   pipelineStatus: ServiceStatus;
-  formData?: {
-    businessName?: string;
-    dba?: string;
-    phone?: string;
-    taxId?: string;
-    businessType?: string;
-    yearEstablished?: string;
-    monthlyVolume?: string;
-    averageTicket?: string;
-    beneficialOwners?: {
-      owners: Array<{
-        firstName: string;
-        lastName: string;
-        phone?: string;
-      }>;
-    };
-    bankDetails?: any;
-  };
+  formData?: PipelineFormData;
 }
 
 export interface ServiceLead extends BaseLead {
