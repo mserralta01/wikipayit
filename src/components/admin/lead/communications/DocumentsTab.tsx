@@ -85,14 +85,10 @@ export function DocumentsTab({ merchant }: DocumentsTabProps) {
           <h3 className="text-lg font-medium mb-4">Bank Statements</h3>
           <div className="space-y-2">
             {(() => {
-              console.log('Processing bank statements:', merchant?.formData?.bank_statements || merchant?.bank_statements);
               const statements = merchant?.formData?.bank_statements || merchant?.bank_statements || []
-              console.log('Raw statements:', statements);
               const urls = (Array.isArray(statements) ? statements : [statements])
                 .filter(Boolean)
-                .filter(url => typeof url === 'string' && url.length > 0)
-              console.log('Filtered statement URLs:', urls);
-              console.log('Processed bank statement URLs:', urls);
+                .filter(url => typeof url === 'string' && url.length > 0);
               if (!urls.length) return <p className="text-sm text-gray-500">No bank statements uploaded</p>
               return urls.map((url: string, index: number) => (
                 <div key={`bank-statement-${index}`}>

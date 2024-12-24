@@ -67,8 +67,6 @@ export function LeadDetailView() {
     return 'email' in item && 'createdAt' in item && 'updatedAt' in item
   }
 
-  console.log('Raw item data:', JSON.stringify(item, null, 2));
-  
   // Extract and normalize document URLs
   const normalizeDocuments = {
     bank_statements: (() => {
@@ -84,8 +82,6 @@ export function LeadDetailView() {
       return Array.isArray(check) ? check : check ? [check] : [];
     })()
   };
-
-  console.log('Normalized documents:', normalizeDocuments);
 
   const merchantData: Lead = {
     id: item.id,
