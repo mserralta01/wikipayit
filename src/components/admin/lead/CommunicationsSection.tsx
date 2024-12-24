@@ -4,6 +4,7 @@ import { Merchant as PipelineMerchant } from "@/types/merchant"
 import { EmailThreads } from "./communications/EmailThreads"
 import { InternalNotes } from "./communications/InternalNotes"
 import { PhoneCalls } from "./communications/PhoneCalls"
+import { DocumentsTab } from "./communications/DocumentsTab"
 
 interface CommunicationsSectionProps {
   merchant: PipelineMerchant
@@ -13,10 +14,11 @@ export function CommunicationsSection({ merchant }: CommunicationsSectionProps) 
   return (
     <div className="w-full">
       <Tabs defaultValue="emails" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="emails">Emails</TabsTrigger>
           <TabsTrigger value="phone">Phone Calls</TabsTrigger>
           <TabsTrigger value="notes">Internal Notes</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
         </TabsList>
         <TabsContent value="emails" className="mt-6">
           <EmailThreads merchant={merchant} />
@@ -26,6 +28,9 @@ export function CommunicationsSection({ merchant }: CommunicationsSectionProps) 
         </TabsContent>
         <TabsContent value="notes" className="mt-6">
           <InternalNotes merchant={merchant} />
+        </TabsContent>
+        <TabsContent value="documents" className="mt-6">
+          <DocumentsTab merchant={merchant} />
         </TabsContent>
       </Tabs>
     </div>

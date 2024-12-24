@@ -167,8 +167,8 @@ export type Merchant = {
   pricing?: PricingDetails
   notes?: Note[]
   bank_statements?: string[]
-  drivers_license?: string[]
-  voided_check?: string[]
+  drivers_license?: string
+  voided_check?: string
   currentStep?: number
   uid?: string
 
@@ -246,8 +246,8 @@ export type Lead = {
   position?: number
   processingHistory?: ProcessingHistory
   bank_statements?: string[]
-  drivers_license?: string[]
-  voided_check?: string[]
+  drivers_license?: string
+  voided_check?: string
   uid?: string
 
   formData?: {

@@ -2128,19 +2128,18 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 <div>
                   <Label className="font-medium">Driver's License</Label>
                   <div className="mt-2 space-y-2">
-                    {merchant.drivers_license?.map((url, index) => (
-                      <div key={index} className="flex items-center gap-2">
+                    {merchant.drivers_license ? (
+                      <div className="flex items-center gap-2">
                         <a 
-                          href={url} 
+                          href={merchant.drivers_license} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-sm text-blue-600 hover:text-blue-800 flex-1 truncate"
                         >
-                          {url.split('/').pop()}
+                          {merchant.drivers_license.split('/').pop()}
                         </a>
                       </div>
-                    ))}
-                    {(!merchant.drivers_license || merchant.drivers_license.length === 0) && (
+                    ) : (
                       <div className="text-sm text-gray-500">No driver's license uploaded</div>
                     )}
                   </div>
@@ -2149,19 +2148,18 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 <div>
                   <Label className="font-medium">Voided Check</Label>
                   <div className="mt-2 space-y-2">
-                    {merchant.voided_check?.map((url, index) => (
-                      <div key={index} className="flex items-center gap-2">
+                    {merchant.voided_check ? (
+                      <div className="flex items-center gap-2">
                         <a 
-                          href={url} 
+                          href={merchant.voided_check} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-sm text-blue-600 hover:text-blue-800 flex-1 truncate"
                         >
-                          {url.split('/').pop()}
+                          {merchant.voided_check.split('/').pop()}
                         </a>
                       </div>
-                    ))}
-                    {(!merchant.voided_check || merchant.voided_check.length === 0) && (
+                    ) : (
                       <div className="text-sm text-gray-500">No voided check uploaded</div>
                     )}
                   </div>
