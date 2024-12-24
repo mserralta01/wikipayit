@@ -10,7 +10,8 @@ import { Activity } from "@/types/activity"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDistanceToNow } from "date-fns"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle, Pin, PinOff } from "lucide-react"
+import { Pin, PinOff } from "lucide-react"
+import { AlertCircle as LucideAlertCircle } from "lucide-react"
 
 interface InternalNotesProps {
   merchant: PipelineMerchant
@@ -82,7 +83,7 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
   if (!isAdmin) {
     return (
       <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
+        <LucideAlertCircle className="h-4 w-4" />
         <AlertTitle>Access Denied</AlertTitle>
         <AlertDescription>
           Only administrators can view and manage internal notes.
@@ -91,18 +92,18 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
     )
   }
 
-  const handlePinToggle = async (note: Activity) => {
+  const handlePinToggle = async (note: Activity): Promise<void> => {
     if (!user) return
     setIsPinning(true)
     try {
-      const updatedNote = {
+      const updatedNote: Activity = {
         ...note,
         metadata: {
           ...note.metadata,
           isPinned: !note.metadata?.isPinned,
           pinnedAt: !note.metadata?.isPinned ? Timestamp.now() : undefined
         }
-      }
+      } as Activity
       
       // Update the note in Firestore
       await merchantCommunication.updateNote(merchant.id, note.id, updatedNote)
@@ -112,7 +113,7 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
       setNotes(updatedNotes)
       
       toast({
-        title: updatedNote.metadata.isPinned ? "Note pinned" : "Note unpinned",
+        title: updatedNote.metadata?.isPinned ? "Note pinned" : "Note unpinned",
         description: "Note status updated successfully.",
       })
     } catch (error) {

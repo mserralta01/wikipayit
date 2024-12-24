@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase"
-import { doc, updateDoc, arrayUnion, Timestamp, collection, addDoc, query, where, orderBy, getDocs, getDoc } from "firebase/firestore"
+import { doc, updateDoc, Timestamp, collection, addDoc, query, where, orderBy, getDocs, getDoc } from "firebase/firestore"
 import { Note } from "@/types/merchant"
 import { emailService } from "@/services/emailService"
 import { CustomerService } from "@/services/customerService"
@@ -69,36 +69,35 @@ export const merchantCommunication = {
 
   async addNote(merchantId: string, note: Note & { isPinned?: boolean }): Promise<void> {
     try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      const merchantSnap = await getDoc(merchantRef)
-      const merchant = merchantSnap.data()
+      const leadRef = doc(db, "leads", merchantId)
+      const leadSnap = await getDoc(leadRef)
+      const lead = leadSnap.data()
 
-      const noteWithPinning = {
-        ...note,
-        isPinned: note.isPinned || false,
-        pinnedAt: note.isPinned ? Timestamp.now() : undefined
-      }
+      const communicationsRef = collection(db, `leads/${merchantId}/communications`)
+      const timestamp = Timestamp.now()
 
-      await updateDoc(merchantRef, {
-        notes: arrayUnion(noteWithPinning),
-        updatedAt: new Date()
-      })
-
-      // Log the note activity
-      await this.logActivity({
+      // Create the note directly in communications subcollection
+      await addDoc(communicationsRef, {
         type: "note",
         description: note.content,
         userId: note.createdBy,
         merchantId,
+        timestamp,
         merchant: {
-          businessName: merchant?.businessName || "Unknown Business"
+          businessName: lead?.businessName || "Unknown Business"
         },
         metadata: {
           noteContent: note.content,
-          createdAt: note.createdAt,
-          isPinned: noteWithPinning.isPinned,
-          pinnedAt: noteWithPinning.pinnedAt
+          createdAt: timestamp,
+          agentName: note.agentName,
+          isPinned: note.isPinned || false,
+          pinnedAt: note.isPinned ? timestamp : null
         }
+      })
+
+      // Update lead's updatedAt timestamp
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
       })
     } catch (error) {
       console.error("Error adding note:", error)
@@ -140,6 +139,7 @@ export const merchantCommunication = {
       const q = query(
         collection(db, `leads/${merchantId}/communications`),
         where('type', '==', type),
+        orderBy('metadata.isPinned', 'desc'),
         orderBy('timestamp', 'desc')
       )
 
@@ -168,6 +168,15 @@ export const merchantCommunication = {
       return activities
     } catch (error) {
       console.error(`Error fetching ${type} activities:`, error)
+      // Log detailed error information for debugging
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          type: type,
+          merchantId: merchantId
+        })
+      }
       throw error
     }
   },
@@ -193,9 +202,9 @@ export const merchantCommunication = {
     agentName?: string
   }): Promise<void> {
     try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      const merchantSnap = await getDoc(merchantRef)
-      const merchant = merchantSnap.data()
+      const leadRef = doc(db, "leads", merchantId)
+      const leadSnap = await getDoc(leadRef)
+      const lead = leadSnap.data()
 
       await this.logActivity({
         type: "phone_call",
@@ -203,7 +212,7 @@ export const merchantCommunication = {
         userId: data.agentId || 'system',
         merchantId,
         merchant: {
-          businessName: merchant?.businessName || "Unknown Business"
+          businessName: lead?.businessName || "Unknown Business"
         },
         metadata: {
           duration: data.duration,
@@ -215,8 +224,8 @@ export const merchantCommunication = {
         }
       })
 
-      // Update merchant's updatedAt timestamp
-      await updateDoc(merchantRef, {
+      // Update lead's updatedAt timestamp
+      await updateDoc(leadRef, {
         updatedAt: new Date()
       })
     } catch (error) {
