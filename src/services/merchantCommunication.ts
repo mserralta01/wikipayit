@@ -26,6 +26,8 @@ interface CommunicationActivity extends Omit<Activity, 'id' | 'timestamp'> {
     callDuration?: string
     callOutcome?: 'successful' | 'no_answer' | 'follow_up_required' | 'voicemail' | 'other'
     callNotes?: string
+    isPinned?: boolean
+    pinnedAt?: Timestamp
   }
 }
 
@@ -65,14 +67,20 @@ export const merchantCommunication = {
     }
   },
 
-  async addNote(merchantId: string, note: Note): Promise<void> {
+  async addNote(merchantId: string, note: Note & { isPinned?: boolean }): Promise<void> {
     try {
       const merchantRef = doc(db, "merchants", merchantId)
       const merchantSnap = await getDoc(merchantRef)
       const merchant = merchantSnap.data()
 
+      const noteWithPinning = {
+        ...note,
+        isPinned: note.isPinned || false,
+        pinnedAt: note.isPinned ? Timestamp.now() : undefined
+      }
+
       await updateDoc(merchantRef, {
-        notes: arrayUnion(note),
+        notes: arrayUnion(noteWithPinning),
         updatedAt: new Date()
       })
 
@@ -87,7 +95,9 @@ export const merchantCommunication = {
         },
         metadata: {
           noteContent: note.content,
-          createdAt: note.createdAt
+          createdAt: note.createdAt,
+          isPinned: noteWithPinning.isPinned,
+          pinnedAt: noteWithPinning.pinnedAt
         }
       })
     } catch (error) {
