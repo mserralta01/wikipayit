@@ -26,6 +26,7 @@ export interface Note {
   content: string
   createdAt: Timestamp
   createdBy: string
+  agentName?: string
 }
 
 export interface PricingDetails {
