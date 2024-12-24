@@ -3,12 +3,12 @@ import { merchantDocuments } from "@/services/merchantDocuments"
 import { Card, CardContent } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Merchant as PipelineMerchant } from "@/types/merchant"
+import { Merchant } from "@/types/merchant"
 import { useToast } from "@/hooks/use-toast"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface DocumentsTabProps {
-  merchant: PipelineMerchant
+  merchant: Merchant
 }
 
 export function DocumentsTab({ merchant }: DocumentsTabProps) {
