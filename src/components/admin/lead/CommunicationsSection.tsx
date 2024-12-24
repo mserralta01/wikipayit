@@ -7,7 +7,7 @@ import { PhoneCalls } from "./communications/PhoneCalls"
 import { DocumentsTab } from "./communications/DocumentsTab"
 
 interface CommunicationsSectionProps {
-  merchant: PipelineMerchant;
+  merchant: PipelineMerchant & { formData?: any };
   tab?: string;
 }
 
@@ -32,8 +32,17 @@ export function CommunicationsSection({ merchant, tab = "emails" }: Communicatio
         </TabsContent>
         <TabsContent value="documents" className="mt-6">
           {(() => {
-            console.log('CommunicationsSection - Passing merchant to DocumentsTab:', merchant);
-            return <DocumentsTab merchant={merchant} />;
+            const merchantWithFormData = {
+              ...merchant,
+              formData: {
+                ...merchant.formData,
+                bank_statements: merchant.formData?.bank_statements || merchant.bank_statements || [],
+                drivers_license: merchant.formData?.drivers_license || merchant.drivers_license || '',
+                voided_check: merchant.formData?.voided_check || merchant.voided_check || []
+              }
+            };
+            console.log('CommunicationsSection - Passing merchant to DocumentsTab:', merchantWithFormData);
+            return <DocumentsTab merchant={merchantWithFormData} />;
           })()}
         </TabsContent>
       </Tabs>

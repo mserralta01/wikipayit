@@ -69,6 +69,24 @@ export function LeadDetailView() {
 
   console.log('Raw item data:', JSON.stringify(item, null, 2));
   
+  // Extract and normalize document URLs
+  const normalizeDocuments = {
+    bank_statements: (() => {
+      const statements = item.formData?.bank_statements || item.bank_statements;
+      return Array.isArray(statements) ? statements : statements ? [statements] : [];
+    })(),
+    drivers_license: (() => {
+      const license = item.formData?.drivers_license || item.drivers_license;
+      return license || '';
+    })(),
+    voided_check: (() => {
+      const check = item.formData?.voided_check || item.voided_check;
+      return Array.isArray(check) ? check : check ? [check] : [];
+    })()
+  };
+
+  console.log('Normalized documents:', normalizeDocuments);
+
   const merchantData: Lead = {
     id: item.id,
     email: item.email || '',
@@ -78,32 +96,16 @@ export function LeadDetailView() {
     pipelineStatus: item.pipelineStatus || 'lead',
     position: item.position || 0,
     formData: {
-      // First spread the base formData
       ...item.formData,
-      // Then ensure document fields are properly handled
-      bank_statements: Array.isArray(item.formData?.bank_statements) 
-        ? item.formData.bank_statements 
-        : Array.isArray(item.bank_statements)
-          ? item.bank_statements
-          : [],
-      drivers_license: typeof item.formData?.drivers_license === 'string'
-        ? item.formData.drivers_license
-        : typeof item.drivers_license === 'string'
-          ? item.drivers_license
-          : '',
-      voided_check: Array.isArray(item.formData?.voided_check)
-        ? item.formData.voided_check
-        : Array.isArray(item.voided_check)
-          ? item.voided_check
-          : typeof item.formData?.voided_check === 'string'
-            ? [item.formData.voided_check]
-            : typeof item.voided_check === 'string'
-              ? [item.voided_check]
-              : [],
-      // Finally override specific fields
+      bank_statements: normalizeDocuments.bank_statements,
+      drivers_license: normalizeDocuments.drivers_license,
+      voided_check: normalizeDocuments.voided_check,
       businessName: item.formData?.businessName || item.companyName || '',
       phone: item.formData?.phone || item.phone || '',
     },
+    bank_statements: normalizeDocuments.bank_statements,
+    drivers_license: normalizeDocuments.drivers_license,
+    voided_check: normalizeDocuments.voided_check,
     companyName: item.companyName || item.formData?.businessName || '',
     phone: item.phone || item.formData?.phone || '',
   } as Lead;
