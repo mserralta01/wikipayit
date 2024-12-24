@@ -19,7 +19,7 @@ import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText, Building2 } from "lucide-react"
+import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText, Building2, Shield } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
@@ -73,6 +73,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const { toast } = useToast()
   const [merchant, setMerchant] = useState(initialMerchant)
   const [editMode, setEditMode] = useState<{ [key: string]: boolean }>({})
+
+  const getOwnershipColor = (percentage: number) => {
+    if (percentage === 100) return 'bg-green-100 text-green-800 border-green-300';
+    if (percentage > 100) return 'bg-red-100 text-red-800 border-red-300';
+    return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+  };
 
   const [formData, setFormData] = useState<FormData>(() => ({
     businessName: initialMerchant.formData?.businessName || '',
@@ -767,7 +773,35 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               </AccordionItem>
 
               <AccordionItem value="beneficialOwners">
-                <AccordionTrigger>Beneficial Owners</AccordionTrigger>
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-blue-500" />
+                      <span className="text-lg font-semibold text-gray-900">
+                        Beneficial Owners
+                      </span>
+                    </div>
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "px-3 py-1",
+                        getOwnershipColor(
+                          merchant.formData?.beneficialOwners?.owners.reduce(
+                            (sum, owner) => sum + (Number(owner.ownershipPercentage) || 0),
+                            0
+                          ) || 0
+                        )
+                      )}
+                    >
+                      Total Ownership: {
+                        merchant.formData?.beneficialOwners?.owners.reduce(
+                          (sum, owner) => sum + (Number(owner.ownershipPercentage) || 0),
+                          0
+                        ) || 0
+                      }%
+                    </Badge>
+                  </div>
+                </AccordionTrigger>
                 <AccordionContent>
                   <BeneficialOwnersDisplay
                     formData={convertToPipelineFormData(merchant.formData)}
@@ -807,6 +841,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     editMode={editMode}
                     onFieldClick={handleFieldClick}
                     onBlur={handleBlur}
+                    hideHeader={true}
                   />
                 </AccordionContent>
               </AccordionItem>

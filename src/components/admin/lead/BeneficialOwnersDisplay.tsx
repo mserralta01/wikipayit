@@ -27,6 +27,7 @@ interface BeneficialOwnersDisplayProps {
   editMode?: { [key: string]: boolean };
   onFieldClick?: (field: string) => void;
   onBlur?: (field: string) => void;
+  hideHeader?: boolean;
 }
 
 export function BeneficialOwnersDisplay({ 
@@ -36,7 +37,8 @@ export function BeneficialOwnersDisplay({
   onAddOwner,
   editMode = {},
   onFieldClick,
-  onBlur
+  onBlur,
+  hideHeader = false
 }: BeneficialOwnersDisplayProps): JSX.Element {
   const totalOwnership = formData?.beneficialOwners?.owners.reduce(
     (sum, owner: BeneficialOwnerData) => sum + (Number(owner.ownershipPercentage) || 0), 
@@ -53,10 +55,10 @@ export function BeneficialOwnersDisplay({
     owner: BeneficialOwnerData,
     index: number,
     field: keyof BeneficialOwnerData,
-    label: string,
-    icon: React.ReactNode,
+    placeholder: string,
+    icon: React.ReactNode | null,
     type: string = 'text',
-    showLabel: boolean = true,
+    showLabel: boolean = false,
     className?: string
   ) => {
     const fieldId = `beneficialOwners.${index}.${field}`;
@@ -65,7 +67,7 @@ export function BeneficialOwnersDisplay({
       <div className={cn("flex items-center gap-2", className)}>
         {icon}
         <div className="flex-1">
-          {showLabel && <Label className="text-xs text-gray-500 mb-0.5">{label}</Label>}
+          {showLabel && <Label className="text-xs text-gray-500 mb-0.5">{placeholder}</Label>}
           {editMode[fieldId] ? (
             <Input
               type={type}
@@ -73,6 +75,7 @@ export function BeneficialOwnersDisplay({
               onChange={(e) => onOwnerChange?.(index, field, e.target.value)}
               onBlur={() => onBlur?.(fieldId)}
               className="h-7 min-h-[28px]"
+              placeholder={placeholder}
               autoFocus
             />
           ) : (
@@ -82,7 +85,7 @@ export function BeneficialOwnersDisplay({
             >
               {field === 'ssn' && owner[field] 
                 ? "XXX-XX-" + owner[field].slice(-4)
-                : owner[field] || 'Click to add'}
+                : owner[field] || placeholder}
             </div>
           )}
         </div>
@@ -92,23 +95,25 @@ export function BeneficialOwnersDisplay({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-2">
-          <Shield className="h-5 w-5 text-blue-500" />
-          <h3 className="text-lg font-semibold text-gray-900">
-            Beneficial Owners
-          </h3>
+      {!hideHeader && (
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-blue-500" />
+            <h3 className="text-lg font-semibold text-gray-900">
+              Beneficial Owners
+            </h3>
+          </div>
+          <Badge 
+            variant="outline" 
+            className={cn(
+              "px-3 py-1",
+              getOwnershipColor(totalOwnership || 0)
+            )}
+          >
+            Total Ownership: {totalOwnership || 0}%
+          </Badge>
         </div>
-        <Badge 
-          variant="outline" 
-          className={cn(
-            "px-3 py-1",
-            getOwnershipColor(totalOwnership || 0)
-          )}
-        >
-          Total Ownership: {totalOwnership || 0}%
-        </Badge>
-      </div>
+      )}
 
       <div className="grid gap-3">
         {formData?.beneficialOwners?.owners.map((owner, index) => (
@@ -137,7 +142,7 @@ export function BeneficialOwnersDisplay({
                     owner, 
                     index, 
                     'firstName',
-                    'First Name',
+                    'Enter first name',
                     <User2 className="h-4 w-4 text-blue-500" />
                   )}
                   
@@ -145,7 +150,7 @@ export function BeneficialOwnersDisplay({
                     owner,
                     index,
                     'lastName',
-                    'Last Name',
+                    'Enter last name',
                     <User2 className="h-4 w-4 text-blue-500" />
                   )}
                 </div>
@@ -154,10 +159,10 @@ export function BeneficialOwnersDisplay({
                   owner,
                   index,
                   'phone',
-                  'Phone Number',
+                  'Enter phone number',
                   <Phone className="h-4 w-4 text-blue-500" />,
                   'tel',
-                  true,
+                  false,
                   'mb-2'
                 )}
                 
@@ -165,10 +170,10 @@ export function BeneficialOwnersDisplay({
                   owner,
                   index,
                   'email',
-                  'Email Address',
+                  'Enter email address',
                   <Mail className="h-4 w-4 text-blue-500" />,
                   'email',
-                  true,
+                  false,
                   'mb-2'
                 )}
 
@@ -177,7 +182,7 @@ export function BeneficialOwnersDisplay({
                     owner,
                     index,
                     'dateOfBirth',
-                    'Date of Birth',
+                    'Select date of birth',
                     <Calendar className="h-4 w-4 text-blue-500" />,
                     'date'
                   )}
@@ -186,7 +191,7 @@ export function BeneficialOwnersDisplay({
                     owner,
                     index,
                     'ssn',
-                    'SSN',
+                    'Enter SSN',
                     <Shield className="h-4 w-4 text-blue-500" />,
                     'password'
                   )}
@@ -197,7 +202,7 @@ export function BeneficialOwnersDisplay({
                     owner,
                     index,
                     'address',
-                    'Street Address',
+                    'Enter street address',
                     <MapPin className="h-4 w-4 text-blue-500" />
                   )}
                   
@@ -219,7 +224,7 @@ export function BeneficialOwnersDisplay({
                         owner,
                         index,
                         'state',
-                        'State',
+                        'ST',
                         null,
                         'text',
                         false
@@ -245,7 +250,7 @@ export function BeneficialOwnersDisplay({
                     owner,
                     index,
                     'title',
-                    'Title/Position',
+                    'Enter title/position',
                     <Building2 className="h-4 w-4 text-blue-500" />
                   )}
                   
@@ -253,7 +258,7 @@ export function BeneficialOwnersDisplay({
                     owner,
                     index,
                     'ownershipPercentage',
-                    'Ownership %',
+                    'Enter ownership %',
                     <Percent className="h-4 w-4 text-blue-500" />,
                     'number'
                   )}
