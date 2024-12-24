@@ -192,7 +192,7 @@ export interface Lead {
   uid?: string;
   bank_statements?: string[];
   drivers_license?: string;
-  voided_check?: string;
+  voided_check?: string[];  // Changed to string[] to match FormData
   kind?: 'lead' | 'merchant';
   companyName?: string;
 }

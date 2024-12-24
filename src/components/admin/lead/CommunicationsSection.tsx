@@ -31,7 +31,10 @@ export function CommunicationsSection({ merchant, tab = "emails" }: Communicatio
           <InternalNotes merchant={merchant} />
         </TabsContent>
         <TabsContent value="documents" className="mt-6">
-          <DocumentsTab merchant={merchant} />
+          {(() => {
+            console.log('CommunicationsSection - Passing merchant to DocumentsTab:', merchant);
+            return <DocumentsTab merchant={merchant} />;
+          })()}
         </TabsContent>
       </Tabs>
     </div>

@@ -12,6 +12,18 @@ interface DocumentsTabProps {
 
 export function DocumentsTab({ merchant }: DocumentsTabProps) {
   const { toast } = useToast()
+  
+  console.log('=== DocumentsTab Debug ===');
+  console.log('DocumentsTab - merchant prop:', merchant);
+  console.log('DocumentsTab - merchant stringified:', JSON.stringify(merchant, null, 2));
+  console.log('DocumentsTab - formData:', merchant?.formData);
+  console.log('DocumentsTab - voided check (formData):', merchant?.formData?.voided_check);
+  console.log('DocumentsTab - voided check (root):', merchant?.voided_check);
+  console.log('DocumentsTab - drivers license (formData):', merchant?.formData?.drivers_license);
+  console.log('DocumentsTab - drivers license (root):', merchant?.drivers_license);
+  console.log('DocumentsTab - bank statements (formData):', merchant?.formData?.bank_statements);
+  console.log('DocumentsTab - bank statements (root):', merchant?.bank_statements);
+  console.log('=== End DocumentsTab Debug ===');
 
   const handleDeleteDocument = async (type: 'bank_statements' | 'drivers_license' | 'voided_check', url: string) => {
     try {
@@ -30,12 +42,11 @@ export function DocumentsTab({ merchant }: DocumentsTabProps) {
     }
   }
 
-  const renderDocumentPreview = (url: string | string[] | undefined, type: 'bank_statements' | 'drivers_license' | 'voided_check') => {
-    if (!url || (Array.isArray(url) && url.length === 0)) return null
-    const urlToRender = Array.isArray(url) ? url[0] : url
+  const renderDocumentPreview = (url: string, type: 'bank_statements' | 'drivers_license' | 'voided_check') => {
+    if (!url) return null
 
-    const isImage = urlToRender.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/)
-    const filename = urlToRender.split('/').pop() || 'document'
+    const isImage = url.toLowerCase().match(/\.(jpg|jpeg|png|gif)$/)
+    const filename = url.split('/').pop() || 'document'
 
     return (
       <div className="flex items-center gap-4 p-2 border rounded-md">
@@ -49,7 +60,7 @@ export function DocumentsTab({ merchant }: DocumentsTabProps) {
         </div>
         <div className="flex gap-2 ml-auto">
           <a
-            href={urlToRender}
+            href={url}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-blue-600 hover:text-blue-800"
@@ -59,7 +70,7 @@ export function DocumentsTab({ merchant }: DocumentsTabProps) {
           <Button
             variant="destructive"
             size="sm"
-            onClick={() => handleDeleteDocument(type, urlToRender)}
+            onClick={() => handleDeleteDocument(type, url)}
           >
             Delete
           </Button>
@@ -75,15 +86,20 @@ export function DocumentsTab({ merchant }: DocumentsTabProps) {
         <CardContent className="pt-6">
           <h3 className="text-lg font-medium mb-4">Bank Statements</h3>
           <div className="space-y-2">
-            {(merchant?.formData?.bank_statements?.length || merchant?.bank_statements?.length) ? (
-              (merchant?.formData?.bank_statements || merchant?.bank_statements || []).map((url: string, index: number) => (
+            {(() => {
+              console.log('Processing bank statements:', merchant?.formData?.bank_statements || merchant?.bank_statements);
+              const statements = merchant?.formData?.bank_statements || merchant?.bank_statements || []
+              const urls = (Array.isArray(statements) ? statements : [statements])
+    .filter(Boolean)
+    .filter(url => typeof url === 'string' && url.length > 0)
+              console.log('Processed bank statement URLs:', urls);
+              if (!urls.length) return <p className="text-sm text-gray-500">No bank statements uploaded</p>
+              return urls.map((url: string, index: number) => (
                 <div key={`bank-statement-${index}`}>
                   {renderDocumentPreview(url, 'bank_statements')}
                 </div>
               ))
-            ) : (
-              <p className="text-sm text-gray-500">No bank statements uploaded</p>
-            )}
+            })()}
           </div>
         </CardContent>
       </Card>
@@ -93,11 +109,20 @@ export function DocumentsTab({ merchant }: DocumentsTabProps) {
         <CardContent className="pt-6">
           <h3 className="text-lg font-medium mb-4">Driver's License</h3>
           <div className="space-y-2">
-            {(merchant?.formData?.drivers_license || merchant?.drivers_license) ? (
-              renderDocumentPreview(merchant?.formData?.drivers_license || merchant?.drivers_license, 'drivers_license')
-            ) : (
-              <p className="text-sm text-gray-500">No driver's license uploaded</p>
-            )}
+            {(() => {
+              console.log('Processing driver\'s license:', merchant?.formData?.drivers_license || merchant?.drivers_license);
+              const license = merchant?.formData?.drivers_license || merchant?.drivers_license || []
+              const urls = (Array.isArray(license) ? license : [license])
+    .filter(Boolean)
+    .filter(url => typeof url === 'string' && url.length > 0)
+              console.log('Processed driver\'s license URLs:', urls);
+              if (!urls.length) return <p className="text-sm text-gray-500">No driver's license uploaded</p>
+              return urls.map((url: string, index: number) => (
+                <div key={`drivers-license-${index}`}>
+                  {renderDocumentPreview(url, 'drivers_license')}
+                </div>
+              ))
+            })()}
           </div>
         </CardContent>
       </Card>
@@ -107,11 +132,20 @@ export function DocumentsTab({ merchant }: DocumentsTabProps) {
         <CardContent className="pt-6">
           <h3 className="text-lg font-medium mb-4">Voided Check</h3>
           <div className="space-y-2">
-            {(merchant?.formData?.voided_check || merchant?.voided_check) ? (
-              renderDocumentPreview(merchant?.formData?.voided_check || merchant?.voided_check, 'voided_check')
-            ) : (
-              <p className="text-sm text-gray-500">No voided check uploaded</p>
-            )}
+            {(() => {
+              console.log('Processing voided check:', merchant?.formData?.voided_check || merchant?.voided_check);
+              const check = merchant?.formData?.voided_check || merchant?.voided_check || []
+              const urls = (Array.isArray(check) ? check : [check])
+    .filter(Boolean)
+    .filter(url => typeof url === 'string' && url.length > 0)
+              console.log('Processed voided check URLs:', urls);
+              if (!urls.length) return <p className="text-sm text-gray-500">No voided check uploaded</p>
+              return urls.map((url: string, index: number) => (
+                <div key={`voided-check-${index}`}>
+                  {renderDocumentPreview(url, 'voided_check')}
+                </div>
+              ))
+            })()}
           </div>
         </CardContent>
       </Card>

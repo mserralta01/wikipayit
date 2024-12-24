@@ -67,6 +67,8 @@ export function LeadDetailView() {
     return 'email' in item && 'createdAt' in item && 'updatedAt' in item
   }
 
+  console.log('Raw item data:', JSON.stringify(item, null, 2));
+  
   const merchantData: Lead = {
     id: item.id,
     email: item.email || '',
@@ -76,13 +78,21 @@ export function LeadDetailView() {
     pipelineStatus: item.pipelineStatus || 'lead',
     position: item.position || 0,
     formData: {
+      // First spread the base formData
       ...item.formData,
+      // Then override with document fields to ensure they're not lost
+      bank_statements: item.formData?.bank_statements || item.bank_statements || [],
+      drivers_license: item.formData?.drivers_license || item.drivers_license || '',
+      voided_check: item.formData?.voided_check || item.voided_check || [],
+      // Finally override specific fields
       businessName: item.formData?.businessName || item.companyName || '',
       phone: item.formData?.phone || item.phone || '',
     },
     companyName: item.companyName || item.formData?.businessName || '',
     phone: item.phone || item.formData?.phone || '',
   } as Lead;
+  
+  console.log('Transformed merchantData:', JSON.stringify(merchantData, null, 2));
 
   return (
     <div className="p-8">
