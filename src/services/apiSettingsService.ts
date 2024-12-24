@@ -56,7 +56,23 @@ export const apiSettingsService = {
       const docSnap = await getDoc(docRef)
       
       console.log('Fetched settings from Firestore:', docSnap.exists() ? 'Document exists' : 'No document')
-      return docSnap.exists() ? (docSnap.data() as APISettings) : {}
+      
+      // Try to create the document first, then read it
+      try {
+        const initialSettings: APISettings = {};
+        await setDoc(docRef, initialSettings, { merge: true });
+        console.log('Created/Updated settings document');
+        
+        // Re-fetch to get the latest data
+        const updatedSnap = await getDoc(docRef);
+        return updatedSnap.data() as APISettings || initialSettings;
+      } catch (error) {
+        console.log('Error creating settings document, attempting to read existing:', error);
+        if (docSnap.exists()) {
+          return docSnap.data() as APISettings;
+        }
+        return {};
+      }
     } catch (error) {
       console.error('Error fetching API settings:', error)
       throw error instanceof Error ? error : new Error('Failed to fetch API settings')
@@ -104,4 +120,4 @@ export const apiSettingsService = {
       return undefined
     }
   }
-}   
+}                     
