@@ -19,7 +19,7 @@ import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText, Building2, Shield } from "lucide-react"
+import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText, Building2, Shield, Landmark, Clock, HeadphonesIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
@@ -359,7 +359,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
           <CardContent>
             <Accordion type="single" collapsible className="w-full space-y-1">
               <AccordionItem value="business">
-                <AccordionTrigger>Business</AccordionTrigger>
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-1">
+                    <Building2 className="h-5 w-5 text-blue-500" />
+                    <span className="text-gray-900">Business</span>
+                  </div>
+                </AccordionTrigger>
                 <AccordionContent className="pt-0 pb-1">
                   <div className="grid gap-0.5">
                     <div className="flex items-center justify-between gap-2">
@@ -710,7 +715,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="processingHistory">
-                <AccordionTrigger>Processing History</AccordionTrigger>
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-5 w-5 text-blue-500" />
+                    <span className="text-gray-900">Processing History</span>
+                  </div>
+                </AccordionTrigger>
                 <AccordionContent>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -766,7 +776,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               </AccordionItem>
 
               <AccordionItem value="bankDetails">
-                <AccordionTrigger>Bank Details</AccordionTrigger>
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-1">
+                    <Landmark className="h-5 w-5 text-blue-500" />
+                    <span className="text-gray-900">Bank Details</span>
+                  </div>
+                </AccordionTrigger>
                 <AccordionContent>
                   <BankDetailsDisplay formData={convertToPipelineFormData(merchant.formData)} />
                 </AccordionContent>
@@ -775,10 +790,10 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               <AccordionItem value="beneficialOwners">
                 <AccordionTrigger className="hover:no-underline">
                   <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                       <Shield className="h-5 w-5 text-blue-500" />
-                      <span className="text-lg font-semibold text-gray-900">
-                        Beneficial Owners
+                      <span className="text-gray-900">
+                        Owners
                       </span>
                     </div>
                     <Badge 
@@ -847,7 +862,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               </AccordionItem>
 
               <AccordionItem value="customerService">
-                <AccordionTrigger>Customer Service</AccordionTrigger>
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-1">
+                    <HeadphonesIcon className="h-5 w-5 text-blue-500" />
+                    <span className="text-gray-900">Customer Service</span>
+                  </div>
+                </AccordionTrigger>
                 <AccordionContent>
                   <div className="grid gap-4">
                     <div className="grid gap-2">
