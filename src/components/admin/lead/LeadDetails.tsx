@@ -323,6 +323,56 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     });
   };
 
+  const renderEditableField = (
+    data: any,
+    field: string,
+    placeholder: string,
+    icon: React.ReactNode | null,
+    type: string = 'text'
+  ) => {
+    const fieldId = field;
+    const value = field.includes('.')
+      ? field.split('.').reduce((obj, key) => obj?.[key], data)
+      : data[field];
+    
+    return (
+      <div className={cn("flex items-center gap-2")}>
+        {icon}
+        <div className="flex-1">
+          {editMode[fieldId] ? (
+            type === 'textarea' ? (
+              <Textarea
+                value={value || ''}
+                onChange={(e) => handleInputChange(field, e.target.value)}
+                onBlur={() => handleBlur(field)}
+                className="min-h-[60px]"
+                placeholder={placeholder}
+                autoFocus
+              />
+            ) : (
+              <Input
+                type={type}
+                value={value || ''}
+                onChange={(e) => handleInputChange(field, e.target.value)}
+                onBlur={() => handleBlur(field)}
+                className="h-7 min-h-[28px]"
+                placeholder={placeholder}
+                autoFocus
+              />
+            )
+          ) : (
+            <div 
+              className="font-medium cursor-pointer hover:bg-gray-50 rounded px-2 py-0.5"
+              onClick={() => handleFieldClick(field)}
+            >
+              {value || placeholder}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex gap-6">
       <div className="flex flex-col w-[25%] min-w-[400px]">
@@ -365,352 +415,115 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     <span className="text-gray-900">Business</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="pt-0 pb-1">
-                  <div className="grid gap-0.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-1">
-                        <Building className="h-5 w-5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          {editMode.dba ? (
-                            <Input
-                              value={formData.dba}
-                              onChange={(e) => handleInputChange('dba', e.target.value)}
-                              onBlur={() => handleBlur('dba')}
-                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleBlur('dba');
-                                }
-                              }}
-                              className="h-7 min-w-0 py-0.5 px-1.5"
-                              autoFocus
-                            />
-                          ) : (
-                            <div 
-                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                              onClick={() => handleFieldClick('dba')}
-                            >
-                              {merchant.formData?.dba || 'Click to edit'}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <div className="min-w-[100px] text-right">
-                        {editMode.yearEstablished ? (
-                          <Input
-                            value={formData.yearEstablished}
-                            onChange={(e) => handleInputChange('yearEstablished', e.target.value)}
-                            onBlur={() => handleBlur('yearEstablished')}
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('yearEstablished');
-                              }
-                            }}
-                            className="h-7 min-w-0 py-0.5 px-1.5"
-                            autoFocus
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('yearEstablished')}
-                          >
-                            {merchant.formData?.yearEstablished || 'Year'}
-                          </div>
-                        )}
-                      </div>
+                <AccordionContent className="pt-4">
+                  <div className="space-y-3">
+                    {/* Business Name and DBA */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {renderEditableField(
+                        formData,
+                        'businessName',
+                        'Business Name',
+                        <Building2 className="h-4 w-4 text-blue-500" />
+                      )}
+                      
+                      {renderEditableField(
+                        formData,
+                        'dba',
+                        'DBA',
+                        <Building className="h-4 w-4 text-blue-500" />
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-5 w-5" />
-                      <div className="flex-1">
-                        {editMode.phone ? (
-                          <Input
-                            value={formData.phone}
-                            onChange={(e) => handleInputChange('phone', e.target.value)}
-                            onBlur={() => handleBlur('phone')}
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('phone');
-                              }
-                            }}
-                            className="h-7 min-w-0 py-0.5 px-1.5"
-                            maxLength={14}
-                            placeholder="(555) 555-5555"
-                            autoFocus
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer"
-                            onClick={() => handleFieldClick('phone')}
-                          >
-                            {merchant.formData?.phone}
-                          </div>
-                        )}
-                      </div>
+
+                    {/* Contact Info */}
+                    {renderEditableField(
+                      formData,
+                      'phone',
+                      'Phone Number',
+                      <Phone className="h-4 w-4 text-blue-500" />,
+                      'tel'
+                    )}
+
+                    {renderEditableField(
+                      formData,
+                      'website',
+                      'Website',
+                      <Globe className="h-4 w-4 text-blue-500" />,
+                      'url'
+                    )}
+
+                    {/* Business Details */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {renderEditableField(
+                        formData,
+                        'businessType',
+                        'Business Type',
+                        <Building2 className="h-4 w-4 text-blue-500" />
+                      )}
+                      
+                      {renderEditableField(
+                        formData,
+                        'yearEstablished',
+                        'Year Established',
+                        <Calendar className="h-4 w-4 text-blue-500" />
+                      )}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-5 w-5" />
-                      <div className="flex-1">
-                        {editMode['companyAddress.street'] ? (
-                          <Input
-                            value={formData.companyAddress.street}
-                            onChange={(e) => handleInputChange('companyAddress.street', e.target.value)}
-                            onBlur={() => handleBlur('companyAddress.street')}
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('companyAddress.street');
-                              }
-                            }}
-                            className="flex-1"
-                            placeholder="Street Address"
-                            autoFocus
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('companyAddress.street')}
-                          >
-                            {merchant.formData?.companyAddress?.street || 'Enter street address'}
-                          </div>
-                        )}
-                      </div>
+
+                    {/* Tax ID and Description */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {renderEditableField(
+                        formData,
+                        'taxId',
+                        'Tax ID / EIN',
+                        <FileText className="h-4 w-4 text-blue-500" />
+                      )}
                     </div>
-                    
-                    <div className="flex items-center gap-2 pl-7">
-                      <div className="flex-1 flex gap-1 min-w-0">
-                        <div className="flex-[2] min-w-0">
-                          {editMode['companyAddress.city'] ? (
-                            <Input
-                              value={formData.companyAddress.city}
-                              onChange={(e) => handleInputChange('companyAddress.city', e.target.value)}
-                              onBlur={() => handleBlur('companyAddress.city')}
-                              placeholder="City"
-                              autoFocus
-                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleBlur('companyAddress.city');
-                                }
-                              }}
-                            />
-                          ) : (
-                            <div 
-                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                              onClick={() => handleFieldClick('companyAddress.city')}
-                            >
-                              {merchant.formData?.companyAddress?.city || 'City'}
-                            </div>
+
+                    {/* Address Section */}
+                    <div className="space-y-1.5">
+                      {renderEditableField(
+                        formData,
+                        'companyAddress.street',
+                        'Street Address',
+                        <MapPin className="h-4 w-4 text-blue-500" />
+                      )}
+                      
+                      <div className="grid grid-cols-6 gap-2 pl-6">
+                        <div className="col-span-3">
+                          {renderEditableField(
+                            formData,
+                            'companyAddress.city',
+                            'City',
+                            null
                           )}
                         </div>
                         
-                        <div className="w-20 flex-shrink-0">
-                          {editMode['companyAddress.state'] ? (
-                            <Input
-                              value={formData.companyAddress.state}
-                              onChange={(e) => handleInputChange('companyAddress.state', e.target.value)}
-                              onBlur={() => handleBlur('companyAddress.state')}
-                              maxLength={2}
-                              placeholder="ST"
-                              className="uppercase"
-                              autoFocus
-                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleBlur('companyAddress.state');
-                                }
-                              }}
-                            />
-                          ) : (
-                            <div 
-                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer text-center"
-                              onClick={() => handleFieldClick('companyAddress.state')}
-                            >
-                              {merchant.formData?.companyAddress?.state?.toUpperCase() || 'ST'}
-                            </div>
+                        <div className="col-span-1">
+                          {renderEditableField(
+                            formData,
+                            'companyAddress.state',
+                            'ST',
+                            null
                           )}
                         </div>
                         
-                        <div className="w-24 flex-shrink-0">
-                          {editMode['companyAddress.zipCode'] ? (
-                            <Input
-                              value={formData.companyAddress.zipCode}
-                              onChange={(e) => handleInputChange('companyAddress.zipCode', e.target.value)}
-                              onBlur={() => handleBlur('companyAddress.zipCode')}
-                              pattern="\d{5}(-\d{4})?"
-                              placeholder="ZIP"
-                              autoFocus
-                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleBlur('companyAddress.zipCode');
-                                }
-                              }}
-                            />
-                          ) : (
-                            <div 
-                              className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                              onClick={() => handleFieldClick('companyAddress.zipCode')}
-                            >
-                              {merchant.formData?.companyAddress?.zipCode || 'ZIP'}
-                            </div>
+                        <div className="col-span-2">
+                          {renderEditableField(
+                            formData,
+                            'companyAddress.zipCode',
+                            'ZIP',
+                            null
                           )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5" />
-                      <div className="flex-1">
-                        {editMode.businessDescription ? (
-                          <Input
-                            value={formData.businessDescription}
-                            onChange={(e) => handleInputChange('businessDescription', e.target.value)}
-                            onBlur={() => handleBlur('businessDescription')}
-                            className="flex-1"
-                            autoFocus
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('businessDescription');
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('businessDescription')}
-                          >
-                            {merchant.formData?.businessDescription}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Globe className="h-5 w-5" />
-                      <div className="flex-1">
-                        {editMode.website ? (
-                          <Input
-                            value={formData.website}
-                            onChange={(e) => handleInputChange('website', e.target.value)}
-                            onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
-                              // Format website on blur to ensure https:// is added
-                              handleInputChange('website', e.target.value);
-                              handleBlur('website');
-                            }}
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('website');
-                              }
-                            }}
-                            className="h-7 min-w-0 py-0.5 px-1.5"
-                            placeholder="https://example.com"
-                            autoFocus
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('website')}
-                          >
-                            {merchant.formData?.website}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4 mt-4">
-                      <div>
-                        <Label className="font-medium">Business Type</Label>
-                        <div className="flex items-center gap-2">
-                          {editMode.businessType ? (
-                            <Select
-                              value={formData.businessType}
-                              onValueChange={(value) => {
-                                handleInputChange('businessType', value);
-                                handleBlur('businessType');
-                              }}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select type" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="sole_proprietorship">Sole Proprietorship</SelectItem>
-                                <SelectItem value="partnership">Partnership</SelectItem>
-                                <SelectItem value="llc">LLC</SelectItem>
-                                <SelectItem value="corporation">Corporation</SelectItem>
-                                <SelectItem value="non_profit">Non-Profit</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          ) : (
-                            <div 
-                              className="flex items-center gap-2 text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                              onClick={() => handleFieldClick('businessType')}
-                            >
-                              <Building2 className="h-4 w-4 text-blue-500" />
-                              {merchant.formData?.businessType || 'Click to select'}
-                            </div>
-                          )}
-                        </div>
-                      </div>
 
-                      <div>
-                        <Label className="font-medium">EIN/Tax ID</Label>
-                        <div className="flex items-center gap-2">
-                          {editMode.taxId ? (
-                            <Input
-                              value={formData.taxId}
-                              onChange={(e) => handleInputChange('taxId', e.target.value)}
-                              onBlur={() => handleBlur('taxId')}
-                              className="flex-1"
-                              autoFocus
-                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleBlur('taxId');
-                                }
-                              }}
-                            />
-                          ) : (
-                            <div 
-                              className="flex items-center gap-2 text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                              onClick={() => handleFieldClick('taxId')}
-                            >
-                              <FileText className="h-4 w-4 text-blue-500" />
-                              {merchant.formData?.taxId || 'Click to edit'}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="font-medium">Established</Label>
-                        <div className="flex items-center gap-2">
-                          {editMode.yearEstablished ? (
-                            <Input
-                              value={formData.yearEstablished}
-                              onChange={(e) => handleInputChange('yearEstablished', e.target.value)}
-                              onBlur={() => handleBlur('yearEstablished')}
-                              className="flex-1"
-                              autoFocus
-                              onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  handleBlur('yearEstablished');
-                                }
-                              }}
-                            />
-                          ) : (
-                            <div 
-                              className="flex items-center gap-2 text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                              onClick={() => handleFieldClick('yearEstablished')}
-                            >
-                              <Calendar className="h-4 w-4 text-blue-500" />
-                              {merchant.formData?.yearEstablished || 'Click to edit'}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    {renderEditableField(
+                      formData,
+                      'businessDescription',
+                      'Business Description',
+                      <FileText className="h-4 w-4 text-blue-500" />,
+                      'textarea'
+                    )}
                   </div>
                 </AccordionContent>
               </AccordionItem>
