@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase"
-import { doc, updateDoc, arrayUnion, Timestamp, collection, addDoc, query, where, orderBy, getDocs, getDoc } from "firebase/firestore"
+import { doc, updateDoc, Timestamp, collection, addDoc, query, where, orderBy, getDocs, getDoc } from "firebase/firestore"
 import { Note } from "@/types/merchant"
 import { emailService } from "@/services/emailService"
 import { CustomerService } from "@/services/customerService"
@@ -26,6 +26,8 @@ interface CommunicationActivity extends Omit<Activity, 'id' | 'timestamp'> {
     callDuration?: string
     callOutcome?: 'successful' | 'no_answer' | 'follow_up_required' | 'voicemail' | 'other'
     callNotes?: string
+    isPinned?: boolean
+    pinnedAt?: Timestamp
   }
 }
 
@@ -65,30 +67,37 @@ export const merchantCommunication = {
     }
   },
 
-  async addNote(merchantId: string, note: Note): Promise<void> {
+  async addNote(merchantId: string, note: Note & { isPinned?: boolean }): Promise<void> {
     try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      const merchantSnap = await getDoc(merchantRef)
-      const merchant = merchantSnap.data()
+      const leadRef = doc(db, "leads", merchantId)
+      const leadSnap = await getDoc(leadRef)
+      const lead = leadSnap.data()
 
-      await updateDoc(merchantRef, {
-        notes: arrayUnion(note),
-        updatedAt: new Date()
-      })
+      const communicationsRef = collection(db, `leads/${merchantId}/communications`)
+      const timestamp = Timestamp.now()
 
-      // Log the note activity
-      await this.logActivity({
+      // Create the note directly in communications subcollection
+      await addDoc(communicationsRef, {
         type: "note",
         description: note.content,
         userId: note.createdBy,
         merchantId,
+        timestamp,
         merchant: {
-          businessName: merchant?.businessName || "Unknown Business"
+          businessName: lead?.businessName || "Unknown Business"
         },
         metadata: {
           noteContent: note.content,
-          createdAt: note.createdAt
+          createdAt: timestamp,
+          agentName: note.agentName,
+          isPinned: note.isPinned || false,
+          pinnedAt: note.isPinned ? timestamp : null
         }
+      })
+
+      // Update lead's updatedAt timestamp
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
       })
     } catch (error) {
       console.error("Error adding note:", error)
@@ -130,16 +139,57 @@ export const merchantCommunication = {
       const q = query(
         collection(db, `leads/${merchantId}/communications`),
         where('type', '==', type),
+        orderBy('metadata.isPinned', 'desc'),
         orderBy('timestamp', 'desc')
       )
 
       const snapshot = await getDocs(q)
-      return snapshot.docs.map(doc => ({
+      const activities = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Activity[]
+
+      // For notes, sort with pinned notes first
+      if (type === 'note') {
+        return activities.sort((a, b) => {
+          if (a.metadata?.isPinned && !b.metadata?.isPinned) return -1
+          if (!a.metadata?.isPinned && b.metadata?.isPinned) return 1
+          if (a.metadata?.isPinned && b.metadata?.isPinned) {
+            // Both pinned, sort by pinnedAt
+            const aPinnedAt = a.metadata.pinnedAt?.toMillis() || 0
+            const bPinnedAt = b.metadata.pinnedAt?.toMillis() || 0
+            return bPinnedAt - aPinnedAt
+          }
+          // Both unpinned or no pin info, sort by timestamp
+          return b.timestamp.toMillis() - a.timestamp.toMillis()
+        })
+      }
+
+      return activities
     } catch (error) {
       console.error(`Error fetching ${type} activities:`, error)
+      // Log detailed error information for debugging
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          message: error.message,
+          stack: error.stack,
+          type: type,
+          merchantId: merchantId
+        })
+      }
+      throw error
+    }
+  },
+
+  async updateNote(merchantId: string, noteId: string, updatedNote: Activity): Promise<void> {
+    try {
+      const noteRef = doc(db, `leads/${merchantId}/communications`, noteId)
+      await updateDoc(noteRef, {
+        ...updatedNote,
+        timestamp: updatedNote.timestamp.toDate()
+      })
+    } catch (error) {
+      console.error("Error updating note:", error)
       throw error
     }
   },
@@ -152,9 +202,9 @@ export const merchantCommunication = {
     agentName?: string
   }): Promise<void> {
     try {
-      const merchantRef = doc(db, "merchants", merchantId)
-      const merchantSnap = await getDoc(merchantRef)
-      const merchant = merchantSnap.data()
+      const leadRef = doc(db, "leads", merchantId)
+      const leadSnap = await getDoc(leadRef)
+      const lead = leadSnap.data()
 
       await this.logActivity({
         type: "phone_call",
@@ -162,7 +212,7 @@ export const merchantCommunication = {
         userId: data.agentId || 'system',
         merchantId,
         merchant: {
-          businessName: merchant?.businessName || "Unknown Business"
+          businessName: lead?.businessName || "Unknown Business"
         },
         metadata: {
           duration: data.duration,
@@ -174,8 +224,8 @@ export const merchantCommunication = {
         }
       })
 
-      // Update merchant's updatedAt timestamp
-      await updateDoc(merchantRef, {
+      // Update lead's updatedAt timestamp
+      await updateDoc(leadRef, {
         updatedAt: new Date()
       })
     } catch (error) {

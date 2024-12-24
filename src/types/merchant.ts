@@ -27,6 +27,8 @@ export interface Note {
   createdAt: Timestamp
   createdBy: string
   agentName?: string
+  isPinned?: boolean
+  pinnedAt?: Timestamp
 }
 
 export interface PricingDetails {

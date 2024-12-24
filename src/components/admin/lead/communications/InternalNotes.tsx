@@ -10,7 +10,8 @@ import { Activity } from "@/types/activity"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDistanceToNow } from "date-fns"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { Pin, PinOff } from "lucide-react"
+import { AlertCircle as LucideAlertCircle } from "lucide-react"
 
 interface InternalNotesProps {
   merchant: PipelineMerchant
@@ -23,6 +24,7 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
   const { toast } = useToast()
   const { user, isAdmin } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isPinning, setIsPinning] = useState(false)
   
   useEffect(() => {
     const loadNotes = async () => {
@@ -53,7 +55,8 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
         content: noteContent.trim(),
         createdAt: Timestamp.now(),
         createdBy: user.uid,
-        agentName: user.displayName || user.email || "Unknown Staff Member"
+        agentName: user.displayName || user.email || "Unknown Staff Member",
+        isPinned: false
       })
 
       // Refresh notes after adding
@@ -80,13 +83,49 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
   if (!isAdmin) {
     return (
       <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
+        <LucideAlertCircle className="h-4 w-4" />
         <AlertTitle>Access Denied</AlertTitle>
         <AlertDescription>
           Only administrators can view and manage internal notes.
         </AlertDescription>
       </Alert>
     )
+  }
+
+  const handlePinToggle = async (note: Activity): Promise<void> => {
+    if (!user) return
+    setIsPinning(true)
+    try {
+      const updatedNote: Activity = {
+        ...note,
+        metadata: {
+          ...note.metadata,
+          isPinned: !note.metadata?.isPinned,
+          pinnedAt: !note.metadata?.isPinned ? Timestamp.now() : undefined
+        }
+      } as Activity
+      
+      // Update the note in Firestore
+      await merchantCommunication.updateNote(merchant.id, note.id, updatedNote)
+      
+      // Refresh notes
+      const updatedNotes = await merchantCommunication.getActivities(merchant.id, 'note')
+      setNotes(updatedNotes)
+      
+      toast({
+        title: updatedNote.metadata?.isPinned ? "Note pinned" : "Note unpinned",
+        description: "Note status updated successfully.",
+      })
+    } catch (error) {
+      console.error("Error toggling pin status:", error)
+      toast({
+        title: "Failed to update note",
+        description: "There was an error updating the note status. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsPinning(false)
+    }
   }
 
   return (
@@ -127,18 +166,55 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
           ))
         ) : notes.length > 0 ? (
           notes.map((note) => (
-            <Card key={note.id}>
+            <Card 
+                key={note.id} 
+                className={`transition-all duration-200 ${
+                  note.metadata?.isPinned 
+                    ? "border-2 border-blue-500 bg-blue-50/50 shadow-md" 
+                    : "hover:shadow-sm"
+                }`}
+              >
               <CardContent className="py-4">
                 <div className="flex justify-between items-start">
-                  <div>
+                  <div className="flex-grow">
+                    <div className="flex items-center gap-2 mb-1">
+                      {note.metadata?.isPinned && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          <Pin className="h-3 w-3 mr-1" />
+                          Pinned
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm">{note.metadata?.noteContent}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 mt-2">
                       Added by {note.metadata?.agentName || "Unknown Staff Member"}
                     </p>
                   </div>
-                  <span className="text-xs text-gray-500">
-                    {formatDistanceToNow(note.timestamp.toDate(), { addSuffix: true })}
-                  </span>
+                  <div className="flex flex-col items-end gap-2">
+                    <Button
+                      variant={note.metadata?.isPinned ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => handlePinToggle(note)}
+                      disabled={isPinning}
+                      className="p-2 hover:bg-blue-100/50"
+                    >
+                      {note.metadata?.isPinned ? (
+                        <PinOff className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <Pin className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <div className="flex flex-col items-end text-xs text-gray-500">
+                      <span>
+                        {formatDistanceToNow(note.timestamp.toDate(), { addSuffix: true })}
+                      </span>
+                      {note.metadata?.isPinned && note.metadata?.pinnedAt && (
+                        <span className="text-blue-600">
+                          Pinned {formatDistanceToNow(note.metadata.pinnedAt.toDate(), { addSuffix: true })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

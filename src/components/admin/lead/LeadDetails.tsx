@@ -850,18 +850,18 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
           <Tabs defaultValue="emails">
             <TabsList>
               <TabsTrigger value="emails">Emails</TabsTrigger>
-              <TabsTrigger value="phoneCalls">Phone Calls</TabsTrigger>
-              <TabsTrigger value="internalNotes">Internal Notes</TabsTrigger>
+              <TabsTrigger value="phone">Phone Calls</TabsTrigger>
+              <TabsTrigger value="notes">Internal Notes</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
             <TabsContent value="emails">
               <CommunicationsSection merchant={merchant} tab="emails" />
             </TabsContent>
-            <TabsContent value="phoneCalls">
-              <CommunicationsSection merchant={merchant} tab="phoneCalls" />
+            <TabsContent value="phone">
+              <CommunicationsSection merchant={merchant} tab="phone" />
             </TabsContent>
-            <TabsContent value="internalNotes">
-              <CommunicationsSection merchant={merchant} tab="internalNotes" />
+            <TabsContent value="notes">
+              <CommunicationsSection merchant={merchant} tab="notes" />
             </TabsContent>
             <TabsContent value="documents">
               <DocumentsSection merchant={merchant} />
