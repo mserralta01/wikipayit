@@ -127,13 +127,6 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
     }
   }
 
-  // Sort notes with pinned notes first
-  const sortedNotes = [...notes].sort((a, b) => {
-    if (a.metadata?.isPinned && !b.metadata?.isPinned) return -1
-    if (!a.metadata?.isPinned && b.metadata?.isPinned) return 1
-    return b.timestamp.toMillis() - a.timestamp.toMillis()
-  })
-
   return (
     <div className="space-y-4">
       {/* Note creation form */}
@@ -171,33 +164,55 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
             </Card>
           ))
         ) : notes.length > 0 ? (
-          sortedNotes.map((note) => (
-            <Card key={note.id} className={note.metadata?.isPinned ? "border-2 border-blue-500" : ""}>
+          notes.map((note) => (
+            <Card 
+                key={note.id} 
+                className={`transition-all duration-200 ${
+                  note.metadata?.isPinned 
+                    ? "border-2 border-blue-500 bg-blue-50/50 shadow-md" 
+                    : "hover:shadow-sm"
+                }`}
+              >
               <CardContent className="py-4">
                 <div className="flex justify-between items-start">
                   <div className="flex-grow">
+                    <div className="flex items-center gap-2 mb-1">
+                      {note.metadata?.isPinned && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          <Pin className="h-3 w-3 mr-1" />
+                          Pinned
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm">{note.metadata?.noteContent}</p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-gray-500 mt-2">
                       Added by {note.metadata?.agentName || "Unknown Staff Member"}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <Button
-                      variant="ghost"
+                      variant={note.metadata?.isPinned ? "secondary" : "ghost"}
                       size="sm"
                       onClick={() => handlePinToggle(note)}
                       disabled={isPinning}
-                      className="p-2"
+                      className="p-2 hover:bg-blue-100/50"
                     >
                       {note.metadata?.isPinned ? (
-                        <PinOff className="h-4 w-4" />
+                        <PinOff className="h-4 w-4 text-blue-600" />
                       ) : (
                         <Pin className="h-4 w-4" />
                       )}
                     </Button>
-                    <span className="text-xs text-gray-500">
-                      {formatDistanceToNow(note.timestamp.toDate(), { addSuffix: true })}
-                    </span>
+                    <div className="flex flex-col items-end text-xs text-gray-500">
+                      <span>
+                        {formatDistanceToNow(note.timestamp.toDate(), { addSuffix: true })}
+                      </span>
+                      {note.metadata?.isPinned && note.metadata?.pinnedAt && (
+                        <span className="text-blue-600">
+                          Pinned {formatDistanceToNow(note.metadata.pinnedAt.toDate(), { addSuffix: true })}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>

@@ -144,10 +144,28 @@ export const merchantCommunication = {
       )
 
       const snapshot = await getDocs(q)
-      return snapshot.docs.map(doc => ({
+      const activities = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Activity[]
+
+      // For notes, sort with pinned notes first
+      if (type === 'note') {
+        return activities.sort((a, b) => {
+          if (a.metadata?.isPinned && !b.metadata?.isPinned) return -1
+          if (!a.metadata?.isPinned && b.metadata?.isPinned) return 1
+          if (a.metadata?.isPinned && b.metadata?.isPinned) {
+            // Both pinned, sort by pinnedAt
+            const aPinnedAt = a.metadata.pinnedAt?.toMillis() || 0
+            const bPinnedAt = b.metadata.pinnedAt?.toMillis() || 0
+            return bPinnedAt - aPinnedAt
+          }
+          // Both unpinned or no pin info, sort by timestamp
+          return b.timestamp.toMillis() - a.timestamp.toMillis()
+        })
+      }
+
+      return activities
     } catch (error) {
       console.error(`Error fetching ${type} activities:`, error)
       throw error
