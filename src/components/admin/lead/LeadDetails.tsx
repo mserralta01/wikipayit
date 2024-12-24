@@ -819,65 +819,11 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Current Step</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.currentStep || 0}
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label className="font-medium">User ID</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.uid || 'Not assigned'}
-                      </div>
-                    </div>
                     {merchant.updatedAt && (
                       <div className="text-sm text-gray-500">
                         Last updated: {timestampToString(merchant.updatedAt)}
                       </div>
                     )}
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="systemFields">
-                <AccordionTrigger>System Fields</AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label className="font-medium">ID</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.id}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Created At</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.createdAt ? timestampToString(merchant.createdAt) : ''}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Updated At</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.updatedAt ? timestampToString(merchant.updatedAt) : ''}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">User ID</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.uid}
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Current Step</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.currentStep}
-                      </div>
-                    </div>
                   </div>
                 </AccordionContent>
               </AccordionItem>
