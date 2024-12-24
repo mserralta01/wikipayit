@@ -109,13 +109,6 @@ export interface ProcessingHistory {
   terminationExplanation: string;
 }
 
-export interface BankDetails {
-  bankName: string;
-  routingNumber: string;
-  accountNumber: string;
-  confirmAccountNumber: string;
-}
-
 export interface FormData {
   businessName: string;
   dba: string;
@@ -134,7 +127,11 @@ export interface FormData {
     state: string;
     zipCode: string;
   };
-  bankDetails: BankDetails;
+  // Bank details moved to root level of FormData
+  bankName: string;
+  routingNumber: string;
+  accountNumber: string;
+  confirmAccountNumber: string;
   processingHistory: ProcessingHistory;
   beneficialOwners: {
     owners: Array<{

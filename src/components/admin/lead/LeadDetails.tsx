@@ -12,8 +12,7 @@ import {
   timestampToString, 
   ProcessingHistory, 
   FormData,
-  BeneficialOwner,
-  BankDetails
+  BeneficialOwner
 } from "@/types/merchant"
 import { doc, updateDoc, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase"
@@ -53,18 +52,9 @@ const formatWebsite = (value: string): string => {
 };
 
 export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
-  console.log('LeadDetails rendered with:', {
-    initialMerchant,
-    bankDetails: initialMerchant.formData?.bankDetails
-  });
-
   const { toast } = useToast()
   const [merchant, setMerchant] = useState(initialMerchant)
   const [editMode, setEditMode] = useState<{ [key: string]: boolean }>({})
-
-  // Add console log to see initial merchant data
-  console.log('Initial merchant data:', initialMerchant)
-  console.log('Processing History:', initialMerchant.formData?.processingHistory)
 
   const [formData, setFormData] = useState<FormData>(() => ({
     businessName: initialMerchant.formData?.businessName || '',
@@ -83,12 +73,11 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       state: initialMerchant.formData?.companyAddress?.state || '',
       zipCode: initialMerchant.formData?.companyAddress?.zipCode || '',
     },
-    bankDetails: {
-      bankName: initialMerchant.formData?.bankDetails?.bankName || '',
-      routingNumber: initialMerchant.formData?.bankDetails?.routingNumber || '',
-      accountNumber: initialMerchant.formData?.bankDetails?.accountNumber || '',
-      confirmAccountNumber: initialMerchant.formData?.bankDetails?.confirmAccountNumber || ''
-    },
+    // Bank details at root level
+    bankName: initialMerchant.formData?.bankName || '',
+    routingNumber: initialMerchant.formData?.routingNumber || '',
+    accountNumber: initialMerchant.formData?.accountNumber || '',
+    confirmAccountNumber: initialMerchant.formData?.accountNumber || '',
     processingHistory: {
       averageTicket: initialMerchant.formData?.processingHistory?.averageTicket || 0,
       cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage || 0,
@@ -107,64 +96,47 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
 
   // Update merchant state when initialMerchant changes
   useEffect(() => {
-    console.log('useEffect - merchant update:', {
-      initialMerchant,
-      bankDetails: initialMerchant.formData?.bankDetails
-    });
-    
     setMerchant(initialMerchant);
-    setFormData(prev => {
-      const updatedFormData: FormData = {
-        ...prev,
-        bankDetails: {
-          bankName: initialMerchant.formData?.bankName || '',
-          routingNumber: initialMerchant.formData?.routingNumber || '',
-          accountNumber: initialMerchant.formData?.accountNumber || '',
-          confirmAccountNumber: initialMerchant.formData?.accountNumber || ''
-        },
-        processingHistory: {
-          ...prev.processingHistory,
-          averageTicket: initialMerchant.formData?.processingHistory?.averageTicket || 0,
-          cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage || 0,
-          currentProcessor: initialMerchant.formData?.processingHistory?.currentProcessor || '',
-          ecommercePercentage: initialMerchant.formData?.processingHistory?.ecommercePercentage || 0,
-          hasBeenTerminated: initialMerchant.formData?.processingHistory?.hasBeenTerminated || 'no',
-          highTicket: initialMerchant.formData?.processingHistory?.highTicket || 0,
-          isCurrentlyProcessing: initialMerchant.formData?.processingHistory?.isCurrentlyProcessing || 'no',
-          monthlyVolume: initialMerchant.formData?.processingHistory?.monthlyVolume || 0,
-          terminationExplanation: initialMerchant.formData?.processingHistory?.terminationExplanation || ''
-        },
-        beneficialOwners: {
-          owners: initialMerchant.formData?.beneficialOwners?.owners || []
-        },
-        businessName: initialMerchant.formData?.businessName || '',
-        dba: initialMerchant.formData?.dba || '',
-        phone: initialMerchant.formData?.phone || '',
-        businessType: initialMerchant.formData?.businessType || '',
-        taxId: initialMerchant.formData?.taxId || '',
-        businessDescription: initialMerchant.formData?.businessDescription || '',
-        yearEstablished: initialMerchant.formData?.yearEstablished || '',
-        website: initialMerchant.formData?.website || '',
-        customerServiceEmail: initialMerchant.formData?.customerServiceEmail || '',
-        customerServicePhone: initialMerchant.formData?.customerServicePhone || '',
-        companyAddress: {
-          street: initialMerchant.formData?.companyAddress?.street || '',
-          city: initialMerchant.formData?.companyAddress?.city || '',
-          state: initialMerchant.formData?.companyAddress?.state || '',
-          zipCode: initialMerchant.formData?.companyAddress?.zipCode || ''
-        }
-      };
-      console.log('Updated form data:', {
-        bankDetails: updatedFormData.bankDetails
-      });
-      return updatedFormData;
-    });
+    setFormData(prev => ({
+      ...prev,
+      // Bank details at root level
+      bankName: initialMerchant.formData?.bankName || '',
+      routingNumber: initialMerchant.formData?.routingNumber || '',
+      accountNumber: initialMerchant.formData?.accountNumber || '',
+      confirmAccountNumber: initialMerchant.formData?.accountNumber || '',
+      processingHistory: {
+        ...prev.processingHistory,
+        averageTicket: initialMerchant.formData?.processingHistory?.averageTicket || 0,
+        cardPresentPercentage: initialMerchant.formData?.processingHistory?.cardPresentPercentage || 0,
+        currentProcessor: initialMerchant.formData?.processingHistory?.currentProcessor || '',
+        ecommercePercentage: initialMerchant.formData?.processingHistory?.ecommercePercentage || 0,
+        hasBeenTerminated: initialMerchant.formData?.processingHistory?.hasBeenTerminated || 'no',
+        highTicket: initialMerchant.formData?.processingHistory?.highTicket || 0,
+        isCurrentlyProcessing: initialMerchant.formData?.processingHistory?.isCurrentlyProcessing || 'no',
+        monthlyVolume: initialMerchant.formData?.processingHistory?.monthlyVolume || 0,
+        terminationExplanation: initialMerchant.formData?.processingHistory?.terminationExplanation || ''
+      },
+      beneficialOwners: {
+        owners: initialMerchant.formData?.beneficialOwners?.owners || []
+      },
+      businessName: initialMerchant.formData?.businessName || '',
+      dba: initialMerchant.formData?.dba || '',
+      phone: initialMerchant.formData?.phone || '',
+      businessType: initialMerchant.formData?.businessType || '',
+      taxId: initialMerchant.formData?.taxId || '',
+      businessDescription: initialMerchant.formData?.businessDescription || '',
+      yearEstablished: initialMerchant.formData?.yearEstablished || '',
+      website: initialMerchant.formData?.website || '',
+      customerServiceEmail: initialMerchant.formData?.customerServiceEmail || '',
+      customerServicePhone: initialMerchant.formData?.customerServicePhone || '',
+      companyAddress: {
+        street: initialMerchant.formData?.companyAddress?.street || '',
+        city: initialMerchant.formData?.companyAddress?.city || '',
+        state: initialMerchant.formData?.companyAddress?.state || '',
+        zipCode: initialMerchant.formData?.companyAddress?.zipCode || ''
+      }
+    }));
   }, [initialMerchant]);
-
-  useEffect(() => {
-    console.log('Initial merchant bank details:', initialMerchant.formData?.bankDetails);
-    console.log('Form data bank details:', formData.bankDetails);
-  }, [initialMerchant, formData]);
 
   const toggleEdit = (field: string): void => {
     setEditMode(prev => ({ ...prev, [field]: !prev[field] }))
@@ -172,16 +144,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => {
-      if (field.startsWith('bankDetails.')) {
-        const bankField = field.split('.')[1] as keyof BankDetails;
-        return {
-          ...prev,
-          bankDetails: {
-            ...prev.bankDetails,
-            [bankField]: value
-          }
-        };
-      } else if (field === 'phone') {
+      if (field === 'phone') {
         // Format phone number as user types
         const formattedPhone = formatPhoneNumber(value);
         return {
@@ -225,18 +188,9 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
 
   const handleSave = async (field: string) => {
     try {
-      let updateData: Record<string, any> = {};
-      
-      if (field.startsWith('bankDetails.')) {
-        const bankField = field.split('.')[1] as keyof BankDetails;
-        updateData = {
-          [`formData.${bankField}`]: formData.bankDetails?.[bankField]
-        };
-      } else {
-        updateData = {
-          [`formData.${field}`]: formData[field as keyof FormData]
-        };
-      }
+      const updateData: Record<string, any> = {
+        [`formData.${field}`]: formData[field as keyof FormData]
+      };
       
       const collectionPath = 'leads';
       await updateDoc(doc(db, collectionPath, merchant.id), updateData);
@@ -257,6 +211,18 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     }
   };
 
+  const handleFieldClick = (field: string) => {
+    setEditMode(prev => ({ ...prev, [field]: true }));
+  };
+
+  // Add handleBlur function
+  const handleBlur = async (field: string) => {
+    if (editMode[field]) {
+      await handleSave(field);
+    }
+  };
+
+  // Add back missing functions
   const calculateProgress = (status: MerchantStatus): number => {
     const stages = ['lead', 'phone', 'offer', 'underwriting', 'documents', 'approved']
     const currentIndex = stages.indexOf(status)
@@ -310,32 +276,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     }))
   }
 
-  const handleBlur = async (field: string) => {
-    if (editMode[field]) {
-      if (field.startsWith('bankDetails.')) {
-        await handleSave(field);
-      } else if (field === 'bankName' || field === 'routingNumber' || field === 'accountNumber') {
-        await handleSave(`bankDetails.${field}`);
-      } else {
-        await handleSave(field);
-      }
-    }
-  };
-
-  const handleFieldClick = (field: string) => {
-    if (!editMode[field]) {
-      if (field.startsWith('bankDetails.') || field === 'bankName' || field === 'routingNumber' || field === 'accountNumber') {
-        setEditMode(prev => ({ 
-          ...prev, 
-          [field]: true,
-          [`bankDetails.${field}`]: true 
-        }));
-      } else {
-        setEditMode(prev => ({ ...prev, [field]: true }));
-      }
-    }
-  };
-
   // Calculate progress based on current status
   const statusProgress: Record<PipelineStatus, number> = {
     lead: 17,
@@ -349,26 +289,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const progress = merchant.pipelineStatus && 
     Object.keys(statusProgress).includes(merchant.pipelineStatus) ? 
     statusProgress[merchant.pipelineStatus as PipelineStatus] : 0;
-
-  useEffect(() => {
-    console.log('Component mounted with data:', {
-      initialMerchant: initialMerchant,
-      merchantState: merchant,
-      formData: formData,
-      bankDetails: {
-        initial: initialMerchant.formData?.bankDetails,
-        current: merchant.formData?.bankDetails,
-        form: formData.bankDetails
-      }
-    });
-  }, []);
-
-  // Add a debug render to see what's being displayed
-  console.log('Render values:', {
-    merchantBankDetails: merchant.formData?.bankDetails,
-    formDataBankDetails: formData.bankDetails,
-    editMode
-  });
 
   const formatCurrency = (value: number): string => {
     return value.toLocaleString('en-US', {
@@ -827,18 +747,18 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   <div className="grid gap-2">
                     <Label className="font-medium">Bank Name</Label>
                     <div className="flex items-center gap-2">
-                      {editMode['bankDetails.bankName'] ? (
+                      {editMode.bankName ? (
                         <Input
-                          value={formData.bankDetails.bankName}
-                          onChange={(e) => handleInputChange('bankDetails.bankName', e.target.value)}
-                          onBlur={() => handleBlur('bankDetails.bankName')}
+                          value={formData.bankName}
+                          onChange={(e) => handleInputChange('bankName', e.target.value)}
+                          onBlur={() => handleBlur('bankName')}
                           className="flex-1"
                           autoFocus
                         />
                       ) : (
                         <div 
                           className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                          onClick={() => handleFieldClick('bankDetails.bankName')}
+                          onClick={() => handleFieldClick('bankName')}
                         >
                           {merchant.formData?.bankName || 'Click to edit'}
                         </div>
@@ -848,18 +768,18 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   <div className="grid gap-2">
                     <Label className="font-medium">Routing Number</Label>
                     <div className="flex items-center gap-2">
-                      {editMode['bankDetails.routingNumber'] ? (
+                      {editMode.routingNumber ? (
                         <Input
-                          value={formData.bankDetails.routingNumber}
-                          onChange={(e) => handleInputChange('bankDetails.routingNumber', e.target.value)}
-                          onBlur={() => handleBlur('bankDetails.routingNumber')}
+                          value={formData.routingNumber}
+                          onChange={(e) => handleInputChange('routingNumber', e.target.value)}
+                          onBlur={() => handleBlur('routingNumber')}
                           className="flex-1"
                           autoFocus
                         />
                       ) : (
                         <div 
                           className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                          onClick={() => handleFieldClick('bankDetails.routingNumber')}
+                          onClick={() => handleFieldClick('routingNumber')}
                         >
                           {merchant.formData?.routingNumber || 'Click to edit'}
                         </div>
@@ -869,11 +789,11 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   <div className="grid gap-2">
                     <Label className="font-medium">Account Number</Label>
                     <div className="flex items-center gap-2">
-                      {editMode['bankDetails.accountNumber'] ? (
+                      {editMode.accountNumber ? (
                         <Input
-                          value={formData.bankDetails.accountNumber}
-                          onChange={(e) => handleInputChange('bankDetails.accountNumber', e.target.value)}
-                          onBlur={() => handleBlur('bankDetails.accountNumber')}
+                          value={formData.accountNumber}
+                          onChange={(e) => handleInputChange('accountNumber', e.target.value)}
+                          onBlur={() => handleBlur('accountNumber')}
                           className="flex-1"
                           type="password"
                           autoFocus
@@ -881,7 +801,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       ) : (
                         <div 
                           className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                          onClick={() => handleFieldClick('bankDetails.accountNumber')}
+                          onClick={() => handleFieldClick('accountNumber')}
                         >
                           {merchant.formData?.accountNumber ? '••••••••' + merchant.formData?.accountNumber.slice(-4) : 'Click to edit'}
                         </div>
