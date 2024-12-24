@@ -67,6 +67,22 @@ export function LeadDetailView() {
     return 'email' in item && 'createdAt' in item && 'updatedAt' in item
   }
 
+  // Extract and normalize document URLs
+  const normalizeDocuments = {
+    bank_statements: (() => {
+      const statements = item.formData?.bank_statements || item.bank_statements;
+      return Array.isArray(statements) ? statements : statements ? [statements] : [];
+    })(),
+    drivers_license: (() => {
+      const license = item.formData?.drivers_license || item.drivers_license;
+      return license || '';
+    })(),
+    voided_check: (() => {
+      const check = item.formData?.voided_check || item.voided_check;
+      return Array.isArray(check) ? check : check ? [check] : [];
+    })()
+  };
+
   const merchantData: Lead = {
     id: item.id,
     email: item.email || '',
@@ -77,12 +93,20 @@ export function LeadDetailView() {
     position: item.position || 0,
     formData: {
       ...item.formData,
+      bank_statements: normalizeDocuments.bank_statements,
+      drivers_license: normalizeDocuments.drivers_license,
+      voided_check: normalizeDocuments.voided_check,
       businessName: item.formData?.businessName || item.companyName || '',
       phone: item.formData?.phone || item.phone || '',
     },
+    bank_statements: normalizeDocuments.bank_statements,
+    drivers_license: normalizeDocuments.drivers_license,
+    voided_check: normalizeDocuments.voided_check,
     companyName: item.companyName || item.formData?.businessName || '',
     phone: item.phone || item.formData?.phone || '',
   } as Lead;
+  
+  console.log('Transformed merchantData:', JSON.stringify(merchantData, null, 2));
 
   return (
     <div className="p-8">

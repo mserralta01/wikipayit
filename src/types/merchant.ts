@@ -26,6 +26,7 @@ export interface Note {
   content: string
   createdAt: Timestamp
   createdBy: string
+  agentName?: string
 }
 
 export interface PricingDetails {
@@ -121,6 +122,9 @@ export interface FormData {
   website: string;
   customerServiceEmail: string;
   customerServicePhone: string;
+  bank_statements?: string[];
+  drivers_license?: string;
+  voided_check?: string[];
   companyAddress: {
     street: string;
     city: string;
@@ -187,8 +191,8 @@ export interface Lead {
   currentStep?: number;
   uid?: string;
   bank_statements?: string[];
-  drivers_license?: string[];
-  voided_check?: string[];
+  drivers_license?: string;
+  voided_check?: string[];  // Changed to string[] to match FormData
   kind?: 'lead' | 'merchant';
   companyName?: string;
 }

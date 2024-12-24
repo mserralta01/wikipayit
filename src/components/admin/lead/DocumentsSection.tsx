@@ -35,7 +35,10 @@ const DocumentsSection: React.FC<DocumentsSectionProps> = ({ merchant }) => {
           <CardContent>
             {docCategory.files.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {docCategory.files.map((fileUrl: string, idx: number) => (
+                {(Array.isArray(docCategory.files) ? docCategory.files : [docCategory.files])
+                  .filter(Boolean)
+                  .filter((url): url is string => typeof url === 'string' && url.length > 0)
+                  .map((fileUrl: string, idx: number) => (
                   <div key={idx} className="border p-4 rounded-md">
                     <div className="mb-2">
                       <a href={fileUrl} target="_blank" rel="noopener noreferrer">

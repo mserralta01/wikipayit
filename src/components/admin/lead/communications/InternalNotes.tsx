@@ -9,6 +9,8 @@ import { Timestamp } from "firebase/firestore"
 import { Activity } from "@/types/activity"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDistanceToNow } from "date-fns"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertCircle } from "lucide-react"
 
 interface InternalNotesProps {
   merchant: PipelineMerchant
@@ -19,9 +21,9 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
   const [notes, setNotes] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
-
+  
   useEffect(() => {
     const loadNotes = async () => {
       try {
@@ -50,7 +52,8 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
       await merchantCommunication.addNote(merchant.id, {
         content: noteContent.trim(),
         createdAt: Timestamp.now(),
-        createdBy: user.uid
+        createdBy: user.uid,
+        agentName: user.displayName || user.email || "Unknown Staff Member"
       })
 
       // Refresh notes after adding
@@ -72,6 +75,18 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  if (!isAdmin) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Access Denied</AlertTitle>
+        <AlertDescription>
+          Only administrators can view and manage internal notes.
+        </AlertDescription>
+      </Alert>
+    )
   }
 
   return (
@@ -117,7 +132,9 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm">{note.metadata?.noteContent}</p>
-                    <p className="text-xs text-gray-500">Added by {note.userId}</p>
+                    <p className="text-xs text-gray-500">
+                      Added by {note.metadata?.agentName || "Unknown Staff Member"}
+                    </p>
                   </div>
                   <span className="text-xs text-gray-500">
                     {formatDistanceToNow(note.timestamp.toDate(), { addSuffix: true })}
