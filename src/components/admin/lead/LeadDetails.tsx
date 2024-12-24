@@ -19,7 +19,7 @@ import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText, Building2, Shield, Landmark, Clock, HeadphonesIcon } from "lucide-react"
+import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText, Building2, Shield, Landmark, Clock, HeadphonesIcon, Mail } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
@@ -416,115 +416,163 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent className="pt-4">
-                  <div className="space-y-3">
-                    {/* Business Name and DBA */}
-                    <div className="grid grid-cols-2 gap-3">
-                      {renderEditableField(
-                        formData,
-                        'businessName',
-                        'Business Name',
-                        <Building2 className="h-4 w-4 text-blue-500" />
-                      )}
-                      
+                  <Card className="w-full">
+                    <CardContent className="pt-6 space-y-3">
+                      {/* DBA only (removed Business Name) */}
                       {renderEditableField(
                         formData,
                         'dba',
                         'DBA',
                         <Building className="h-4 w-4 text-blue-500" />
                       )}
-                    </div>
 
-                    {/* Contact Info */}
-                    {renderEditableField(
-                      formData,
-                      'phone',
-                      'Phone Number',
-                      <Phone className="h-4 w-4 text-blue-500" />,
-                      'tel'
-                    )}
-
-                    {renderEditableField(
-                      formData,
-                      'website',
-                      'Website',
-                      <Globe className="h-4 w-4 text-blue-500" />,
-                      'url'
-                    )}
-
-                    {/* Business Details */}
-                    <div className="grid grid-cols-2 gap-3">
+                      {/* Contact Info */}
                       {renderEditableField(
                         formData,
-                        'businessType',
-                        'Business Type',
-                        <Building2 className="h-4 w-4 text-blue-500" />
+                        'phone',
+                        'Phone Number',
+                        <Phone className="h-4 w-4 text-blue-500" />,
+                        'tel'
                       )}
-                      
-                      {renderEditableField(
-                        formData,
-                        'yearEstablished',
-                        'Year Established',
-                        <Calendar className="h-4 w-4 text-blue-500" />
-                      )}
-                    </div>
 
-                    {/* Tax ID and Description */}
-                    <div className="grid grid-cols-2 gap-3">
-                      {renderEditableField(
-                        formData,
-                        'taxId',
-                        'Tax ID / EIN',
-                        <FileText className="h-4 w-4 text-blue-500" />
-                      )}
-                    </div>
-
-                    {/* Address Section */}
-                    <div className="space-y-1.5">
-                      {renderEditableField(
-                        formData,
-                        'companyAddress.street',
-                        'Street Address',
-                        <MapPin className="h-4 w-4 text-blue-500" />
-                      )}
-                      
-                      <div className="grid grid-cols-6 gap-2 pl-6">
-                        <div className="col-span-3">
-                          {renderEditableField(
-                            formData,
-                            'companyAddress.city',
-                            'City',
-                            null
-                          )}
-                        </div>
-                        
-                        <div className="col-span-1">
-                          {renderEditableField(
-                            formData,
-                            'companyAddress.state',
-                            'ST',
-                            null
-                          )}
-                        </div>
-                        
-                        <div className="col-span-2">
-                          {renderEditableField(
-                            formData,
-                            'companyAddress.zipCode',
-                            'ZIP',
-                            null
+                      {/* Website with clickable link */}
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-4 w-4 text-blue-500" />
+                        <div className="flex-1">
+                          {editMode.website ? (
+                            <Input
+                              value={formData.website}
+                              onChange={(e) => handleInputChange('website', e.target.value)}
+                              onBlur={() => handleBlur('website')}
+                              className="h-7 min-h-[28px]"
+                              placeholder="Website URL"
+                              autoFocus
+                            />
+                          ) : (
+                            <div 
+                              className="font-medium cursor-pointer hover:bg-gray-50 rounded px-2 py-0.5 flex items-center justify-between"
+                              onClick={() => handleFieldClick('website')}
+                            >
+                              <span>{formData.website || 'Add website'}</span>
+                              {formData.website && (
+                                <a
+                                  href={formData.website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-500 hover:text-blue-700 ml-2"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  Visit
+                                </a>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
-                    </div>
 
-                    {renderEditableField(
-                      formData,
-                      'businessDescription',
-                      'Business Description',
-                      <FileText className="h-4 w-4 text-blue-500" />,
-                      'textarea'
-                    )}
-                  </div>
+                      {/* Business Details */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderEditableField(
+                          formData,
+                          'businessType',
+                          'Business Type',
+                          <Building2 className="h-4 w-4 text-blue-500" />
+                        )}
+                        
+                        {renderEditableField(
+                          formData,
+                          'yearEstablished',
+                          'Year Established',
+                          <Calendar className="h-4 w-4 text-blue-500" />
+                        )}
+                      </div>
+
+                      {/* Tax ID and Description */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {renderEditableField(
+                          formData,
+                          'taxId',
+                          'Tax ID / EIN',
+                          <FileText className="h-4 w-4 text-blue-500" />
+                        )}
+                      </div>
+
+                      {/* Address Section */}
+                      <div className="space-y-1.5">
+                        {renderEditableField(
+                          formData,
+                          'companyAddress.street',
+                          'Street Address',
+                          <MapPin className="h-4 w-4 text-blue-500" />
+                        )}
+                        
+                        <div className="grid grid-cols-6 gap-2 pl-6">
+                          <div className="col-span-3">
+                            {renderEditableField(
+                              formData,
+                              'companyAddress.city',
+                              'City',
+                              null
+                            )}
+                          </div>
+                          
+                          <div className="col-span-1">
+                            {renderEditableField(
+                              formData,
+                              'companyAddress.state',
+                              'ST',
+                              null
+                            )}
+                          </div>
+                          
+                          <div className="col-span-2">
+                            {renderEditableField(
+                              formData,
+                              'companyAddress.zipCode',
+                              'ZIP',
+                              null
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {renderEditableField(
+                        formData,
+                        'businessDescription',
+                        'Business Description',
+                        <FileText className="h-4 w-4 text-blue-500" />,
+                        'textarea'
+                      )}
+
+                      {/* Customer Service Section */}
+                      <div className="space-y-2">
+                        <Card className="bg-gray-50 relative pt-3">
+                          <div className="absolute -top-3 left-4">
+                            <Badge variant="outline" className="bg-white text-gray-700 font-normal">
+                              Customer Service
+                            </Badge>
+                          </div>
+                          <CardContent className="pt-2 pb-4 space-y-2">
+                            {renderEditableField(
+                              formData,
+                              'customerServiceEmail',
+                              'Customer Service Email',
+                              <Mail className="h-4 w-4 text-blue-500" />,
+                              'email'
+                            )}
+                            
+                            {renderEditableField(
+                              formData,
+                              'customerServicePhone',
+                              'Customer Service Phone',
+                              <Phone className="h-4 w-4 text-blue-500" />,
+                              'tel'
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </AccordionContent>
               </AccordionItem>
               <AccordionItem value="processingHistory">
@@ -534,57 +582,61 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     <span className="text-gray-900">Processing History</span>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="font-medium">Average Ticket</Label>
-                      <div className="text-sm text-gray-700">
-                        {formatCurrency(merchant.formData?.processingHistory?.averageTicket || 0)}
+                <AccordionContent className="pt-4">
+                  <Card className="w-full">
+                    <CardContent className="pt-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="font-medium">Average Ticket</Label>
+                          <div className="text-sm text-gray-700">
+                            {formatCurrency(merchant.formData?.processingHistory?.averageTicket || 0)}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="font-medium">Card Present %</Label>
+                          <div className="text-sm text-gray-700">
+                            {merchant.formData?.processingHistory?.cardPresentPercentage || 0}%
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="font-medium">Current Processor</Label>
+                          <div className="text-sm text-gray-700">
+                            {merchant.formData?.processingHistory?.currentProcessor || 'N/A'}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="font-medium">E-commerce %</Label>
+                          <div className="text-sm text-gray-700">
+                            {merchant.formData?.processingHistory?.ecommercePercentage || 0}%
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="font-medium">High Ticket</Label>
+                          <div className="text-sm text-gray-700">
+                            {formatCurrency(merchant.formData?.processingHistory?.highTicket || 0)}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="font-medium">Monthly Volume</Label>
+                          <div className="text-sm text-gray-700">
+                            {formatCurrency(merchant.formData?.processingHistory?.monthlyVolume || 0)}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="font-medium">Has Been Terminated</Label>
+                          <div className="text-sm text-gray-700">
+                            {merchant.formData?.processingHistory?.hasBeenTerminated || 'no'}
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="font-medium">Termination Explanation</Label>
+                          <div className="text-sm text-gray-700">
+                            {merchant.formData?.processingHistory?.terminationExplanation || 'N/A'}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <Label className="font-medium">Card Present %</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.formData?.processingHistory?.cardPresentPercentage || 0}%
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="font-medium">Current Processor</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.formData?.processingHistory?.currentProcessor || 'N/A'}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="font-medium">E-commerce %</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.formData?.processingHistory?.ecommercePercentage || 0}%
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="font-medium">High Ticket</Label>
-                      <div className="text-sm text-gray-700">
-                        {formatCurrency(merchant.formData?.processingHistory?.highTicket || 0)}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="font-medium">Monthly Volume</Label>
-                      <div className="text-sm text-gray-700">
-                        {formatCurrency(merchant.formData?.processingHistory?.monthlyVolume || 0)}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="font-medium">Has Been Terminated</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.formData?.processingHistory?.hasBeenTerminated || 'no'}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="font-medium">Termination Explanation</Label>
-                      <div className="text-sm text-gray-700">
-                        {merchant.formData?.processingHistory?.terminationExplanation || 'N/A'}
-                      </div>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 </AccordionContent>
               </AccordionItem>
 
@@ -671,75 +723,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     onBlur={handleBlur}
                     hideHeader={true}
                   />
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="customerService">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-1">
-                    <HeadphonesIcon className="h-5 w-5 text-blue-500" />
-                    <span className="text-gray-900">Customer Service</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Customer Service Email</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode.customerServiceEmail ? (
-                          <Input
-                            value={formData.customerServiceEmail}
-                            onChange={(e) => handleInputChange('customerServiceEmail', e.target.value)}
-                            onBlur={() => handleBlur('customerServiceEmail')}
-                            className="flex-1"
-                            type="email"
-                            autoFocus
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('customerServiceEmail');
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('customerServiceEmail')}
-                          >
-                            {merchant.formData?.customerServiceEmail}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid gap-2">
-                      <Label className="font-medium">Customer Service Phone</Label>
-                      <div className="flex items-center gap-2">
-                        {editMode.customerServicePhone ? (
-                          <Input
-                            value={formData.customerServicePhone}
-                            onChange={(e) => handleInputChange('customerServicePhone', e.target.value)}
-                            onBlur={() => handleBlur('customerServicePhone')}
-                            className="flex-1"
-                            type="tel"
-                            autoFocus
-                            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                handleBlur('customerServicePhone');
-                              }
-                            }}
-                          />
-                        ) : (
-                          <div 
-                            className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                            onClick={() => handleFieldClick('customerServicePhone')}
-                          >
-                            {merchant.formData?.customerServicePhone}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
                 </AccordionContent>
               </AccordionItem>
 
