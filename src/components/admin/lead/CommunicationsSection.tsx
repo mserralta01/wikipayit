@@ -6,13 +6,14 @@ import { InternalNotes } from "./communications/InternalNotes"
 import { PhoneCalls } from "./communications/PhoneCalls"
 
 interface CommunicationsSectionProps {
-  merchant: PipelineMerchant
+  merchant: PipelineMerchant;
+  tab?: string;
 }
 
-export function CommunicationsSection({ merchant }: CommunicationsSectionProps) {
+export function CommunicationsSection({ merchant, tab = "emails" }: CommunicationsSectionProps) {
   return (
     <div className="w-full">
-      <Tabs defaultValue="emails" className="w-full">
+      <Tabs defaultValue={tab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="emails">Emails</TabsTrigger>
           <TabsTrigger value="phone">Phone Calls</TabsTrigger>
