@@ -41,7 +41,10 @@ interface PipelineFormData {
       phone?: string;
     }>;
   };
-  bankDetails?: any;
+  bankName?: string;
+  routingNumber?: string;
+  accountNumber?: string;
+  confirmAccountNumber?: string;
 }
 
 interface Column {
@@ -182,7 +185,10 @@ const convertFormDataToPipelineForm = (formData: FormData | undefined): Pipeline
     beneficialOwners: {
       owners: formData.beneficialOwners?.owners || []
     },
-    bankDetails: formData.bankDetails
+    bankName: formData.bankName,
+    routingNumber: formData.routingNumber,
+    accountNumber: formData.accountNumber,
+    confirmAccountNumber: formData.confirmAccountNumber
   };
 };
 
