@@ -56,7 +56,13 @@ export default function WebsiteManagement() {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (!user || (user.email !== 'mserralta@gmail.com' && user.email !== 'Mpilotg6@gmail.com')) {
+      if (!user || !user.email) {
+        navigate('/login')
+        return
+      }
+      // Allow serralta@outlook.com and original admin emails
+      const allowedEmails = ['mserralta@gmail.com', 'Mpilotg6@gmail.com', 'serralta@outlook.com']
+      if (!allowedEmails.includes(user.email)) {
         navigate('/login')
         return
       }
