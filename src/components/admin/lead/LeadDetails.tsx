@@ -630,7 +630,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     </Badge>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent>
+                <AccordionContent className="pt-8">
                   <BeneficialOwnersDisplay
                     formData={convertToPipelineFormData(merchant.formData)}
                     onOwnerChange={handleBeneficialOwnerChange}
