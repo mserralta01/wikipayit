@@ -19,7 +19,7 @@ import { db } from "@/lib/firebase"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText, Building2, Shield, Landmark, Clock, HeadphonesIcon, Mail } from "lucide-react"
+import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText, Building2, Shield, Landmark, Clock, HeadphonesIcon, Mail, DollarSign } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
@@ -726,6 +726,22 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 </AccordionContent>
               </AccordionItem>
 
+              <AccordionItem value="pricing">
+                <AccordionTrigger className="hover:no-underline">
+                  <div className="flex items-center gap-1">
+                    <DollarSign className="h-5 w-5 text-blue-500" />
+                    <span className="text-gray-900">Pricing</span>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent className="pt-4">
+                  <Card className="w-full">
+                    <CardContent className="pt-6">
+                      <PricingSection merchant={merchant} />
+                    </CardContent>
+                  </Card>
+                </AccordionContent>
+              </AccordionItem>
+
               <AccordionItem value="documents">
                 <AccordionTrigger>Documents</AccordionTrigger>
                 <AccordionContent>
@@ -830,16 +846,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
             </Accordion>
           </CardContent>
         </Card>
-        <div className="mt-8 w-full">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pricing</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PricingSection merchant={merchant} />
-            </CardContent>
-          </Card>
-        </div>
       </div>
       <div className="flex-1 min-w-[600px]">
         <Card>
