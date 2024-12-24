@@ -154,6 +154,19 @@ export const merchantCommunication = {
     }
   },
 
+  async updateNote(merchantId: string, noteId: string, updatedNote: Activity): Promise<void> {
+    try {
+      const noteRef = doc(db, `leads/${merchantId}/communications`, noteId)
+      await updateDoc(noteRef, {
+        ...updatedNote,
+        timestamp: updatedNote.timestamp.toDate()
+      })
+    } catch (error) {
+      console.error("Error updating note:", error)
+      throw error
+    }
+  },
+
   async addPhoneCall(merchantId: string, data: {
     duration: string
     outcome: 'successful' | 'no_answer' | 'follow_up_required' | 'voicemail' | 'other'

@@ -29,5 +29,7 @@ export interface Activity {
     agentName?: string;
     noteContent?: string;
     createdAt?: Timestamp;
+    isPinned?: boolean;
+    pinnedAt?: Timestamp;
   };
-} 
+}    
