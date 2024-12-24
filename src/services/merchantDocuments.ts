@@ -1,6 +1,6 @@
 import { storage } from "../lib/firebase"
 import { ref, deleteObject } from "firebase/storage"
-import { db } from "@/lib/firebase"
+import { db } from "../lib/firebase"
 import { doc, updateDoc, arrayRemove } from "firebase/firestore"
 
 export const merchantDocuments = {
@@ -19,12 +19,23 @@ export const merchantDocuments = {
       await deleteObject(storageRef)
 
       // Update Firestore document
-      const merchantRef = doc(db, 'merchants', merchantId)
-      await updateDoc(merchantRef, {
-        [`formData.${type}`]: type === 'bank_statements' 
-          ? arrayRemove(url)  // For bank_statements array
-          : null  // For single document fields
-      })
+      // Try updating in both merchants and leads collections
+      try {
+        const merchantRef = doc(db, 'merchants', merchantId)
+        await updateDoc(merchantRef, {
+          [`formData.${type}`]: type === 'bank_statements' 
+            ? arrayRemove(url)  // For bank_statements array
+            : null  // For single document fields
+        })
+      } catch (error) {
+        // If not found in merchants, try leads collection
+        const leadRef = doc(db, 'leads', merchantId)
+        await updateDoc(leadRef, {
+          [`formData.${type}`]: type === 'bank_statements' 
+            ? arrayRemove(url)  // For bank_statements array
+            : null  // For single document fields
+        })
+      }
     } catch (error) {
       console.error("Error deleting document:", error)
       throw new Error("Failed to delete document. Please try again.")

@@ -80,10 +80,26 @@ export function LeadDetailView() {
     formData: {
       // First spread the base formData
       ...item.formData,
-      // Then override with document fields to ensure they're not lost
-      bank_statements: item.formData?.bank_statements || item.bank_statements || [],
-      drivers_license: item.formData?.drivers_license || item.drivers_license || '',
-      voided_check: item.formData?.voided_check || item.voided_check || [],
+      // Then ensure document fields are properly handled
+      bank_statements: Array.isArray(item.formData?.bank_statements) 
+        ? item.formData.bank_statements 
+        : Array.isArray(item.bank_statements)
+          ? item.bank_statements
+          : [],
+      drivers_license: typeof item.formData?.drivers_license === 'string'
+        ? item.formData.drivers_license
+        : typeof item.drivers_license === 'string'
+          ? item.drivers_license
+          : '',
+      voided_check: Array.isArray(item.formData?.voided_check)
+        ? item.formData.voided_check
+        : Array.isArray(item.voided_check)
+          ? item.voided_check
+          : typeof item.formData?.voided_check === 'string'
+            ? [item.formData.voided_check]
+            : typeof item.voided_check === 'string'
+              ? [item.voided_check]
+              : [],
       // Finally override specific fields
       businessName: item.formData?.businessName || item.companyName || '',
       phone: item.formData?.phone || item.phone || '',

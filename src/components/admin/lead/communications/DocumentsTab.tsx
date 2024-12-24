@@ -14,15 +14,13 @@ export function DocumentsTab({ merchant }: DocumentsTabProps) {
   const { toast } = useToast()
   
   console.log('=== DocumentsTab Debug ===');
-  console.log('DocumentsTab - merchant prop:', merchant);
-  console.log('DocumentsTab - merchant stringified:', JSON.stringify(merchant, null, 2));
-  console.log('DocumentsTab - formData:', merchant?.formData);
-  console.log('DocumentsTab - voided check (formData):', merchant?.formData?.voided_check);
-  console.log('DocumentsTab - voided check (root):', merchant?.voided_check);
-  console.log('DocumentsTab - drivers license (formData):', merchant?.formData?.drivers_license);
-  console.log('DocumentsTab - drivers license (root):', merchant?.drivers_license);
-  console.log('DocumentsTab - bank statements (formData):', merchant?.formData?.bank_statements);
-  console.log('DocumentsTab - bank statements (root):', merchant?.bank_statements);
+  console.log('DocumentsTab - merchant ID:', merchant?.id);
+  console.log('DocumentsTab - merchant formData:', merchant?.formData);
+  console.log('DocumentsTab - Document URLs:', {
+    voided_check: merchant?.formData?.voided_check,
+    drivers_license: merchant?.formData?.drivers_license,
+    bank_statements: merchant?.formData?.bank_statements
+  });
   console.log('=== End DocumentsTab Debug ===');
 
   const handleDeleteDocument = async (type: 'bank_statements' | 'drivers_license' | 'voided_check', url: string) => {
