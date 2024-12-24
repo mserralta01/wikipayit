@@ -23,8 +23,9 @@ import { Pencil, X, Check, Building, Phone, MapPin, Globe, Calendar, FileText, B
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
-import { PipelineStatus } from "@/types/pipeline"
+import { PipelineStatus, PipelineFormData } from "@/types/pipeline"
 import { BankDetailsDisplay } from './BankDetailsDisplay';
+import { BeneficialOwnersDisplay } from './BeneficialOwnersDisplay';
 
 interface LeadDetailsProps {
   merchant: MerchantDTO;
@@ -50,6 +51,22 @@ const formatWebsite = (value: string): string => {
     return `https://${value}`;
   }
   return value;
+};
+
+const convertToPipelineFormData = (formData: FormData | undefined): PipelineFormData | undefined => {
+  if (!formData) return undefined;
+  
+  return {
+    ...formData,
+    monthlyVolume: formData.monthlyVolume?.toString(),
+    averageTicket: formData.averageTicket?.toString(),
+    beneficialOwners: {
+      owners: formData.beneficialOwners?.owners.map(owner => ({
+        ...owner,
+        ownershipPercentage: owner.ownershipPercentage?.toString()
+      })) || []
+    }
+  };
 };
 
 export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
@@ -745,405 +762,52 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               <AccordionItem value="bankDetails">
                 <AccordionTrigger>Bank Details</AccordionTrigger>
                 <AccordionContent>
-                  <BankDetailsDisplay formData={merchant.formData} />
+                  <BankDetailsDisplay formData={convertToPipelineFormData(merchant.formData)} />
                 </AccordionContent>
               </AccordionItem>
 
               <AccordionItem value="beneficialOwners">
                 <AccordionTrigger>Beneficial Owners</AccordionTrigger>
                 <AccordionContent>
-                  <div className="space-y-4">
-                    {formData.beneficialOwners?.owners?.length === 0 ? (
-                      <div className="text-sm text-gray-500">No beneficial owners added</div>
-                    ) : (
-                      formData.beneficialOwners?.owners?.map((owner, index) => (
-                        <div key={index} className="p-4 border rounded-lg space-y-2">
-                          <div className="grid gap-0.5">
-                            <Label className="font-medium">Owner {index + 1}</Label>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                <Label className="text-sm">First Name</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.firstName`] ? (
-                                    <Input
-                                      value={owner.firstName}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'firstName', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.firstName`)}
-                                      className="flex-1"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.firstName`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.firstName`)}
-                                    >
-                                      {owner.firstName}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                              <div>
-                                <Label className="text-sm">Last Name</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.lastName`] ? (
-                                    <Input
-                                      value={owner.lastName}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'lastName', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.lastName`)}
-                                      className="flex-1"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.lastName`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.lastName`)}
-                                    >
-                                      {owner.lastName}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">Title</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.title`] ? (
-                                    <Input
-                                      value={owner.title}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'title', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.title`)}
-                                      className="flex-1"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.title`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.title`)}
-                                    >
-                                      {owner.title}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">Date of Birth</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.dateOfBirth`] ? (
-                                    <Input
-                                      type="date"
-                                      value={owner.dateOfBirth}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'dateOfBirth', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.dateOfBirth`)}
-                                      className="flex-1"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.dateOfBirth`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.dateOfBirth`)}
-                                    >
-                                      {owner.dateOfBirth}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">SSN</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.ssn`] ? (
-                                    <Input
-                                      type="password"
-                                      value={owner.ssn}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'ssn', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.ssn`)}
-                                      className="flex-1"
-                                      pattern="\d{3}-\d{2}-\d{4}"
-                                      placeholder="XXX-XX-XXXX"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.ssn`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.ssn`)}
-                                    >
-                                      {owner.ssn ? "XXX-XX-" + owner.ssn.slice(-4) : ""}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">Address</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.address`] ? (
-                                    <Input
-                                      value={owner.address}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'address', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.address`)}
-                                      className="flex-1"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.address`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.address`)}
-                                    >
-                                      {owner.address}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">City</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.city`] ? (
-                                    <Input
-                                      value={owner.city}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'city', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.city`)}
-                                      className="flex-1"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.city`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.city`)}
-                                    >
-                                      {owner.city}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">State</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.state`] ? (
-                                    <Input
-                                      value={owner.state}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'state', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.state`)}
-                                      className="flex-1"
-                                      maxLength={2}
-                                      placeholder="FL"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.state`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.state`)}
-                                    >
-                                      {owner.state}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">ZIP Code</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.zipCode`] ? (
-                                    <Input
-                                      value={owner.zipCode}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'zipCode', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.zipCode`)}
-                                      className="flex-1"
-                                      pattern="\d{5}(-\d{4})?"
-                                      placeholder="12345"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.zipCode`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.zipCode`)}
-                                    >
-                                      {owner.zipCode}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">Phone</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.phone`] ? (
-                                    <Input
-                                      type="tel"
-                                      value={owner.phone}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'phone', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.phone`)}
-                                      className="flex-1"
-                                      placeholder="(123) 456-7890"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.phone`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.phone`)}
-                                    >
-                                      {owner.phone}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">Email</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.email`] ? (
-                                    <Input
-                                      type="email"
-                                      value={owner.email}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'email', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.email`)}
-                                      className="flex-1"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.email`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.email`)}
-                                    >
-                                      {owner.email}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="text-sm">Ownership Percentage</Label>
-                                <div className="flex items-center gap-2">
-                                  {editMode[`beneficialOwners.${index}.ownershipPercentage`] ? (
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      max="100"
-                                      value={owner.ownershipPercentage}
-                                      onChange={(e) => handleBeneficialOwnerChange(index, 'ownershipPercentage', e.target.value)}
-                                      onBlur={() => handleBlur(`beneficialOwners.${index}.ownershipPercentage`)}
-                                      className="flex-1"
-                                      autoFocus
-                                      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          handleBlur(`beneficialOwners.${index}.ownershipPercentage`);
-                                        }
-                                      }}
-                                    />
-                                  ) : (
-                                    <div 
-                                      className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                                      onClick={() => handleFieldClick(`beneficialOwners.${index}.ownershipPercentage`)}
-                                    >
-                                      {owner.ownershipPercentage}%
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                    <Button
-                      onClick={() => {
-                        setFormData(prev => ({
-                          ...prev,
-                          beneficialOwners: {
-                            owners: [
-                              ...(prev.beneficialOwners?.owners || []),
-                              {
-                                firstName: '',
-                                lastName: '',
-                                title: '',
-                                dateOfBirth: '',
-                                ssn: '',
-                                address: '',
-                                city: '',
-                                state: '',
-                                zipCode: '',
-                                phone: '',
-                                email: '',
-                                ownershipPercentage: ''
-                              }
-                            ]
-                          }
-                        }))
-                      }}
-                      className="w-full"
-                    >
-                      Add Beneficial Owner
-                    </Button>
-                  </div>
+                  <BeneficialOwnersDisplay
+                    formData={convertToPipelineFormData(merchant.formData)}
+                    onOwnerChange={handleBeneficialOwnerChange}
+                    onAddOwner={() => {
+                      setFormData(prev => ({
+                        ...prev,
+                        beneficialOwners: {
+                          owners: [
+                            ...(prev.beneficialOwners?.owners || []),
+                            {
+                              firstName: '',
+                              lastName: '',
+                              title: '',
+                              dateOfBirth: '',
+                              ssn: '',
+                              address: '',
+                              city: '',
+                              state: '',
+                              zipCode: '',
+                              phone: '',
+                              email: '',
+                              ownershipPercentage: ''
+                            }
+                          ]
+                        }
+                      }));
+                    }}
+                    onRemoveOwner={(index) => {
+                      setFormData(prev => ({
+                        ...prev,
+                        beneficialOwners: {
+                          owners: prev.beneficialOwners.owners.filter((_, i) => i !== index)
+                        }
+                      }));
+                    }}
+                    editMode={editMode}
+                    onFieldClick={handleFieldClick}
+                    onBlur={handleBlur}
+                  />
                 </AccordionContent>
               </AccordionItem>
 

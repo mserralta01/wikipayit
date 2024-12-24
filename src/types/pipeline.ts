@@ -23,6 +23,22 @@ export interface BaseLead extends Omit<Lead, 'id'> {
   type: 'lead';
 }
 
+// Update the owner type in PipelineFormData
+export interface BeneficialOwnerData {
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  title?: string;
+  dateOfBirth?: string;
+  ssn?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  ownershipPercentage?: string;
+}
+
 // First, let's define a simpler FormData type for pipeline items
 export interface PipelineFormData {
   businessName?: string;
@@ -34,11 +50,7 @@ export interface PipelineFormData {
   monthlyVolume?: string;
   averageTicket?: string;
   beneficialOwners?: {
-    owners: Array<{
-      firstName: string;
-      lastName: string;
-      phone?: string;
-    }>;
+    owners: BeneficialOwnerData[];
   };
   bankName?: string;
   routingNumber?: string;
