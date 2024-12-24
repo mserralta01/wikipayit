@@ -872,3 +872,4 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     </div>
   );
 }
+
