@@ -58,19 +58,25 @@ export const apiSettingsService = {
       console.log('Fetched settings from Firestore:', docSnap.exists() ? 'Document exists' : 'No document')
       
       // Try to create the document first, then read it
-      try {
-        const initialSettings: APISettings = {};
-        await setDoc(docRef, initialSettings, { merge: true });
-        console.log('Created/Updated settings document');
-        
-        // Re-fetch to get the latest data
-        const updatedSnap = await getDoc(docRef);
-        return updatedSnap.data() as APISettings || initialSettings;
-      } catch (error) {
-        console.log('Error creating settings document, attempting to read existing:', error);
-        if (docSnap.exists()) {
-          return docSnap.data() as APISettings;
+      if (docSnap.exists()) {
+        console.log('Settings document exists, returning data');
+        return docSnap.data() as APISettings;
+      }
+      
+      // If document doesn't exist, create it with SendGrid configuration
+      const initialSettings: APISettings = {
+        sendgrid: {
+          enabled: true,
+          fromEmail: 'matt@wikipayit.com'
         }
+      };
+      
+      try {
+        await setDoc(docRef, initialSettings);
+        console.log('Created settings document with SendGrid configuration');
+        return initialSettings;
+      } catch (error) {
+        console.error('Error creating settings document:', error);
         return {};
       }
     } catch (error) {
@@ -120,4 +126,4 @@ export const apiSettingsService = {
       return undefined
     }
   }
-}                     
+}                                                                                                                                                   
