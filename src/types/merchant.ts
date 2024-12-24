@@ -121,6 +121,9 @@ export interface FormData {
   website: string;
   customerServiceEmail: string;
   customerServicePhone: string;
+  bank_statements?: string[];
+  drivers_license?: string;
+  voided_check?: string[];
   companyAddress: {
     street: string;
     city: string;
@@ -187,8 +190,8 @@ export interface Lead {
   currentStep?: number;
   uid?: string;
   bank_statements?: string[];
-  drivers_license?: string[];
-  voided_check?: string[];
+  drivers_license?: string;
+  voided_check?: string;
   kind?: 'lead' | 'merchant';
   companyName?: string;
 }
