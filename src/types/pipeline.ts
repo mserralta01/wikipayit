@@ -24,14 +24,14 @@ export interface BaseLead extends Omit<Lead, 'id'> {
 }
 
 // First, let's define a simpler FormData type for pipeline items
-interface PipelineFormData {
+export interface PipelineFormData {
   businessName?: string;
   dba?: string;
   phone?: string;
   taxId?: string;
   businessType?: string;
   yearEstablished?: string;
-  monthlyVolume?: string;  // Changed from number to string
+  monthlyVolume?: string;
   averageTicket?: string;
   beneficialOwners?: {
     owners: Array<{
@@ -40,7 +40,10 @@ interface PipelineFormData {
       phone?: string;
     }>;
   };
-  bankDetails?: any;
+  bankName?: string;
+  routingNumber?: string;
+  accountNumber?: string;
+  confirmAccountNumber?: string;
 }
 
 // Add BasePipelineItem interface

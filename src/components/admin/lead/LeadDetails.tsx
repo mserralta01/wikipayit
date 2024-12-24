@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { PipelineStatus } from "@/types/pipeline"
+import { BankDetailsDisplay } from './BankDetailsDisplay';
 
 interface LeadDetailsProps {
   merchant: MerchantDTO;
@@ -744,70 +745,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               <AccordionItem value="bankDetails">
                 <AccordionTrigger>Bank Details</AccordionTrigger>
                 <AccordionContent>
-                  <div className="grid gap-2">
-                    <Label className="font-medium">Bank Name</Label>
-                    <div className="flex items-center gap-2">
-                      {editMode.bankName ? (
-                        <Input
-                          value={formData.bankName}
-                          onChange={(e) => handleInputChange('bankName', e.target.value)}
-                          onBlur={() => handleBlur('bankName')}
-                          className="flex-1"
-                          autoFocus
-                        />
-                      ) : (
-                        <div 
-                          className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                          onClick={() => handleFieldClick('bankName')}
-                        >
-                          {merchant.formData?.bankName || 'Click to edit'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label className="font-medium">Routing Number</Label>
-                    <div className="flex items-center gap-2">
-                      {editMode.routingNumber ? (
-                        <Input
-                          value={formData.routingNumber}
-                          onChange={(e) => handleInputChange('routingNumber', e.target.value)}
-                          onBlur={() => handleBlur('routingNumber')}
-                          className="flex-1"
-                          autoFocus
-                        />
-                      ) : (
-                        <div 
-                          className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                          onClick={() => handleFieldClick('routingNumber')}
-                        >
-                          {merchant.formData?.routingNumber || 'Click to edit'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label className="font-medium">Account Number</Label>
-                    <div className="flex items-center gap-2">
-                      {editMode.accountNumber ? (
-                        <Input
-                          value={formData.accountNumber}
-                          onChange={(e) => handleInputChange('accountNumber', e.target.value)}
-                          onBlur={() => handleBlur('accountNumber')}
-                          className="flex-1"
-                          type="password"
-                          autoFocus
-                        />
-                      ) : (
-                        <div 
-                          className="text-sm text-gray-700 py-0.5 px-1.5 hover:bg-gray-100 rounded cursor-pointer truncate"
-                          onClick={() => handleFieldClick('accountNumber')}
-                        >
-                          {merchant.formData?.accountNumber ? '••••••••' + merchant.formData?.accountNumber.slice(-4) : 'Click to edit'}
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <BankDetailsDisplay formData={merchant.formData} />
                 </AccordionContent>
               </AccordionItem>
 
