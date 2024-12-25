@@ -7,6 +7,7 @@ import { Activity } from "@/types/activity"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmailEditor } from "./EmailEditor"
 import { merchantCommunication } from "@/services/merchantCommunication"
+import { ApiSettingsDebug } from "../../debug/ApiSettingsDebug"
 
 interface EmailThreadsProps {
   merchant: Merchant
@@ -105,11 +106,24 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
 
   const handleSendEmail = async (content: string, recipient: string, subject: string) => {
     try {
+      console.log('EmailThreads.handleSendEmail - Starting:', {
+        merchantId: merchant.id,
+        recipient,
+        subject,
+        contentLength: content.length,
+        timestamp: new Date().toISOString()
+      });
+      
       const success = await merchantCommunication.sendEmail(merchant.id, {
         recipientEmail: recipient,
         subject,
         content
-      })
+      });
+      
+      console.log('EmailThreads.handleSendEmail - Result:', {
+        success,
+        timestamp: new Date().toISOString()
+      });
 
       if (success) {
         toast({
@@ -133,6 +147,9 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
     <div className="space-y-4">
       <Card>
         <CardContent className="pt-6">
+          <div className="mb-4">
+            <ApiSettingsDebug />
+          </div>
           <EmailEditor
             onSend={handleSendEmail}
             recipientOptions={getRecipientOptions()}

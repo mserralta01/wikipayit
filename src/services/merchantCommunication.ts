@@ -34,28 +34,70 @@ interface CommunicationActivity extends Omit<Activity, 'id' | 'timestamp'> {
 export const merchantCommunication = {
   async sendEmail(merchantId: string, data: EmailData): Promise<boolean> {
     try {
+      console.log('merchantCommunication.sendEmail - Starting:', {
+        merchantId,
+        recipient: data.recipientEmail,
+        subject: data.subject,
+        timestamp: new Date().toISOString()
+      });
+
       const merchant = await CustomerService.getCustomer(merchantId)
+      console.log('merchantCommunication.sendEmail - Got merchant:', {
+        merchantId,
+        businessName: merchant.businessInfo.legalName
+      });
+
+      console.log('merchantCommunication.sendEmail - Calling emailService.sendEmail:', {
+        to: data.recipientEmail,
+        subject: data.subject,
+        contentLength: data.content.length,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log('merchantCommunication.sendEmail - Starting:', {
+        merchantId,
+        recipient: data.recipientEmail,
+        subject: data.subject,
+        timestamp: new Date().toISOString()
+      });
 
       const success = await emailService.sendEmail({
         to: data.recipientEmail,
         subject: data.subject,
         content: data.content
-      })
+      });
+
+      console.log('merchantCommunication.sendEmail - Email service response:', {
+        success,
+        timestamp: new Date().toISOString()
+      });
+
+      console.log('merchantCommunication.sendEmail - Email service response:', {
+        success,
+        timestamp: new Date().toISOString()
+      });
 
       if (success) {
         // Log the email activity
-        await this.logActivity({
+        console.log('merchantCommunication.sendEmail - Logging activity to Firestore');
+        const communicationsRef = collection(db, `leads/${merchantId}/communications`);
+        const timestamp = Timestamp.now();
+        
+        // Create a new communication record directly
+        await addDoc(communicationsRef, {
           type: 'email_sent',
           description: `Email sent to ${data.recipientEmail}`,
           userId: 'system', // TODO: Get actual user ID
           merchantId,
+          timestamp: timestamp.toDate(),
           merchant: {
-            businessName: merchant.businessInfo.legalName
+            businessName: merchant.businessInfo?.legalName || 'Unknown Business'
           },
           metadata: {
             recipientEmail: data.recipientEmail,
             subject: data.subject,
-            content: data.content
+            content: data.content,
+            createdAt: timestamp
           }
         })
       }
@@ -117,17 +159,35 @@ export const merchantCommunication = {
 
   async getEmailThreads(merchantId: string): Promise<Activity[]> {
     try {
+      console.log('getEmailThreads - Starting query for merchantId:', merchantId);
       const q = query(
         collection(db, `leads/${merchantId}/communications`),
-        where('type', '==', 'email'),
+        where('type', '==', 'email_sent'),
         orderBy('timestamp', 'desc')
       )
+      
+      console.log('getEmailThreads - Query constructed:', {
+        path: `leads/${merchantId}/communications`,
+        filters: ['type == email_sent', 'orderBy timestamp desc']
+      });
 
       const snapshot = await getDocs(q)
-      return snapshot.docs.map(doc => ({
+      const threads = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Activity[]
+      
+      console.log('getEmailThreads - Results:', {
+        count: threads.length,
+        threads: threads.map(t => ({
+          id: t.id,
+          type: t.type,
+          timestamp: t.timestamp,
+          subject: t.metadata?.subject
+        }))
+      });
+      
+      return threads
     } catch (error) {
       console.error('Error fetching email threads:', error)
       throw error
