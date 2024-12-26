@@ -20,5 +20,9 @@ const app = initializeApp(firebaseConfig)
 
 // Initialize Storage
 export const storage = getStorage(app)
+console.log('Bucket Name:', storage.app.options.storageBucket);
 export const auth = getAuth(app)
 export const db = getFirestore(app)
+
+storage.maxOperationRetryTime = 10000; // 10 seconds
+storage.maxUploadRetryTime = 10000; // 10 seconds
