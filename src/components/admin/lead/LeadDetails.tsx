@@ -346,14 +346,55 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   };
 
   const handleBeneficialOwnerChange = (index: number, field: string, value: string) => {
+    // Create the updated owner data
+    const updatedOwners = formData.beneficialOwners.owners.map((owner, i) => 
+      i === index ? { ...owner, [field]: value } : owner
+    );
+
+    // Update formData state
     setFormData((prev) => ({
       ...prev,
       beneficialOwners: {
-        owners: prev.beneficialOwners.owners.map((owner, i) =>
-          i === index ? { ...owner, [field]: value } : owner
-        ),
+        owners: updatedOwners,
       },
     }));
+
+    // Update merchant state with the same data
+    setMerchant((prev) => ({
+      ...prev,
+      formData: {
+        ...prev.formData,
+        beneficialOwners: {
+          owners: updatedOwners,
+        },
+      },
+    }));
+  };
+
+  const handleBeneficialOwnerBlur = async (index: number, field: string) => {
+    if (!merchant.id) return;
+
+    try {
+      const leadRef = doc(db, 'leads', merchant.id);
+      const updateData = {
+        formData: {
+          ...merchant.formData,
+          beneficialOwners: {
+            owners: formData.beneficialOwners.owners,
+          },
+        },
+        updatedAt: Timestamp.fromDate(new Date())
+      };
+
+      await updateDoc(leadRef, updateData);
+    } catch (error) {
+      console.error('Error updating beneficial owner:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update beneficial owner information',
+        variant: 'destructive',
+      });
+    }
   };
 
   const statusProgress: Record<PipelineStatus, number> = {
@@ -747,6 +788,16 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   <BeneficialOwnersDisplay
                     formData={convertToPipelineFormData(merchant.formData)}
                     onOwnerChange={handleBeneficialOwnerChange}
+                    editMode={editMode}
+                    onFieldClick={toggleEdit}
+                    onBlur={(field) => {
+                      const [_, indexStr, fieldName] = field.split('.');
+                      const index = parseInt(indexStr, 10);
+                      if (!isNaN(index)) {
+                        handleBeneficialOwnerBlur(index, fieldName);
+                      }
+                      toggleEdit(field);
+                    }}
                     onAddOwner={() => {
                       setFormData((prev) => ({
                         ...prev,
@@ -779,10 +830,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                         },
                       }));
                     }}
-                    editMode={editMode}
-                    onFieldClick={handleFieldClick}
-                    onBlur={handleBlur}
-                    hideHeader={true}
                   />
                 </AccordionContent>
               </AccordionItem>

@@ -17,8 +17,6 @@ import EmailTemplates from "./components/admin/settings/EmailTemplates"
 import TeamManagement from "./components/admin/settings/TeamManagement"
 import { LoginModal } from "./components/auth/LoginModal"
 import { ProtectedRoute } from "./components/auth/ProtectedRoute"
-import { FirebaseAuthDebug } from "./components/admin/debug/FirebaseAuthDebug"
-import { AuthDebug } from "./components/admin/debug/AuthDebug"
 import { LeadDetailView } from "./components/admin/LeadDetailView"
 import TermsPage from "./pages/TermsPage"
 import { Toaster } from "./components/ui/toaster"
@@ -38,8 +36,6 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Router>
-          <FirebaseAuthDebug />
-          <AuthDebug />
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<LoginModal standalone={true} />} />
