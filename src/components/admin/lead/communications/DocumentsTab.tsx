@@ -12,7 +12,9 @@ import {
 
 // Initialize PDF.js worker
 import { pdfjs } from 'react-pdf';
+console.log('PDF.js version:', pdfjs.version);
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+console.log('PDF.js worker configured:', pdfjs.GlobalWorkerOptions.workerSrc);
 
 interface DocumentsTabProps {
   merchant: {
@@ -68,8 +70,9 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
                   <Document
                     file={url}
                     onLoadSuccess={onDocumentLoadSuccess}
-                    onLoadError={() => {
-                      setError('Could not load PDF');
+                    onLoadError={(error) => {
+                      console.error('PDF load error:', error);
+                      setError('Could not load PDF. Please ensure the file is accessible and not corrupted.');
                     }}
                     loading={
                       <div className="absolute inset-0 flex items-center justify-center bg-white/80">
@@ -175,7 +178,10 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
                     <Document
                       file={url}
                       onLoadSuccess={onDocumentLoadSuccess}
-                      onLoadError={() => setError('Could not load PDF')}
+                      onLoadError={(error) => {
+                        console.error('PDF load error in preview:', error);
+                        setError('Could not load PDF. Please ensure the file is accessible and not corrupted.');
+                      }}
                       loading={
                         <div className="absolute inset-0 flex items-center justify-center bg-white/80">
                           <Loader2 className="h-6 w-6 animate-spin" />
