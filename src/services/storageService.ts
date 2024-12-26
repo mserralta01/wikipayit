@@ -101,8 +101,8 @@ export const storageService = {
     }
 
     const extension = file.name.split(".").pop()?.toLowerCase()
-    if (!extension || !["jpg", "jpeg", "png"].includes(extension)) {
-      throw new Error("Invalid file type. Please upload a JPG or PNG file.")
+    if (!extension || !["jpg", "jpeg", "png", "pdf"].includes(extension)) {
+      throw new Error("Invalid file type. Please upload a JPG, PNG, or PDF file.")
     }
 
     const path = `documents/${leadId}/drivers-license/license.${extension}`

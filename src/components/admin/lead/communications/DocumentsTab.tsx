@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, Eye, Loader2, FileText, Image, File } from 'lucide-react';
+import { Document, Page } from 'react-pdf';
 import {
   Dialog,
   DialogContent,
@@ -9,8 +10,24 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+// Initialize PDF.js worker
+import { pdfjs } from 'react-pdf';
+console.log('PDF.js version:', pdfjs.version);
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+console.log('PDF.js worker configured:', pdfjs.GlobalWorkerOptions.workerSrc);
+
 interface DocumentsTabProps {
-  merchant: any;
+  merchant: {
+    id: string;
+    formData?: {
+      bank_statements?: string[];
+      drivers_license?: string[];
+      voided_check?: string[];
+    };
+    bank_statements?: string[];
+    drivers_license?: string[];
+    voided_check?: string[];
+  };
 }
 
 interface DocumentPreviewProps {
@@ -20,7 +37,6 @@ interface DocumentPreviewProps {
 
 function DocumentPreview({ url, type }: DocumentPreviewProps) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const isPDF = url.toLowerCase().endsWith('.pdf');
@@ -35,10 +51,13 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
     }
   };
 
-  // Create a Google Docs viewer URL
-  const getGoogleDocsViewerUrl = (url: string) => {
-    return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
-  };
+  const [numPages, setNumPages] = useState<number>(1);
+  const [pageNumber, setPageNumber] = useState<number>(1);
+
+  function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
+    setNumPages(numPages);
+    setPageNumber(1);
+  }
 
   return (
     <div className="relative group">
@@ -47,19 +66,51 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
           <div className="w-full h-full flex flex-col items-center justify-center">
             {isPDF ? (
               <div className="w-full h-full relative">
-                <iframe
-                  src={getGoogleDocsViewerUrl(url)}
-                  className="w-full h-full"
-                  frameBorder="0"
-                  onLoad={() => setIsLoading(false)}
-                  onError={() => {
-                    setError('Could not load preview');
-                    setIsLoading(false);
-                  }}
-                />
-                {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                    <Loader2 className="h-6 w-6 animate-spin" />
+                <div className="w-full h-full flex items-center justify-center overflow-hidden">
+                  <Document
+                    file={url}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    onLoadError={(error) => {
+                      console.error('PDF load error:', error);
+                      setError('Could not load PDF. Please ensure the file is accessible and not corrupted.');
+                    }}
+                    loading={
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                      </div>
+                    }
+                  >
+                    <Page
+                      pageNumber={pageNumber}
+                      width={300}
+                      height={400}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                      className="shadow-md"
+                    />
+                  </Document>
+                </div>
+                {numPages > 1 && (
+                  <div className="absolute bottom-16 left-0 right-0 flex justify-center gap-2 bg-white/90 p-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                      disabled={pageNumber <= 1}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-sm py-2">
+                      Page {pageNumber} of {numPages}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                      disabled={pageNumber >= numPages}
+                    >
+                      Next
+                    </Button>
                   </div>
                 )}
               </div>
@@ -68,11 +119,7 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
                 src={url}
                 alt={`${type} document`}
                 className="w-full h-full object-cover"
-                onLoad={() => setIsLoading(false)}
-                onError={() => {
-                  setError('Could not load image');
-                  setIsLoading(false);
-                }}
+                onError={() => setError('Could not load image')}
               />
             ) : (
               <>
@@ -126,12 +173,53 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
           <div className="relative flex-1 overflow-auto">
             <div className="min-h-[60vh] flex flex-col items-center">
               {isPDF ? (
-                <div className="w-full h-[70vh] relative">
-                  <iframe
-                    src={getGoogleDocsViewerUrl(url)}
-                    className="w-full h-full"
-                    frameBorder="0"
-                  />
+                <div className="w-full h-[70vh] relative flex justify-center overflow-auto">
+                  <div className="min-h-full flex items-start justify-center p-4">
+                    <Document
+                      file={url}
+                      onLoadSuccess={onDocumentLoadSuccess}
+                      onLoadError={(error) => {
+                        console.error('PDF load error in preview:', error);
+                        setError('Could not load PDF. Please ensure the file is accessible and not corrupted.');
+                      }}
+                      loading={
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                      }
+                    >
+                      <Page
+                        pageNumber={pageNumber}
+                        width={800}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                        className="shadow-lg"
+                      />
+                    </Document>
+                  </div>
+                  {numPages > 1 && (
+                    <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 bg-white/90 p-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                        disabled={pageNumber <= 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm py-2">
+                        Page {pageNumber} of {numPages}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                        disabled={pageNumber >= numPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
                 </div>
               ) : isImage ? (
                 <img
