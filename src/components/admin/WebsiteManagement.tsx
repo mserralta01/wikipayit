@@ -286,11 +286,11 @@ export default function WebsiteManagement() {
     }))
   }
 
-  const handleSaveApiSettings = async () => {
+  const handleSaveMapboxSettings = async () => {
     try {
       setSaving(true)
 
-      // Validate API key before saving if it exists and has changed
+      // Validate API key before saving if it exists
       if (apiSettings.mapbox?.apiKey) {
         const isValid = await validateMapboxKey(apiSettings.mapbox.apiKey)
         if (!isValid) {
@@ -298,15 +298,42 @@ export default function WebsiteManagement() {
         }
       }
 
-      // Create settings object with mapbox and sendgrid settings
+      // Create settings object with only mapbox settings
       const settingsToSave: Partial<APISettings> = {
         mapbox: {
-          enabled: apiSettings.mapbox?.enabled,
+          enabled: apiSettings.mapbox?.enabled || false,
           ...(apiSettings.mapbox?.apiKey && { apiKey: apiSettings.mapbox.apiKey }),
           ...(apiSettings.mapbox?.geocodingEndpoint && {
             geocodingEndpoint: apiSettings.mapbox.geocodingEndpoint
           })
-        },
+        }
+      }
+
+      await apiSettingsService.updateSettings(settingsToSave)
+      await loadApiSettings()
+
+      toast({
+        title: 'Success',
+        description: 'Mapbox settings saved successfully',
+      })
+    } catch (error) {
+      console.error('Error saving Mapbox settings:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to save Mapbox settings. Please try again.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveSendGridSettings = async () => {
+    try {
+      setSaving(true)
+
+      // Create settings object with only sendgrid settings
+      const settingsToSave: Partial<APISettings> = {
         sendgrid: {
           enabled: apiSettings.sendgrid?.enabled || false,
           ...(apiSettings.sendgrid?.apiKey && { apiKey: apiSettings.sendgrid.apiKey }),
@@ -314,28 +341,18 @@ export default function WebsiteManagement() {
         }
       }
 
-      // Remove empty objects
-      if (Object.keys(settingsToSave.mapbox || {}).length === 0) {
-        delete settingsToSave.mapbox;
-      }
-      if (Object.keys(settingsToSave.sendgrid || {}).length === 0) {
-        delete settingsToSave.sendgrid;
-      }
-
       await apiSettingsService.updateSettings(settingsToSave)
-
-      // Reload settings
       await loadApiSettings()
 
       toast({
         title: 'Success',
-        description: 'API settings saved successfully',
+        description: 'SendGrid settings saved successfully',
       })
     } catch (error) {
-      console.error('Error saving API settings:', error)
+      console.error('Error saving SendGrid settings:', error)
       toast({
         title: 'Error',
-        description: 'Failed to save API settings. Please try again.',
+        description: 'Failed to save SendGrid settings. Please try again.',
         variant: 'destructive',
       })
     } finally {
@@ -487,6 +504,14 @@ export default function WebsiteManagement() {
                         />
                       </div>
 
+                      <Button
+                        onClick={handleSaveMapboxSettings}
+                        disabled={saving}
+                      >
+                        {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Save Mapbox Settings
+                      </Button>
+
                       <div className="mt-6 space-y-4 bg-gray-50 p-4 rounded-lg">
                         <div>
                           <h4 className="text-sm font-semibold text-gray-900">What is Mapbox?</h4>
@@ -620,12 +645,23 @@ export default function WebsiteManagement() {
                         />
                       </div>
 
-                      <Button
-                        onClick={() => validateSendGridKey(apiSettings.sendgrid?.apiKey || '')}
-                        disabled={!apiSettings.sendgrid?.enabled || !apiSettings.sendgrid?.apiKey || !apiSettings.sendgrid?.fromEmail}
-                      >
-                        Send Test Email
-                      </Button>
+                      <div className="flex gap-4">
+                        <Button
+                          onClick={() => validateSendGridKey(apiSettings.sendgrid?.apiKey || '')}
+                          disabled={!apiSettings.sendgrid?.enabled || !apiSettings.sendgrid?.apiKey || !apiSettings.sendgrid?.fromEmail}
+                          variant="outline"
+                        >
+                          Send Test Email
+                        </Button>
+
+                        <Button
+                          onClick={handleSaveSendGridSettings}
+                          disabled={saving}
+                        >
+                          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                          Save SendGrid Settings
+                        </Button>
+                      </div>
 
                       <div className="mt-6 space-y-4 bg-gray-50 p-4 rounded-lg">
                         <div>
@@ -657,16 +693,6 @@ export default function WebsiteManagement() {
                   </Card>
                 </TabsContent>
               </Tabs>
-
-              <div className="mt-6 flex justify-end">
-                <Button
-                  onClick={handleSaveApiSettings}
-                  disabled={saving}
-                >
-                  {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save API Settings
-                </Button>
-              </div>
             </div>
           </AccordionContent>
         </AccordionItem>
