@@ -25,7 +25,7 @@ export function CommunicationsSection({ merchant, tab = "emails" }: Communicatio
         formData: {
           ...merchant.formData,
           bank_statements: merchant.formData?.bank_statements || merchant.bank_statements || [],
-          drivers_license: merchant.formData?.drivers_license || merchant.drivers_license || '',
+          drivers_license: merchant.formData?.drivers_license || merchant.drivers_license || [],
           voided_check: merchant.formData?.voided_check || merchant.voided_check || []
         }
       }} />;
