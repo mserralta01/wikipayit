@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app"
 import { getStorage } from "firebase/storage"
 import { getAuth } from "firebase/auth"
 import { getFirestore } from "firebase/firestore"
+import { getFunctions } from "firebase/functions"
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,13 +17,14 @@ const firebaseConfig = {
 console.log('Firebase Config:', firebaseConfig);
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig)
+export const app = initializeApp(firebaseConfig)
 
 // Initialize Storage
 export const storage = getStorage(app)
 console.log('Bucket Name:', storage.app.options.storageBucket);
 export const auth = getAuth(app)
 export const db = getFirestore(app)
+export const functions = getFunctions(app)
 
 storage.maxOperationRetryTime = 10000; // 10 seconds
 storage.maxUploadRetryTime = 10000; // 10 seconds

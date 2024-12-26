@@ -139,7 +139,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {
           title: 'Email Templates',
           icon: <Mail className="w-5 h-5" />,
-          href: '/admin/email-templates',
+          href: '/admin/settings/email-templates',
         },
         {
           title: 'Team',
@@ -235,9 +235,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         return 'Sales Analytics'
       case pathname === '/admin/website':
         return 'Website Settings'
-      case pathname === '/admin/email-templates':
+      case pathname === '/admin/settings/email-templates':
         return 'Email Templates'
-      case pathname === '/admin/team':
+      case pathname === '/admin/settings/team':
         return 'Team Management'
       default:
         return 'Dashboard'
