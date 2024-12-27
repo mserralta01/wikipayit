@@ -51,7 +51,6 @@ import { PipelineStatus, PipelineFormData } from "../../../types/pipeline";
 import { BankDetailsDisplay } from "./BankDetailsDisplay";
 import { BeneficialOwnersDisplay } from "./BeneficialOwnersDisplay";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../ui/tabs";
-import DocumentsSection from "./DocumentsSection";
 
 interface LeadDetailsProps {
   merchant: MerchantDTO;
@@ -915,9 +914,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 </AccordionContent>
               </AccordionItem>
 
-              {/* Remove Documents Section */}
-              {/* Documents section has been removed as per the request */}
-
               {/* Status Section */}
               <AccordionItem value="status">
                 <AccordionTrigger>Status and Stage</AccordionTrigger>
@@ -1012,7 +1008,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 <CommunicationsSection merchant={merchant} tab="notes" />
               </TabsContent>
               <TabsContent value="documents" className="mt-0 border-none p-0">
-                <DocumentsSection merchant={merchant} />
+                <CommunicationsSection merchant={merchant} tab="documents" />
               </TabsContent>
             </div>
           </Tabs>
