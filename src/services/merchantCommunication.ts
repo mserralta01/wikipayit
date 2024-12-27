@@ -41,35 +41,10 @@ export const merchantCommunication = {
         timestamp: new Date().toISOString()
       });
 
-      const merchant = await CustomerService.getCustomer(merchantId)
-      console.log('merchantCommunication.sendEmail - Got merchant:', {
-        merchantId,
-        businessName: merchant.businessInfo.legalName
-      });
-
-      console.log('merchantCommunication.sendEmail - Calling emailService.sendEmail:', {
-        to: data.recipientEmail,
-        subject: data.subject,
-        contentLength: data.content.length,
-        timestamp: new Date().toISOString()
-      });
-
-      console.log('merchantCommunication.sendEmail - Starting:', {
-        merchantId,
-        recipient: data.recipientEmail,
-        subject: data.subject,
-        timestamp: new Date().toISOString()
-      });
-
       const success = await emailService.sendEmail({
         to: data.recipientEmail,
         subject: data.subject,
         content: data.content
-      });
-
-      console.log('merchantCommunication.sendEmail - Email service response:', {
-        success,
-        timestamp: new Date().toISOString()
       });
 
       console.log('merchantCommunication.sendEmail - Email service response:', {
@@ -91,7 +66,7 @@ export const merchantCommunication = {
           merchantId,
           timestamp: timestamp.toDate(),
           merchant: {
-            businessName: merchant.businessInfo?.legalName || 'Unknown Business'
+            businessName: 'Unknown Business'
           },
           metadata: {
             recipientEmail: data.recipientEmail,

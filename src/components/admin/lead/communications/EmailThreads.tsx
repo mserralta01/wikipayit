@@ -2,12 +2,14 @@ import React, { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Merchant, BeneficialOwner } from "@/types/merchant"
 import { useToast } from "@/hooks/use-toast"
-import { formatDistanceToNow } from "date-fns"
+import { format, formatDistanceToNow } from "date-fns"
 import { Activity } from "@/types/activity"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmailEditor } from "./EmailEditor"
 import { merchantCommunication } from "@/services/merchantCommunication"
 import { ApiSettingsDebug } from "../../debug/ApiSettingsDebug"
+import { ChevronDown, ChevronUp } from "lucide-react"
+import { Button } from "@/components/ui/button"
 
 interface EmailThreadsProps {
   merchant: Merchant
@@ -16,6 +18,7 @@ interface EmailThreadsProps {
 export function EmailThreads({ merchant }: EmailThreadsProps) {
   const [emailThreads, setEmailThreads] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
+  const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({})
   const { toast } = useToast()
 
   useEffect(() => {
@@ -143,6 +146,13 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
     }
   }
 
+  const toggleThread = (threadId: string) => {
+    setExpandedThreads(prev => ({
+      ...prev,
+      [threadId]: !prev[threadId]
+    }))
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -175,19 +185,36 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
             <Card key={thread.id}>
               <CardContent className="py-4">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-medium">{thread.metadata?.subject || 'No Subject'}</h4>
-                    <p className="text-sm text-gray-500">To: {thread.metadata?.recipientEmail}</p>
-                    {thread.metadata?.content && (
-                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                        {thread.metadata.content}
-                      </p>
-                    )}
+                  <div className="flex-grow">
+                    <div className="flex justify-between items-center mb-1">
+                      <h4 className="font-medium text-sm">{thread.metadata?.subject || 'No Subject'}</h4>
+                      <span className="text-xs text-gray-500">
+                        {format(thread.timestamp.toDate(), "MMM d, yyyy h:mm a")}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">To: {thread.metadata?.recipientEmail}</p>
                   </div>
-                  <span className="text-sm text-gray-500">
-                    {formatDistanceToNow(thread.timestamp.toDate(), { addSuffix: true })}
-                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleThread(thread.id)}
+                    className="ml-2"
+                  >
+                    {expandedThreads[thread.id] ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
+                {expandedThreads[thread.id] && thread.metadata?.content && (
+                  <div className="mt-4 border-t pt-4">
+                    <div 
+                      className="text-sm text-gray-600 prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: thread.metadata.content }}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))
