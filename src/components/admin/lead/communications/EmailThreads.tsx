@@ -2,14 +2,14 @@ import React, { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Merchant, BeneficialOwner } from "@/types/merchant"
 import { useToast } from "@/hooks/use-toast"
-import { format, formatDistanceToNow } from "date-fns"
+import { format } from "date-fns"
 import { Activity } from "@/types/activity"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmailEditor } from "./EmailEditor"
 import { merchantCommunication } from "@/services/merchantCommunication"
-import { ApiSettingsDebug } from "../../debug/ApiSettingsDebug"
-import { ChevronDown, ChevronUp } from "lucide-react"
+import { ChevronDown, ChevronUp, Mail, Send } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 interface EmailThreadsProps {
   merchant: Merchant
@@ -19,6 +19,7 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
   const [emailThreads, setEmailThreads] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({})
+  const [showEmailEditor, setShowEmailEditor] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -154,24 +155,46 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent className="pt-6">
-          <div className="mb-4">
-            <ApiSettingsDebug />
-          </div>
-          <EmailEditor
-            onSend={handleSendEmail}
-            recipientOptions={getRecipientOptions()}
-            placeholder="Compose new email..."
-          />
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight">Email Communications</h2>
+          {!loading && emailThreads.length > 0 && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {emailThreads.length} {emailThreads.length === 1 ? 'email' : 'emails'} sent
+            </p>
+          )}
+        </div>
+        <Button
+          onClick={() => setShowEmailEditor(!showEmailEditor)}
+          className="gap-2 shadow-sm"
+          variant={showEmailEditor ? "secondary" : "default"}
+          size="lg"
+        >
+          <Send className="h-4 w-4" />
+          {showEmailEditor ? "Cancel" : "Send New Email"}
+        </Button>
+      </div>
 
-      <div className="space-y-2">
+      {showEmailEditor && (
+        <Card className="shadow-md border-muted">
+          <CardContent className="pt-6">
+            <EmailEditor
+              onSend={(content, recipient, subject) => {
+                handleSendEmail(content, recipient, subject);
+                setShowEmailEditor(false);
+              }}
+              recipientOptions={getRecipientOptions()}
+              placeholder="Compose new email..."
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="space-y-3">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="shadow-sm">
               <CardContent className="py-4">
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-3/4" />
@@ -182,35 +205,40 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
           ))
         ) : emailThreads.length > 0 ? (
           emailThreads.map((thread) => (
-            <Card key={thread.id}>
+            <Card 
+              key={thread.id} 
+              className={cn(
+                "transition-all duration-200 shadow-sm hover:shadow-md",
+                expandedThreads[thread.id] ? "bg-accent/5" : "hover:bg-accent/5"
+              )}
+            >
               <CardContent className="py-4">
                 <div className="flex justify-between items-start">
-                  <div className="flex-grow">
-                    <div className="flex justify-between items-center mb-1">
-                      <h4 className="font-medium text-sm">{thread.metadata?.subject || 'No Subject'}</h4>
-                      <span className="text-xs text-gray-500">
+                  <div className="flex-grow space-y-1">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-medium">{thread.metadata?.subject || 'No Subject'}</h4>
+                      <span className="text-xs text-muted-foreground">
                         {format(thread.timestamp.toDate(), "MMM d, yyyy h:mm a")}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-500">To: {thread.metadata?.recipientEmail}</p>
+                    <p className="text-sm text-muted-foreground">To: {thread.metadata?.recipientEmail}</p>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => toggleThread(thread.id)}
-                    className="ml-2"
-                  >
-                    {expandedThreads[thread.id] ? (
-                      <ChevronUp className="h-4 w-4" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4" />
+                    className={cn(
+                      "ml-2 transition-transform duration-200",
+                      expandedThreads[thread.id] ? "rotate-180" : ""
                     )}
+                  >
+                    <ChevronDown className="h-4 w-4" />
                   </Button>
                 </div>
                 {expandedThreads[thread.id] && thread.metadata?.content && (
-                  <div className="mt-4 border-t pt-4">
+                  <div className="mt-4 pt-4 border-t border-border">
                     <div 
-                      className="text-sm text-gray-600 prose prose-sm max-w-none"
+                      className="text-sm prose prose-sm max-w-none"
                       dangerouslySetInnerHTML={{ __html: thread.metadata.content }}
                     />
                   </div>
@@ -219,9 +247,10 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
             </Card>
           ))
         ) : (
-          <Card>
-            <CardContent className="py-4 text-center text-gray-500">
-              No email threads found
+          <Card className="shadow-sm">
+            <CardContent className="py-8 text-center">
+              <Mail className="h-8 w-8 mx-auto mb-3 text-muted-foreground opacity-50" />
+              <p className="text-muted-foreground">No email communications yet</p>
             </CardContent>
           </Card>
         )}

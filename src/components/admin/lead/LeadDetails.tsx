@@ -346,16 +346,13 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   };
 
   const handleBeneficialOwnerChange = (index: number, field: string, value: string) => {
-    // Create the updated owner data
-    const updatedOwners = formData.beneficialOwners.owners.map((owner, i) => 
-      i === index ? { ...owner, [field]: value } : owner
-    );
-
     // Update formData state
     setFormData((prev) => ({
       ...prev,
       beneficialOwners: {
-        owners: updatedOwners,
+        owners: prev.beneficialOwners.owners.map((owner, i) => 
+          i === index ? { ...owner, [field]: value } : owner
+        ),
       },
     }));
 
@@ -364,8 +361,42 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       ...prev,
       formData: {
         ...prev.formData,
+        // Ensure we maintain all existing formData fields
+        businessName: prev.formData?.businessName || "",
+        dba: prev.formData?.dba || "",
+        phone: prev.formData?.phone || "",
+        businessType: prev.formData?.businessType || "",
+        taxId: prev.formData?.taxId || "",
+        businessDescription: prev.formData?.businessDescription || "",
+        yearEstablished: prev.formData?.yearEstablished || "",
+        website: prev.formData?.website || "",
+        customerServiceEmail: prev.formData?.customerServiceEmail || "",
+        customerServicePhone: prev.formData?.customerServicePhone || "",
+        companyAddress: prev.formData?.companyAddress || {
+          street: "",
+          city: "",
+          state: "",
+          zipCode: "",
+        },
+        bankName: prev.formData?.bankName || "",
+        routingNumber: prev.formData?.routingNumber || "",
+        accountNumber: prev.formData?.accountNumber || "",
+        confirmAccountNumber: prev.formData?.accountNumber || "",
+        processingHistory: prev.formData?.processingHistory || {
+          averageTicket: 0,
+          cardPresentPercentage: 0,
+          currentProcessor: "",
+          ecommercePercentage: 0,
+          hasBeenTerminated: "no",
+          highTicket: 0,
+          isCurrentlyProcessing: "no",
+          monthlyVolume: 0,
+          terminationExplanation: "",
+        },
         beneficialOwners: {
-          owners: updatedOwners,
+          owners: prev.formData?.beneficialOwners?.owners.map((owner, i) => 
+            i === index ? { ...owner, [field]: value } : owner
+          ) || [],
         },
       },
     }));
@@ -379,6 +410,38 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
       const updateData = {
         formData: {
           ...merchant.formData,
+          // Ensure all required fields are present
+          businessName: merchant.formData?.businessName || "",
+          dba: merchant.formData?.dba || "",
+          phone: merchant.formData?.phone || "",
+          businessType: merchant.formData?.businessType || "",
+          taxId: merchant.formData?.taxId || "",
+          businessDescription: merchant.formData?.businessDescription || "",
+          yearEstablished: merchant.formData?.yearEstablished || "",
+          website: merchant.formData?.website || "",
+          customerServiceEmail: merchant.formData?.customerServiceEmail || "",
+          customerServicePhone: merchant.formData?.customerServicePhone || "",
+          companyAddress: merchant.formData?.companyAddress || {
+            street: "",
+            city: "",
+            state: "",
+            zipCode: "",
+          },
+          bankName: merchant.formData?.bankName || "",
+          routingNumber: merchant.formData?.routingNumber || "",
+          accountNumber: merchant.formData?.accountNumber || "",
+          confirmAccountNumber: merchant.formData?.accountNumber || "",
+          processingHistory: merchant.formData?.processingHistory || {
+            averageTicket: 0,
+            cardPresentPercentage: 0,
+            currentProcessor: "",
+            ecommercePercentage: 0,
+            hasBeenTerminated: "no",
+            highTicket: 0,
+            isCurrentlyProcessing: "no",
+            monthlyVolume: 0,
+            terminationExplanation: "",
+          },
           beneficialOwners: {
             owners: formData.beneficialOwners.owners,
           },

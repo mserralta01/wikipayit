@@ -54,14 +54,6 @@ export function EmailEditor({ onSend, recipientOptions, placeholder = "Compose y
     onCreate: ({ editor }) => {
       const initialContent = `
         <h2>Hello from WikiPayIt!</h2>
-        <p>This is a test email with various formatting:</p>
-        <ul>
-          <li><strong>This text is bold</strong></li>
-          <li><em>This text is italic</em></li>
-          <li>This is a regular bullet point</li>
-        </ul>
-        <p>Testing HTML content handling and email functionality.</p>
-        <p>Best regards,<br/>Devin</p>
       `.trim();
       editor.commands.setContent(initialContent);
       console.log('Initial content set:', initialContent);
