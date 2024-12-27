@@ -43,6 +43,7 @@ import {
   Clock,
   DollarSign,
   Mail,
+  FileIcon,
 } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
 import { cn } from "../../../lib/utils";
@@ -956,26 +957,64 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
 
       {/* Right Column */}
       <div className="flex-1 min-w-[600px]">
-        <Card>
-          <Tabs defaultValue="emails">
-            <TabsList>
-              <TabsTrigger value="emails">Emails</TabsTrigger>
-              <TabsTrigger value="phone">Phone Calls</TabsTrigger>
-              <TabsTrigger value="notes">Internal Notes</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-            </TabsList>
-            <TabsContent value="emails">
-              <CommunicationsSection merchant={merchant} tab="emails" />
-            </TabsContent>
-            <TabsContent value="phone">
-              <CommunicationsSection merchant={merchant} tab="phone" />
-            </TabsContent>
-            <TabsContent value="notes">
-              <CommunicationsSection merchant={merchant} tab="notes" />
-            </TabsContent>
-            <TabsContent value="documents">
-              <DocumentsSection merchant={merchant} />
-            </TabsContent>
+        <Card className="h-full">
+          <Tabs defaultValue="emails" className="w-full">
+            <div className="border-b">
+              <div className="px-4">
+                <TabsList className="h-12 w-full justify-start gap-4 bg-transparent">
+                  <TabsTrigger 
+                    value="emails" 
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent px-2 rounded-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      <span>Emails</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="phone" 
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent px-2 rounded-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      <span>Phone Calls</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="notes" 
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent px-2 rounded-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      <span>Internal Notes</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="documents" 
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent px-2 rounded-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileIcon className="h-4 w-4" />
+                      <span>Documents</span>
+                    </div>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+            <div className="flex-1 p-6">
+              <TabsContent value="emails" className="mt-0 border-none p-0">
+                <CommunicationsSection merchant={merchant} tab="emails" />
+              </TabsContent>
+              <TabsContent value="phone" className="mt-0 border-none p-0">
+                <CommunicationsSection merchant={merchant} tab="phone" />
+              </TabsContent>
+              <TabsContent value="notes" className="mt-0 border-none p-0">
+                <CommunicationsSection merchant={merchant} tab="notes" />
+              </TabsContent>
+              <TabsContent value="documents" className="mt-0 border-none p-0">
+                <DocumentsSection merchant={merchant} />
+              </TabsContent>
+            </div>
           </Tabs>
         </Card>
       </div>

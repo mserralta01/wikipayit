@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase"
-import { doc, updateDoc, Timestamp, collection, addDoc, query, where, orderBy, getDocs, getDoc } from "firebase/firestore"
+import { doc, updateDoc, Timestamp, collection, addDoc, query, where, orderBy, getDocs, getDoc, deleteDoc } from "firebase/firestore"
 import { Note } from "@/types/merchant"
 import { emailService } from "@/services/emailService"
 import { CustomerService } from "@/services/customerService"
@@ -266,6 +266,27 @@ export const merchantCommunication = {
     } catch (error) {
       console.error("Error adding phone call:", error)
       throw error
+    }
+  },
+
+  async deleteEmail(merchantId: string, emailId: string): Promise<boolean> {
+    try {
+      // Update the path to match where emails are actually stored
+      const emailRef = doc(db, `leads/${merchantId}/communications`, emailId);
+      
+      // Delete the document
+      await deleteDoc(emailRef);
+      
+      // Update the lead's updatedAt timestamp
+      const leadRef = doc(db, "leads", merchantId);
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting email:", error);
+      throw error;
     }
   }
 }

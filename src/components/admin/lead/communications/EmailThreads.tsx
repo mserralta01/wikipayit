@@ -7,9 +7,11 @@ import { Activity } from "@/types/activity"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmailEditor } from "./EmailEditor"
 import { merchantCommunication } from "@/services/merchantCommunication"
-import { ChevronDown, ChevronUp, Mail, Send } from "lucide-react"
+import { ChevronDown, ChevronUp, Mail, Send, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { DeleteEmailDialog } from "./DeleteEmailDialog"
+import { Badge } from "@/components/ui/badge"
 
 interface EmailThreadsProps {
   merchant: Merchant
@@ -20,6 +22,8 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
   const [loading, setLoading] = useState(true)
   const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({})
   const [showEmailEditor, setShowEmailEditor] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [emailToDelete, setEmailToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -154,25 +158,50 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
     }))
   }
 
+  const handleDeleteEmail = async () => {
+    if (!emailToDelete) return;
+    
+    try {
+      await merchantCommunication.deleteEmail(merchant.id, emailToDelete);
+      
+      // Update the local state to remove the deleted email
+      setEmailThreads(prevThreads => 
+        prevThreads.filter(thread => thread.id !== emailToDelete)
+      );
+      
+      // Close the dialog
+      setIsDeleteDialogOpen(false);
+      setEmailToDelete(null);
+      
+      toast({
+        title: "Success",
+        description: "Email deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete email",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">Email Communications</h2>
-          {!loading && emailThreads.length > 0 && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {emailThreads.length} {emailThreads.length === 1 ? 'email' : 'emails'} sent
-            </p>
-          )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-semibold">Email Communications</h2>
+          <Badge variant="secondary" className="text-sm">
+            {emailThreads.length} {emailThreads.length === 1 ? 'email' : 'emails'} sent
+          </Badge>
         </div>
-        <Button
+        <Button 
           onClick={() => setShowEmailEditor(!showEmailEditor)}
-          className="gap-2 shadow-sm"
-          variant={showEmailEditor ? "secondary" : "default"}
-          size="lg"
+          className="bg-[#FF9900] hover:bg-[#FF9900]/90 text-white flex items-center gap-2"
         >
           <Send className="h-4 w-4" />
-          {showEmailEditor ? "Cancel" : "Send New Email"}
+          Send New Email
         </Button>
       </div>
 
@@ -208,7 +237,7 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
             <Card 
               key={thread.id} 
               className={cn(
-                "transition-all duration-200 shadow-sm hover:shadow-md",
+                "transition-all duration-200 shadow-sm hover:shadow-md relative",
                 expandedThreads[thread.id] ? "bg-accent/5" : "hover:bg-accent/5"
               )}
             >
@@ -217,9 +246,23 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
                   <div className="flex-grow space-y-1">
                     <div className="flex justify-between items-center">
                       <h4 className="font-medium">{thread.metadata?.subject || 'No Subject'}</h4>
-                      <span className="text-xs text-muted-foreground">
-                        {format(thread.timestamp.toDate(), "MMM d, yyyy h:mm a")}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {format(thread.timestamp.toDate(), "MMM d, yyyy h:mm a")}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-red-500"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEmailToDelete(thread.id);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <p className="text-sm text-muted-foreground">To: {thread.metadata?.recipientEmail}</p>
                   </div>
@@ -255,6 +298,15 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
           </Card>
         )}
       </div>
+
+      <DeleteEmailDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setEmailToDelete(null);
+        }}
+        onConfirm={handleDeleteEmail}
+      />
     </div>
   )
 }
