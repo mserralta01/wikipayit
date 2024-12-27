@@ -4,6 +4,8 @@ import { Note } from "@/types/merchant"
 import { emailService } from "@/services/emailService"
 import { CustomerService } from "@/services/customerService"
 import { Activity } from "@/types/crm"
+import { storage } from "@/lib/firebase"
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage"
 
 interface EmailData {
   recipientEmail: string
@@ -104,7 +106,7 @@ export const merchantCommunication = {
           businessName: lead?.businessName || "Unknown Business"
         },
         metadata: {
-          noteContent: note.content,
+          content: note.content,
           createdAt: timestamp,
           agentName: note.agentName,
           isPinned: note.isPinned || false,
@@ -171,101 +173,81 @@ export const merchantCommunication = {
 
   async getActivities(merchantId: string, type: 'note' | 'phone_call' | 'email_sent'): Promise<Activity[]> {
     try {
+      // Update the query to use the communications subcollection
+      const communicationsRef = collection(db, `leads/${merchantId}/communications`);
       const q = query(
-        collection(db, `leads/${merchantId}/communications`),
+        communicationsRef,
         where('type', '==', type),
-        orderBy('metadata.isPinned', 'desc'),
         orderBy('timestamp', 'desc')
-      )
+      );
 
-      const snapshot = await getDocs(q)
-      const activities = snapshot.docs.map(doc => ({
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as Activity[]
-
-      // For notes, sort with pinned notes first
-      if (type === 'note') {
-        return activities.sort((a, b) => {
-          if (a.metadata?.isPinned && !b.metadata?.isPinned) return -1
-          if (!a.metadata?.isPinned && b.metadata?.isPinned) return 1
-          if (a.metadata?.isPinned && b.metadata?.isPinned) {
-            // Both pinned, sort by pinnedAt
-            const aPinnedAt = a.metadata.pinnedAt?.toMillis() || 0
-            const bPinnedAt = b.metadata.pinnedAt?.toMillis() || 0
-            return bPinnedAt - aPinnedAt
-          }
-          // Both unpinned or no pin info, sort by timestamp
-          return b.timestamp.toMillis() - a.timestamp.toMillis()
-        })
-      }
-
-      return activities
+      })) as Activity[];
     } catch (error) {
-      console.error(`Error fetching ${type} activities:`, error)
-      // Log detailed error information for debugging
-      if (error instanceof Error) {
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          type: type,
-          merchantId: merchantId
-        })
-      }
-      throw error
+      console.error(`Error fetching ${type} activities:`, error);
+      throw error;
     }
   },
 
-  async updateNote(merchantId: string, noteId: string, updatedNote: Activity): Promise<void> {
+  async updateNote(merchantId: string, noteId: string, updates: Partial<{
+    content: string;
+    metadata: {
+      isPinned?: boolean;
+      pinnedAt?: Date | null;
+    };
+  }>): Promise<void> {
     try {
-      const noteRef = doc(db, `leads/${merchantId}/communications`, noteId)
+      const noteRef = doc(db, `leads/${merchantId}/communications`, noteId);
       await updateDoc(noteRef, {
-        ...updatedNote,
-        timestamp: updatedNote.timestamp.toDate()
-      })
+        ...updates,
+        updatedAt: new Date()
+      });
+
+      // Update lead's updatedAt timestamp
+      const leadRef = doc(db, "leads", merchantId);
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
+      });
     } catch (error) {
-      console.error("Error updating note:", error)
-      throw error
+      console.error("Error updating note:", error);
+      throw error;
     }
   },
 
   async addPhoneCall(merchantId: string, data: {
-    duration: string
-    outcome: 'successful' | 'no_answer' | 'follow_up_required' | 'voicemail' | 'other'
-    notes: string
-    agentId?: string
-    agentName?: string
+    duration: string;
+    outcome: 'successful' | 'no_answer' | 'follow_up_required' | 'voicemail' | 'other';
+    notes: string;
+    agentId?: string;
+    agentName?: string;
   }): Promise<void> {
     try {
-      const leadRef = doc(db, "leads", merchantId)
-      const leadSnap = await getDoc(leadRef)
-      const lead = leadSnap.data()
+      const communicationsRef = collection(db, `leads/${merchantId}/communications`);
+      const timestamp = Timestamp.now();
 
-      await this.logActivity({
-        type: "phone_call",
-        description: `Phone call - ${data.outcome}`,
-        userId: data.agentId || 'system',
-        merchantId,
-        merchant: {
-          businessName: lead?.businessName || "Unknown Business"
-        },
+      await addDoc(communicationsRef, {
+        type: 'phone_call',
+        timestamp,
         metadata: {
           duration: data.duration,
           outcome: data.outcome,
           notes: data.notes,
           agentId: data.agentId,
-          agentName: data.agentName,
-          createdAt: Timestamp.now()
+          agentName: data.agentName
         }
-      })
+      });
 
       // Update lead's updatedAt timestamp
+      const leadRef = doc(db, 'leads', merchantId);
       await updateDoc(leadRef, {
-        updatedAt: new Date()
-      })
+        updatedAt: timestamp
+      });
     } catch (error) {
-      console.error("Error adding phone call:", error)
-      throw error
+      console.error('Error adding phone call:', error);
+      throw error;
     }
   },
 
@@ -287,6 +269,156 @@ export const merchantCommunication = {
     } catch (error) {
       console.error("Error deleting email:", error);
       throw error;
+    }
+  },
+
+  async deletePhoneCall(merchantId: string, phoneCallId: string): Promise<boolean> {
+    try {
+      const phoneCallRef = doc(db, `leads/${merchantId}/communications`, phoneCallId);
+      
+      // Delete the document
+      await deleteDoc(phoneCallRef);
+      
+      // Update the lead's updatedAt timestamp
+      const leadRef = doc(db, "leads", merchantId);
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting phone call:", error);
+      throw error;
+    }
+  },
+
+  async deleteNote(merchantId: string, noteId: string): Promise<boolean> {
+    try {
+      const noteRef = doc(db, `leads/${merchantId}/communications`, noteId);
+      
+      // Delete the document
+      await deleteDoc(noteRef);
+      
+      // Update the lead's updatedAt timestamp
+      const leadRef = doc(db, "leads", merchantId);
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      throw error;
+    }
+  },
+
+  async getDocuments(merchantId: string): Promise<Activity[]> {
+    try {
+      const q = query(
+        collection(db, `leads/${merchantId}/communications`),
+        where('type', '==', 'document'),
+        orderBy('timestamp', 'desc')
+      )
+
+      const snapshot = await getDocs(q)
+      return snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Activity[]
+    } catch (error) {
+      console.error('Error fetching documents:', error)
+      throw error
+    }
+  },
+
+  async uploadDocument(
+    merchantId: string, 
+    file: File, 
+    onProgress?: (progress: number) => void
+  ): Promise<void> {
+    try {
+      const timestamp = Timestamp.now()
+      const storageRef = ref(storage, `documents/${merchantId}/${timestamp.toMillis()}_${file.name}`)
+      
+      // Upload file to Firebase Storage
+      const uploadTask = uploadBytesResumable(storageRef, file)
+      
+      await new Promise<void>((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+            onProgress?.(progress)
+          },
+          (error) => {
+            console.error('Upload error:', error)
+            reject(error)
+          },
+          async () => {
+            try {
+              // Get download URL
+              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+              
+              // Add document reference to Firestore
+              const communicationsRef = collection(db, `leads/${merchantId}/communications`)
+              await addDoc(communicationsRef, {
+                type: 'document',
+                timestamp,
+                metadata: {
+                  fileName: file.name,
+                  mimeType: file.type,
+                  size: file.size,
+                  url: downloadURL,
+                  uploadedBy: user?.displayName || user?.email || 'Unknown',
+                  storagePath: uploadTask.snapshot.ref.fullPath
+                }
+              })
+
+              // Update lead's updatedAt timestamp
+              const leadRef = doc(db, "leads", merchantId)
+              await updateDoc(leadRef, {
+                updatedAt: timestamp
+              })
+
+              resolve()
+            } catch (error) {
+              reject(error)
+            }
+          }
+        )
+      })
+    } catch (error) {
+      console.error('Error uploading document:', error)
+      throw error
+    }
+  },
+
+  async deleteDocument(merchantId: string, documentId: string): Promise<boolean> {
+    try {
+      // Get the document reference first to get the storage path
+      const docRef = doc(db, `leads/${merchantId}/communications`, documentId)
+      const docSnap = await getDoc(docRef)
+      const docData = docSnap.data()
+
+      if (docData?.metadata?.storagePath) {
+        // Delete the file from storage
+        const storageRef = ref(storage, docData.metadata.storagePath)
+        await deleteObject(storageRef)
+      }
+
+      // Delete the document reference from Firestore
+      await deleteDoc(docRef)
+
+      // Update lead's updatedAt timestamp
+      const leadRef = doc(db, "leads", merchantId)
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
+      })
+
+      return true
+    } catch (error) {
+      console.error("Error deleting document:", error)
+      throw error
     }
   }
 }

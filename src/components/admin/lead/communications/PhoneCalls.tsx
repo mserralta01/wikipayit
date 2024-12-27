@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from "react"
+import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
-import { Timestamp, collection, query, where, orderBy, getDocs } from "firebase/firestore"
+import { Timestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
 import { merchantCommunication } from "@/services/merchantCommunication"
-import { db } from "@/lib/firebase"
 import {
   Form,
   FormControl,
@@ -30,6 +29,20 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAuth } from "@/contexts/AuthContext"
 import { Merchant as PipelineMerchant } from "@/types/merchant"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Phone, Trash2 } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
 
 interface PhoneCallsProps {
   merchant: PipelineMerchant
@@ -45,11 +58,26 @@ const phoneCallSchema = z.object({
 
 type PhoneCallFormValues = z.infer<typeof phoneCallSchema>
 
+const formatOutcome = (outcome: string) => {
+  return outcome
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+}
+
+const outcomeColors = {
+  successful: "bg-green-500",
+  no_answer: "bg-red-500",
+  follow_up_required: "bg-yellow-500",
+  voicemail: "bg-blue-500",
+  other: "bg-gray-500",
+} as const
+
 export function PhoneCalls({ merchant }: PhoneCallsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [activities, setActivities] = useState<Activity[]>([])
   const { toast } = useToast()
   const { user } = useAuth()
+  const queryClient = useQueryClient()
 
   const form = useForm<PhoneCallFormValues>({
     resolver: zodResolver(phoneCallSchema),
@@ -60,34 +88,20 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
     },
   })
 
-  useEffect(() => {
-    const fetchActivities = async () => {
-      try {
-        const activitiesRef = collection(db, 'activities')
-        const q = query(
-          activitiesRef,
-          where('merchantId', '==', merchant.id),
-          where('type', '==', 'phone_call'),
-          orderBy('timestamp', 'desc')
-        )
-
-        const snapshot = await getDocs(q)
-        setActivities(snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Activity[])
-      } catch (error) {
-        console.error('Error fetching phone call activities:', error)
-        toast({
-          title: "Error loading phone calls",
-          description: "There was an error loading the phone call history.",
-          variant: "destructive",
-        })
-      }
+  const { data: activities, isLoading } = useQuery({
+    queryKey: ['phone-calls', merchant.id],
+    queryFn: async () => {
+      return await merchantCommunication.getActivities(merchant.id, 'phone_call')
+    },
+    onError: (error) => {
+      console.error('Error fetching phone calls:', error)
+      toast({
+        title: "Error loading phone calls",
+        description: "There was an error loading the phone call history.",
+        variant: "destructive",
+      })
     }
-
-    fetchActivities()
-  }, [merchant.id, toast])
+  })
 
   const onSubmit = async (values: PhoneCallFormValues) => {
     if (!user) return
@@ -102,21 +116,49 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
         agentName: user.displayName || user.email || "Unknown Agent"
       })
 
+      await queryClient.invalidateQueries(['phone-calls', merchant.id])
+      
       form.reset()
       toast({
-        title: "Phone call logged successfully",
-        description: "The phone call has been recorded.",
+        title: "Success",
+        description: "Phone call logged successfully.",
       })
     } catch (error) {
       console.error("Error logging phone call:", error)
       toast({
-        title: "Error logging phone call",
-        description: "There was an error recording the phone call. Please try again.",
+        title: "Error",
+        description: "Failed to log phone call. Please try again.",
         variant: "destructive",
       })
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleDelete = async (phoneCallId: string) => {
+    try {
+      await merchantCommunication.deletePhoneCall(merchant.id, phoneCallId)
+      await queryClient.invalidateQueries(['phone-calls', merchant.id])
+      toast({
+        title: "Success",
+        description: "Phone call record deleted successfully.",
+      })
+    } catch (error) {
+      console.error("Error deleting phone call:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete phone call record.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
+    )
   }
 
   return (
@@ -128,7 +170,7 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
               <FormField
                 control={form.control}
                 name="duration"
-                render={({ field }: { field: any }) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Duration (minutes)</FormLabel>
                     <FormControl>
@@ -142,7 +184,7 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
               <FormField
                 control={form.control}
                 name="outcome"
-                render={({ field }: { field: any }) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Outcome</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
@@ -167,7 +209,7 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
               <FormField
                 control={form.control}
                 name="notes"
-                render={({ field }: { field: any }) => (
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Notes</FormLabel>
                     <FormControl>
@@ -186,28 +228,72 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
         </CardContent>
       </Card>
 
-      <ScrollArea className="h-[400px]">
-        <div className="space-y-4">
-          {activities?.map((activity) => (
-            <Card key={activity.id} className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-medium">{activity.metadata?.agentName || "Unknown Agent"}</p>
-                  <p className="text-sm text-gray-500">
-                    {format(activity.timestamp instanceof Timestamp ? activity.timestamp.toDate() : new Date(activity.timestamp), "MMM d, yyyy h:mm a")}
-                  </p>
+      <ScrollArea className="h-[400px] pr-4">
+        {!activities?.length ? (
+          <div className="flex flex-col items-center justify-center h-[200px] text-gray-500">
+            <Phone className="h-12 w-12 mb-2 opacity-50" />
+            <p>No phone calls logged yet</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {activities.map((activity) => (
+              <Card key={activity.id} className="p-4 relative group">
+                <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Phone Call Record</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this phone call record? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(activity.id)}
+                          className="bg-red-500 hover:bg-red-600"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm">Duration: {activity.metadata?.duration} minutes</p>
-                  <p className="text-sm capitalize">Outcome: {activity.metadata?.outcome}</p>
+                
+                <div className="flex justify-between items-start">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium">{activity.metadata?.agentName || "Unknown Agent"}</p>
+                      <Badge className={`${outcomeColors[activity.metadata?.outcome || 'other']} text-white`}>
+                        {formatOutcome(activity.metadata?.outcome || 'other')}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {format(activity.timestamp instanceof Timestamp ? activity.timestamp.toDate() : new Date(activity.timestamp), "MMM d, yyyy h:mm a")}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm">Duration: {activity.metadata?.duration} minutes</p>
+                  </div>
                 </div>
-              </div>
-              {activity.metadata?.notes && (
-                <p className="mt-2 text-sm text-gray-700">{activity.metadata.notes}</p>
-              )}
-            </Card>
-          ))}
-        </div>
+                {activity.metadata?.notes && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                    <p className="text-sm text-gray-700">{activity.metadata.notes}</p>
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        )}
       </ScrollArea>
     </div>
   )
