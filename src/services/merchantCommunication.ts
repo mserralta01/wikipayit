@@ -4,8 +4,6 @@ import { Note } from "@/types/merchant"
 import { emailService } from "@/services/emailService"
 import { CustomerService } from "@/services/customerService"
 import { Activity } from "@/types/crm"
-import { storage } from "@/lib/firebase"
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from "firebase/storage"
 
 interface EmailData {
   recipientEmail: string
@@ -309,116 +307,6 @@ export const merchantCommunication = {
     } catch (error) {
       console.error("Error deleting note:", error);
       throw error;
-    }
-  },
-
-  async getDocuments(merchantId: string): Promise<Activity[]> {
-    try {
-      const q = query(
-        collection(db, `leads/${merchantId}/communications`),
-        where('type', '==', 'document'),
-        orderBy('timestamp', 'desc')
-      )
-
-      const snapshot = await getDocs(q)
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Activity[]
-    } catch (error) {
-      console.error('Error fetching documents:', error)
-      throw error
-    }
-  },
-
-  async uploadDocument(
-    merchantId: string, 
-    file: File, 
-    onProgress?: (progress: number) => void
-  ): Promise<void> {
-    try {
-      const timestamp = Timestamp.now()
-      const storageRef = ref(storage, `documents/${merchantId}/${timestamp.toMillis()}_${file.name}`)
-      
-      // Upload file to Firebase Storage
-      const uploadTask = uploadBytesResumable(storageRef, file)
-      
-      await new Promise<void>((resolve, reject) => {
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-            onProgress?.(progress)
-          },
-          (error) => {
-            console.error('Upload error:', error)
-            reject(error)
-          },
-          async () => {
-            try {
-              // Get download URL
-              const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
-              
-              // Add document reference to Firestore
-              const communicationsRef = collection(db, `leads/${merchantId}/communications`)
-              await addDoc(communicationsRef, {
-                type: 'document',
-                timestamp,
-                metadata: {
-                  fileName: file.name,
-                  mimeType: file.type,
-                  size: file.size,
-                  url: downloadURL,
-                  uploadedBy: user?.displayName || user?.email || 'Unknown',
-                  storagePath: uploadTask.snapshot.ref.fullPath
-                }
-              })
-
-              // Update lead's updatedAt timestamp
-              const leadRef = doc(db, "leads", merchantId)
-              await updateDoc(leadRef, {
-                updatedAt: timestamp
-              })
-
-              resolve()
-            } catch (error) {
-              reject(error)
-            }
-          }
-        )
-      })
-    } catch (error) {
-      console.error('Error uploading document:', error)
-      throw error
-    }
-  },
-
-  async deleteDocument(merchantId: string, documentId: string): Promise<boolean> {
-    try {
-      // Get the document reference first to get the storage path
-      const docRef = doc(db, `leads/${merchantId}/communications`, documentId)
-      const docSnap = await getDoc(docRef)
-      const docData = docSnap.data()
-
-      if (docData?.metadata?.storagePath) {
-        // Delete the file from storage
-        const storageRef = ref(storage, docData.metadata.storagePath)
-        await deleteObject(storageRef)
-      }
-
-      // Delete the document reference from Firestore
-      await deleteDoc(docRef)
-
-      // Update lead's updatedAt timestamp
-      const leadRef = doc(db, "leads", merchantId)
-      await updateDoc(leadRef, {
-        updatedAt: new Date()
-      })
-
-      return true
-    } catch (error) {
-      console.error("Error deleting document:", error)
-      throw error
     }
   }
 }
