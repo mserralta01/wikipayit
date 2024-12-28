@@ -93,14 +93,7 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
     queryFn: async () => {
       return await merchantCommunication.getActivities(merchant.id, 'phone_call')
     },
-    onError: (error) => {
-      console.error('Error fetching phone calls:', error)
-      toast({
-        title: "Error loading phone calls",
-        description: "There was an error loading the phone call history.",
-        variant: "destructive",
-      })
-    }
+    retry: 3,
   })
 
   const onSubmit = async (values: PhoneCallFormValues) => {
@@ -116,7 +109,7 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
         agentName: user.displayName || user.email || "Unknown Agent"
       })
 
-      await queryClient.invalidateQueries(['phone-calls', merchant.id])
+      await queryClient.invalidateQueries({ queryKey: ['phone-calls', merchant.id] })
       
       form.reset()
       toast({
@@ -138,7 +131,7 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
   const handleDelete = async (phoneCallId: string) => {
     try {
       await merchantCommunication.deletePhoneCall(merchant.id, phoneCallId)
-      await queryClient.invalidateQueries(['phone-calls', merchant.id])
+      await queryClient.invalidateQueries({ queryKey: ['phone-calls', merchant.id] })
       toast({
         title: "Success",
         description: "Phone call record deleted successfully.",
