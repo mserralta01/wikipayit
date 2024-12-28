@@ -55,62 +55,70 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
   }, [merchant.id, toast])
 
   const getRecipientOptions = () => {
-    const options: Array<{ email: string; label: string }> = []
+    const options: Array<{ email: string; label: string }> = [];
 
-    console.log('Merchant data in getRecipientOptions:', {
+    console.log("Merchant data in getRecipientOptions:", {
       email: merchant.email,
       businessName: merchant.businessName || merchant.formData?.businessName,
       beneficialOwners: merchant.beneficialOwners,
-      formDataOwners: merchant.formData?.beneficialOwners?.owners
-    })
+      formDataOwners: merchant.formData?.beneficialOwners?.owners,
+    });
 
-    // Add main contact email
-    if (merchant.email) {
-      const businessName = merchant.businessName || merchant.formData?.businessName || 'Unknown Business'
+    // Add main contact email (Customer Service)
+    if (merchant.formData?.customerServiceEmail) {
       options.push({
-        email: merchant.email,
-        label: `${businessName} - Primary Contact`
-      })
-      console.log('Added primary contact:', merchant.email)
+        email: merchant.formData.customerServiceEmail,
+        label: `Customer Service -- ${merchant.formData.customerServiceEmail}`,
+      });
+      console.log("Added customer service email:", merchant.formData.customerServiceEmail);
     }
 
     // Add beneficial owner emails
-    (merchant.beneficialOwners as BeneficialOwner[] | undefined)?.forEach((owner: BeneficialOwner) => {
-      if (owner.email) {
-        const ownerName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim()
-        options.push({
-          email: owner.email,
-          label: `${ownerName} - Beneficial Owner`
-        })
-        console.log('Added beneficial owner:', owner.email)
+    (merchant.beneficialOwners as BeneficialOwner[] | undefined)?.forEach(
+      (owner: BeneficialOwner) => {
+        if (owner.email) {
+          options.push({
+            email: owner.email,
+            label: `${owner.firstName} ${owner.lastName}, ${owner.title}, ${owner.email}`,
+          });
+          console.log("Added beneficial owner:", owner.email);
+        }
       }
-    })
+    );
 
     // Add form data email if different
-    if (merchant.formData?.email && merchant.formData.email !== merchant.email) {
-      const businessName = merchant.formData.businessName || merchant.businessName || 'Unknown Business'
+    if (
+      merchant.formData?.email &&
+      merchant.formData.email !== merchant.email &&
+      merchant.formData.email !== merchant.formData?.customerServiceEmail
+    ) {
+      const businessName =
+        merchant.formData.businessName || merchant.businessName || "Unknown Business";
       options.push({
         email: merchant.formData.email,
-        label: `${businessName} - Application Contact`
-      })
-      console.log('Added form data email:', merchant.formData.email)
+        label: `${businessName} - Application Contact`,
+      });
+      console.log("Added form data email:", merchant.formData.email);
     }
 
     // Add form data beneficial owner emails if different
     merchant.formData?.beneficialOwners?.owners.forEach((owner) => {
-      if (owner.email && !options.some(opt => opt.email === owner.email)) {
-        const ownerName = `${owner.firstName || ''} ${owner.lastName || ''}`.trim()
+      if (
+        owner.email &&
+        !options.some((opt) => opt.email === owner.email) &&
+        owner.email !== merchant.formData?.customerServiceEmail
+      ) {
         options.push({
           email: owner.email,
-          label: `${ownerName} - Application Owner`
-        })
-        console.log('Added form data owner:', owner.email)
+          label: `${owner.firstName} ${owner.lastName}, ${owner.title}, ${owner.email}`,
+        });
+        console.log("Added form data owner:", owner.email);
       }
-    })
+    });
 
-    console.log('Final recipient options:', options)
-    return options
-  }
+    console.log("Final recipient options:", options);
+    return options;
+  };
 
   const handleSendEmail = async (content: string, recipient: string, subject: string) => {
     try {
