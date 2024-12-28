@@ -44,6 +44,7 @@ import {
   DollarSign,
   Mail,
   FileIcon,
+  Trash2,
 } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
 import { cn } from "../../../lib/utils";
@@ -51,6 +52,7 @@ import { PipelineStatus, PipelineFormData } from "../../../types/pipeline";
 import { BankDetailsDisplay } from "./BankDetailsDisplay";
 import { BeneficialOwnersDisplay } from "./BeneficialOwnersDisplay";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../ui/tabs";
+import { DeleteLeadDialog } from "./DeleteLeadDialog";
 
 interface LeadDetailsProps {
   merchant: MerchantDTO;
@@ -104,6 +106,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const { toast } = useToast();
   const [merchant, setMerchant] = useState(initialMerchant);
   const [editMode, setEditMode] = useState<{ [key: string]: boolean }>({});
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const getOwnershipColor = (percentage: number) => {
     if (percentage === 100) return "bg-green-100 text-green-800 border-green-300";
@@ -947,14 +950,33 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
+            
+            {/* Add Delete Button here */}
+            <div className="mt-6 pt-6 border-t">
+              <Button
+                variant="destructive"
+                className="w-full"
+                onClick={() => setIsDeleteDialogOpen(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Lead
+              </Button>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Add Delete Dialog */}
+        <DeleteLeadDialog
+          isOpen={isDeleteDialogOpen}
+          onClose={() => setIsDeleteDialogOpen(false)}
+          leadId={merchant.id}
+        />
       </div>
 
       {/* Right Column */}
       <div className="flex-1 min-w-[600px]">
-        <Card className="h-full">
-          <Tabs defaultValue="emails" className="w-full">
+        <Card className="h-full flex flex-col">
+          <Tabs defaultValue="emails" className="flex-1">
             <div className="border-b">
               <div className="px-4">
                 <TabsList className="h-12 w-full justify-start gap-4 bg-transparent">
