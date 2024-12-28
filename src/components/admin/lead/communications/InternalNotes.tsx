@@ -74,13 +74,20 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
         return b.timestamp.toMillis() - a.timestamp.toMillis()
       })
     },
-    retry: 3,
+    onError: (error) => {
+      console.error('Error fetching notes:', error)
+      toast({
+        title: "Error loading notes",
+        description: "There was an error loading the notes.",
+        variant: "destructive",
+      })
+    }
   })
 
   const handleDelete = async (noteId: string) => {
     try {
       await merchantCommunication.deleteNote(merchant.id, noteId)
-      await queryClient.invalidateQueries({ queryKey: ['notes', merchant.id] })
+      await queryClient.invalidateQueries(['notes', merchant.id])
       toast({
         title: "Success",
         description: "Note deleted successfully.",
@@ -103,7 +110,7 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
           pinnedAt: !currentPinned ? new Date() : null
         }
       })
-      await queryClient.invalidateQueries({ queryKey: ['notes', merchant.id] })
+      await queryClient.invalidateQueries(['notes', merchant.id])
       toast({
         title: "Success",
         description: `Note ${!currentPinned ? 'pinned' : 'unpinned'} successfully.`,
@@ -128,10 +135,9 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
         createdBy: user.uid,
         agentName: user.displayName || user.email || "Unknown Agent",
         isPinned: values.isPinned,
-        createdAt: Timestamp.now(),
       })
 
-      await queryClient.invalidateQueries({ queryKey: ['notes', merchant.id] })
+      await queryClient.invalidateQueries(['notes', merchant.id])
       
       form.reset()
       toast({
@@ -242,7 +248,7 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
                           "h-8 w-8",
                           activity.metadata?.isPinned 
                             ? "text-yellow-600" 
-                            : "opacity-0 group-hover:opacity-100"
+                            : "text-gray-300 hover:text-yellow-600"
                         )}
                         onClick={() => handleTogglePin(activity.id, !!activity.metadata?.isPinned)}
                       >
@@ -251,51 +257,52 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
                           activity.metadata?.isPinned && "fill-current"
                         )} />
                       </Button>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Note</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete this note? This action cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(activity.id)}
-                              className="bg-red-500 hover:bg-red-600"
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
                             >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Note</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete this note? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDelete(activity.id)}
+                                className="bg-red-500 hover:bg-red-600"
+                              >
+                                Delete
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </div>
                     
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium">{activity.metadata?.agentName || "Unknown Agent"}</p>
-                        {activity.metadata?.isPinned && (
-                          <Badge variant="secondary" className="text-yellow-600">
-                            Pinned
-                          </Badge>
-                        )}
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium">{activity.metadata?.agentName || "Unknown Agent"}</p>
+                        </div>
+                        <p className="text-sm text-gray-500">
+                          {format(activity.timestamp instanceof Timestamp ? activity.timestamp.toDate() : new Date(activity.timestamp), "MMM d, yyyy h:mm a")}
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-500">
-                        {format(activity.timestamp instanceof Timestamp ? activity.timestamp.toDate() : new Date(activity.timestamp), "MMM d, yyyy h:mm a")}
-                      </p>
                     </div>
                     <div className="mt-3 p-3 bg-gray-50 rounded-md">
-                      <p className="text-sm text-gray-700">{activity.metadata?.content}</p>
+                      <p className="text-sm text-gray-700">
+                        {activity.metadata?.content || activity.metadata?.noteContent}
+                      </p>
                     </div>
                   </Card>
                 ))}
