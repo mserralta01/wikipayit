@@ -24,7 +24,7 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
   const [error, setError] = useState<string | null>(null);
 
   const isPDF = url.toLowerCase().endsWith('.pdf');
-  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+  const isImage = /\.(jpg|jpeg|png|gif|webp|svg|bmp|tiff)$/i.test(url);
 
   const getFileName = (url: string) => {
     try {
@@ -35,7 +35,6 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
     }
   };
 
-  // Create a Google Docs viewer URL
   const getGoogleDocsViewerUrl = (url: string) => {
     return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
   };
@@ -43,27 +42,28 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
   return (
     <div className="relative group">
       <div className="border rounded-lg p-4 hover:shadow-md transition-shadow bg-white">
-        <div className="relative aspect-[3/4] w-full bg-gray-50 rounded overflow-hidden">
-          <div className="w-full h-full flex flex-col items-center justify-center">
-            {isPDF ? (
-              <div className="w-full h-full relative">
-                <iframe
-                  src={getGoogleDocsViewerUrl(url)}
-                  className="w-full h-full"
-                  frameBorder="0"
-                  onLoad={() => setIsLoading(false)}
-                  onError={() => {
-                    setError('Could not load preview');
-                    setIsLoading(false);
-                  }}
-                />
-                {isLoading && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                  </div>
-                )}
-              </div>
-            ) : isImage ? (
+        <div className="flex flex-col items-center justify-center space-y-4">
+          {/* Display preview directly */}
+          {isPDF ? (
+            <div className="w-full h-48 relative">
+              <iframe
+                src={getGoogleDocsViewerUrl(url)}
+                className="w-full h-full"
+                onLoad={() => setIsLoading(false)}
+                onError={() => {
+                  setError('Could not load preview');
+                  setIsLoading(false);
+                }}
+                frameBorder="0"
+              />
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              )}
+            </div>
+          ) : isImage ? (
+            <div className="w-full h-48 relative">
               <img
                 src={url}
                 alt={`${type} document`}
@@ -74,36 +74,41 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
                   setIsLoading(false);
                 }}
               />
-            ) : (
-              <>
-                <div className="mb-4">
-                  <FileText className="h-16 w-16 text-blue-500" />
+              {isLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                  <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
-                <p className="text-sm text-center text-gray-600 break-all line-clamp-2">
-                  {getFileName(url)}
-                </p>
-              </>
-            )}
-
-            {/* Action Buttons */}
-            <div className="absolute bottom-0 left-0 right-0 p-2 bg-white/90 border-t flex justify-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsPreviewOpen(true)}
-              >
-                <Eye className="h-4 w-4 mr-1" />
-                Preview
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => window.open(url, '_blank')}
-              >
-                <Download className="h-4 w-4 mr-1" />
-                Download
-              </Button>
+              )}
             </div>
+          ) : (
+            <>
+              <div className="mb-4">
+                <FileText className="h-16 w-16 text-blue-500" />
+              </div>
+              <p className="text-sm text-center text-gray-600 break-all line-clamp-2">
+                {getFileName(url)}
+              </p>
+            </>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsPreviewOpen(true)}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              Preview
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.open(url, '_blank')}
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Download
+            </Button>
           </div>
         </div>
       </div>

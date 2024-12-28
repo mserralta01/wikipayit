@@ -38,6 +38,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
+import { NoteInput } from '@/types/queries';
 
 interface InternalNotesProps {
   merchant: PipelineMerchant
@@ -65,29 +66,31 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
   })
 
   const { data: activities, isLoading } = useQuery({
-    queryKey: ['notes', merchant.id],
+    queryKey: ['notes', merchant.id] as const,
     queryFn: async () => {
-      const notes = await merchantCommunication.getActivities(merchant.id, 'note')
+      const notes = await merchantCommunication.getActivities(merchant.id, 'note');
       return notes.sort((a, b) => {
-        if (a.metadata?.isPinned && !b.metadata?.isPinned) return -1
-        if (!a.metadata?.isPinned && b.metadata?.isPinned) return 1
-        return b.timestamp.toMillis() - a.timestamp.toMillis()
-      })
+        if (a.metadata?.isPinned && !b.metadata?.isPinned) return -1;
+        if (!a.metadata?.isPinned && b.metadata?.isPinned) return 1;
+        return b.timestamp.toMillis() - a.timestamp.toMillis();
+      });
     },
+    retry: 1,
     onError: (error) => {
-      console.error('Error fetching notes:', error)
       toast({
-        title: "Error loading notes",
-        description: "There was an error loading the notes.",
+        title: "Error",
+        description: "Failed to fetch notes",
         variant: "destructive",
-      })
+      });
     }
-  })
+  });
 
   const handleDelete = async (noteId: string) => {
     try {
       await merchantCommunication.deleteNote(merchant.id, noteId)
-      await queryClient.invalidateQueries(['notes', merchant.id])
+      await queryClient.invalidateQueries({
+        queryKey: ['notes', merchant.id] as const
+      });
       toast({
         title: "Success",
         description: "Note deleted successfully.",
@@ -110,7 +113,9 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
           pinnedAt: !currentPinned ? new Date() : null
         }
       })
-      await queryClient.invalidateQueries(['notes', merchant.id])
+      await queryClient.invalidateQueries({
+        queryKey: ['notes', merchant.id] as const
+      });
       toast({
         title: "Success",
         description: `Note ${!currentPinned ? 'pinned' : 'unpinned'} successfully.`,
@@ -130,14 +135,18 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
 
     setIsSubmitting(true)
     try {
-      await merchantCommunication.addNote(merchant.id, {
+      const noteInput: NoteInput = {
         content: values.content,
         createdBy: user.uid,
         agentName: user.displayName || user.email || "Unknown Agent",
-        isPinned: values.isPinned,
-      })
+        isPinned: values.isPinned
+      };
 
-      await queryClient.invalidateQueries(['notes', merchant.id])
+      await merchantCommunication.addNote(merchant.id, noteInput);
+
+      await queryClient.invalidateQueries({
+        queryKey: ['notes', merchant.id] as const
+      });
       
       form.reset()
       toast({

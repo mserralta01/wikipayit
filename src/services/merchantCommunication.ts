@@ -84,41 +84,46 @@ export const merchantCommunication = {
     }
   },
 
-  async addNote(merchantId: string, note: Note & { isPinned?: boolean }): Promise<void> {
-    try {
-      const leadRef = doc(db, "leads", merchantId)
-      const leadSnap = await getDoc(leadRef)
-      const lead = leadSnap.data()
+  async addNote(merchantId: string, note: Partial<Note>): Promise<void> {
+    const timestamp = Timestamp.now();
+    const noteWithTimestamp = {
+      ...note,
+      createdAt: timestamp,
+    };
 
-      const communicationsRef = collection(db, `leads/${merchantId}/communications`)
-      const timestamp = Timestamp.now()
+    try {
+      const leadRef = doc(db, "leads", merchantId);
+      const leadSnap = await getDoc(leadRef);
+      const lead = leadSnap.data();
+
+      const communicationsRef = collection(db, `leads/${merchantId}/communications`);
 
       // Create the note directly in communications subcollection
       await addDoc(communicationsRef, {
         type: "note",
-        description: note.content,
-        userId: note.createdBy,
+        description: noteWithTimestamp.content,
+        userId: noteWithTimestamp.createdBy,
         merchantId,
         timestamp,
         merchant: {
           businessName: lead?.businessName || "Unknown Business"
         },
         metadata: {
-          content: note.content,
+          content: noteWithTimestamp.content,
           createdAt: timestamp,
-          agentName: note.agentName,
-          isPinned: note.isPinned || false,
-          pinnedAt: note.isPinned ? timestamp : null
+          agentName: noteWithTimestamp.agentName,
+          isPinned: noteWithTimestamp.isPinned || false,
+          pinnedAt: noteWithTimestamp.isPinned ? timestamp : null
         }
-      })
+      });
 
       // Update lead's updatedAt timestamp
       await updateDoc(leadRef, {
-        updatedAt: new Date()
-      })
+        updatedAt: timestamp.toDate()
+      });
     } catch (error) {
-      console.error("Error adding note:", error)
-      throw error
+      console.error("Error adding note:", error);
+      throw error;
     }
   },
 

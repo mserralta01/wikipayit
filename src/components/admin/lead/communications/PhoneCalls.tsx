@@ -73,6 +73,10 @@ const outcomeColors = {
   other: "bg-gray-500",
 } as const
 
+const fetchPhoneCalls = async (merchantId: string): Promise<Activity[]> => {
+  return await merchantCommunication.getActivities(merchantId, 'phone_call');
+};
+
 export function PhoneCalls({ merchant }: PhoneCallsProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { toast } = useToast()
@@ -89,19 +93,17 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
   })
 
   const { data: activities, isLoading } = useQuery({
-    queryKey: ['phone-calls', merchant.id],
-    queryFn: async () => {
-      return await merchantCommunication.getActivities(merchant.id, 'phone_call')
-    },
+    queryKey: ['phone-calls', merchant.id] as const,
+    queryFn: () => fetchPhoneCalls(merchant.id),
+    retry: 1,
     onError: (error) => {
-      console.error('Error fetching phone calls:', error)
       toast({
-        title: "Error loading phone calls",
-        description: "There was an error loading the phone call history.",
+        title: "Error",
+        description: "Failed to fetch phone calls",
         variant: "destructive",
-      })
+      });
     }
-  })
+  });
 
   const onSubmit = async (values: PhoneCallFormValues) => {
     if (!user) return
@@ -116,7 +118,9 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
         agentName: user.displayName || user.email || "Unknown Agent"
       })
 
-      await queryClient.invalidateQueries(['phone-calls', merchant.id])
+      await queryClient.invalidateQueries({
+        queryKey: ['phone-calls', merchant.id] as const
+      });
       
       form.reset()
       toast({
@@ -138,7 +142,9 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
   const handleDelete = async (phoneCallId: string) => {
     try {
       await merchantCommunication.deletePhoneCall(merchant.id, phoneCallId)
-      await queryClient.invalidateQueries(['phone-calls', merchant.id])
+      await queryClient.invalidateQueries({
+        queryKey: ['phone-calls', merchant.id] as const
+      });
       toast({
         title: "Success",
         description: "Phone call record deleted successfully.",
