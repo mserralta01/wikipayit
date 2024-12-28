@@ -29,7 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAuth } from "@/contexts/AuthContext"
 import { Merchant as PipelineMerchant } from "@/types/merchant"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient, UseQueryOptions } from "@tanstack/react-query"
 import { Phone, Trash2 } from "lucide-react"
 import {
   AlertDialog,
@@ -92,18 +92,28 @@ export function PhoneCalls({ merchant }: PhoneCallsProps) {
     },
   })
 
-  const { data: activities, isLoading } = useQuery({
+  const { data: activities, isLoading, error } = useQuery<
+    Activity[],
+    Error,
+    Activity[],
+    [string, string]
+  >({
     queryKey: ['phone-calls', merchant.id] as const,
     queryFn: () => fetchPhoneCalls(merchant.id),
     retry: 1,
-    onError: (error) => {
+    throwOnError: true
+  });
+
+  // Handle error in effect
+  React.useEffect(() => {
+    if (error) {
       toast({
-        title: "Error",
-        description: "Failed to fetch phone calls",
+        title: "Error loading phone calls",
+        description: "There was a problem loading the phone calls. Please try again.",
         variant: "destructive",
       });
     }
-  });
+  }, [error, toast]);
 
   const onSubmit = async (values: PhoneCallFormValues) => {
     if (!user) return

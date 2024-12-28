@@ -22,7 +22,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/contexts/AuthContext"
 import { Merchant as PipelineMerchant } from "@/types/merchant"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useQuery, useQueryClient, UseQueryOptions } from "@tanstack/react-query"
 import { Trash2, StickyNote, Pin, PlusCircle, ScrollText } from "lucide-react"
 import {
   AlertDialog,
@@ -65,7 +65,12 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
     },
   })
 
-  const { data: activities, isLoading } = useQuery({
+  const { data: activities, isLoading, error } = useQuery<
+    Activity[],
+    Error,
+    Activity[],
+    [string, string]
+  >({
     queryKey: ['notes', merchant.id] as const,
     queryFn: async () => {
       const notes = await merchantCommunication.getActivities(merchant.id, 'note');
@@ -75,15 +80,19 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
         return b.timestamp.toMillis() - a.timestamp.toMillis();
       });
     },
-    retry: 1,
-    onError: (error) => {
+    enabled: !!merchant.id,
+    throwOnError: true
+  });
+
+  React.useEffect(() => {
+    if (error) {
       toast({
-        title: "Error",
-        description: "Failed to fetch notes",
+        title: "Error loading notes",
+        description: "There was a problem loading the notes. Please try again.",
         variant: "destructive",
       });
     }
-  });
+  }, [error, toast]);
 
   const handleDelete = async (noteId: string) => {
     try {
