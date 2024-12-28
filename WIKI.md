@@ -19,6 +19,82 @@ WikiPayIt is a payment processing company's web application built with modern te
 - **Email Service**: SendGrid
 - **Development Tools**: Vite
 
+## Banking Partners Module
+
+### Overview
+The **Banking Partners Module** manages relationships with banking institutions or lead recipients who generate revenue share based on their sales performance. This module centralizes partner details, relevant contacts, contractual information, and pricing agreements to enable seamless collaboration and transparent financial tracking.
+
+### Key Features
+1. **Left Navigation Integration**  
+   A dedicated **Banking Partners** menu item is added to the left navigation bar, allowing quick access to the module's dashboard and partner records.
+
+2. **Contact Management**  
+   - **Sales Contact Details**: Store first name, last name, email, and phone for representatives handling sales.  
+   - **Client Management Contact**: Capture first name, last name, and phone for client-facing managers.  
+
+3. **Agreement & Pricing Details**  
+   - **Purchase Pricing for Card Types**: Visa, MasterCard, American Express, Discover.  
+   - **Basis Points**: Track the markup charged over the purchase price.  
+   - **Revenue Split Structure**: Specify profit-sharing percentages.  
+   - **Monthly Fee & PCI Fees**: Store and manage any recurring charges.  
+   - **Processor-Specific Notes**: Keep unique instructions or stipulations for each processor.  
+   - **Contract Document Upload**: Upload digital copies of agreements or other relevant documents.  
+
+4. **UI/UX and Animations**  
+   The interface emphasizes a polished user experience with intuitive workflows and micro-animations. These animations highlight user actions (e.g., saving edits, uploading documents) to provide a more dynamic and engaging interface.
+
+### Data Models
+
+```typescript
+interface CardPricing {
+  visa: number;
+  mastercard: number;
+  amex: number;
+  discover: number;
+}
+
+interface BankingPartnerContact {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  role: 'sales' | 'client_management';
+}
+
+interface BankingPartner {
+  id: string;
+  name: string;
+  contacts: BankingPartnerContact[];
+  cardPricing: CardPricing;
+  basisPoints: number;
+  revenueSplit: number;
+  monthlyFee: number;
+  pciFee: number;
+  notes: string;
+  contractDocuments: string[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  isActive: boolean;
+}
+
+interface BankingPartnerActivity {
+  id: string;
+  partnerId: string;
+  type: 'contract_update' | 'pricing_update' | 'contact_update' | 'note_added';
+  description: string;
+  createdAt: Timestamp;
+  createdBy: string;
+  metadata?: Record<string, any>;
+}
+```
+
+### Suggested Enhancements
+- **Automated Notifications**: Trigger emails or alerts for contract renewals, fee changes, or missed updates.  
+- **Performance Dashboards**: Include data visualization for monthly revenue, sales leads, and top performers.  
+- **Search & Filtering**: Implement robust filtering by partner name, contact, or contractual parameters to quickly locate records.  
+- **Role-Based Access Control**: Limit access to certain details or editing capabilities based on user roles.  
+- **Versioning & eSign Integration**: Allow multiple versions of contracts with eSign functionality for a streamlined agreement process.
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -52,10 +128,13 @@ The system uses Firebase as its backend infrastructure:
    - `customers` - Customer records
    - `emailTemplates` - Email template management
    - `settings/api` - API configuration settings
+   - `bankingPartners` - Banking partner records
+   - `bankingPartnerActivities` - Banking partner activity logs
 
 3. **Storage**: Firebase Storage
    - Document storage
    - File uploads
+   - Contract documents
 
 ## Core Features
 
