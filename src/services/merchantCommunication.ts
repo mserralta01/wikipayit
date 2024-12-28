@@ -1,5 +1,5 @@
 import { db } from "@/lib/firebase"
-import { doc, updateDoc, Timestamp, collection, addDoc, query, where, orderBy, getDocs, getDoc } from "firebase/firestore"
+import { doc, updateDoc, Timestamp, collection, addDoc, query, where, orderBy, getDocs, getDoc, deleteDoc } from "firebase/firestore"
 import { Note } from "@/types/merchant"
 import { emailService } from "@/services/emailService"
 import { CustomerService } from "@/services/customerService"
@@ -41,35 +41,10 @@ export const merchantCommunication = {
         timestamp: new Date().toISOString()
       });
 
-      const merchant = await CustomerService.getCustomer(merchantId)
-      console.log('merchantCommunication.sendEmail - Got merchant:', {
-        merchantId,
-        businessName: merchant.businessInfo.legalName
-      });
-
-      console.log('merchantCommunication.sendEmail - Calling emailService.sendEmail:', {
-        to: data.recipientEmail,
-        subject: data.subject,
-        contentLength: data.content.length,
-        timestamp: new Date().toISOString()
-      });
-
-      console.log('merchantCommunication.sendEmail - Starting:', {
-        merchantId,
-        recipient: data.recipientEmail,
-        subject: data.subject,
-        timestamp: new Date().toISOString()
-      });
-
       const success = await emailService.sendEmail({
         to: data.recipientEmail,
         subject: data.subject,
         content: data.content
-      });
-
-      console.log('merchantCommunication.sendEmail - Email service response:', {
-        success,
-        timestamp: new Date().toISOString()
       });
 
       console.log('merchantCommunication.sendEmail - Email service response:', {
@@ -91,7 +66,7 @@ export const merchantCommunication = {
           merchantId,
           timestamp: timestamp.toDate(),
           merchant: {
-            businessName: merchant.businessInfo?.legalName || 'Unknown Business'
+            businessName: 'Unknown Business'
           },
           metadata: {
             recipientEmail: data.recipientEmail,
@@ -129,7 +104,7 @@ export const merchantCommunication = {
           businessName: lead?.businessName || "Unknown Business"
         },
         metadata: {
-          noteContent: note.content,
+          content: note.content,
           createdAt: timestamp,
           agentName: note.agentName,
           isPinned: note.isPinned || false,
@@ -196,101 +171,142 @@ export const merchantCommunication = {
 
   async getActivities(merchantId: string, type: 'note' | 'phone_call' | 'email_sent'): Promise<Activity[]> {
     try {
+      // Update the query to use the communications subcollection
+      const communicationsRef = collection(db, `leads/${merchantId}/communications`);
       const q = query(
-        collection(db, `leads/${merchantId}/communications`),
+        communicationsRef,
         where('type', '==', type),
-        orderBy('metadata.isPinned', 'desc'),
         orderBy('timestamp', 'desc')
-      )
+      );
 
-      const snapshot = await getDocs(q)
-      const activities = snapshot.docs.map(doc => ({
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as Activity[]
-
-      // For notes, sort with pinned notes first
-      if (type === 'note') {
-        return activities.sort((a, b) => {
-          if (a.metadata?.isPinned && !b.metadata?.isPinned) return -1
-          if (!a.metadata?.isPinned && b.metadata?.isPinned) return 1
-          if (a.metadata?.isPinned && b.metadata?.isPinned) {
-            // Both pinned, sort by pinnedAt
-            const aPinnedAt = a.metadata.pinnedAt?.toMillis() || 0
-            const bPinnedAt = b.metadata.pinnedAt?.toMillis() || 0
-            return bPinnedAt - aPinnedAt
-          }
-          // Both unpinned or no pin info, sort by timestamp
-          return b.timestamp.toMillis() - a.timestamp.toMillis()
-        })
-      }
-
-      return activities
+      })) as Activity[];
     } catch (error) {
-      console.error(`Error fetching ${type} activities:`, error)
-      // Log detailed error information for debugging
-      if (error instanceof Error) {
-        console.error('Error details:', {
-          message: error.message,
-          stack: error.stack,
-          type: type,
-          merchantId: merchantId
-        })
-      }
-      throw error
+      console.error(`Error fetching ${type} activities:`, error);
+      throw error;
     }
   },
 
-  async updateNote(merchantId: string, noteId: string, updatedNote: Activity): Promise<void> {
+  async updateNote(merchantId: string, noteId: string, updates: Partial<{
+    content: string;
+    metadata: {
+      isPinned?: boolean;
+      pinnedAt?: Date | null;
+    };
+  }>): Promise<void> {
     try {
-      const noteRef = doc(db, `leads/${merchantId}/communications`, noteId)
+      const noteRef = doc(db, `leads/${merchantId}/communications`, noteId);
       await updateDoc(noteRef, {
-        ...updatedNote,
-        timestamp: updatedNote.timestamp.toDate()
-      })
+        ...updates,
+        updatedAt: new Date()
+      });
+
+      // Update lead's updatedAt timestamp
+      const leadRef = doc(db, "leads", merchantId);
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
+      });
     } catch (error) {
-      console.error("Error updating note:", error)
-      throw error
+      console.error("Error updating note:", error);
+      throw error;
     }
   },
 
   async addPhoneCall(merchantId: string, data: {
-    duration: string
-    outcome: 'successful' | 'no_answer' | 'follow_up_required' | 'voicemail' | 'other'
-    notes: string
-    agentId?: string
-    agentName?: string
+    duration: string;
+    outcome: 'successful' | 'no_answer' | 'follow_up_required' | 'voicemail' | 'other';
+    notes: string;
+    agentId?: string;
+    agentName?: string;
   }): Promise<void> {
     try {
-      const leadRef = doc(db, "leads", merchantId)
-      const leadSnap = await getDoc(leadRef)
-      const lead = leadSnap.data()
+      const communicationsRef = collection(db, `leads/${merchantId}/communications`);
+      const timestamp = Timestamp.now();
 
-      await this.logActivity({
-        type: "phone_call",
-        description: `Phone call - ${data.outcome}`,
-        userId: data.agentId || 'system',
-        merchantId,
-        merchant: {
-          businessName: lead?.businessName || "Unknown Business"
-        },
+      await addDoc(communicationsRef, {
+        type: 'phone_call',
+        timestamp,
         metadata: {
           duration: data.duration,
           outcome: data.outcome,
           notes: data.notes,
           agentId: data.agentId,
-          agentName: data.agentName,
-          createdAt: Timestamp.now()
+          agentName: data.agentName
         }
-      })
+      });
 
       // Update lead's updatedAt timestamp
+      const leadRef = doc(db, 'leads', merchantId);
+      await updateDoc(leadRef, {
+        updatedAt: timestamp
+      });
+    } catch (error) {
+      console.error('Error adding phone call:', error);
+      throw error;
+    }
+  },
+
+  async deleteEmail(merchantId: string, emailId: string): Promise<boolean> {
+    try {
+      // Update the path to match where emails are actually stored
+      const emailRef = doc(db, `leads/${merchantId}/communications`, emailId);
+      
+      // Delete the document
+      await deleteDoc(emailRef);
+      
+      // Update the lead's updatedAt timestamp
+      const leadRef = doc(db, "leads", merchantId);
       await updateDoc(leadRef, {
         updatedAt: new Date()
-      })
+      });
+      
+      return true;
     } catch (error) {
-      console.error("Error adding phone call:", error)
-      throw error
+      console.error("Error deleting email:", error);
+      throw error;
+    }
+  },
+
+  async deletePhoneCall(merchantId: string, phoneCallId: string): Promise<boolean> {
+    try {
+      const phoneCallRef = doc(db, `leads/${merchantId}/communications`, phoneCallId);
+      
+      // Delete the document
+      await deleteDoc(phoneCallRef);
+      
+      // Update the lead's updatedAt timestamp
+      const leadRef = doc(db, "leads", merchantId);
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting phone call:", error);
+      throw error;
+    }
+  },
+
+  async deleteNote(merchantId: string, noteId: string): Promise<boolean> {
+    try {
+      const noteRef = doc(db, `leads/${merchantId}/communications`, noteId);
+      
+      // Delete the document
+      await deleteDoc(noteRef);
+      
+      // Update the lead's updatedAt timestamp
+      const leadRef = doc(db, "leads", merchantId);
+      await updateDoc(leadRef, {
+        updatedAt: new Date()
+      });
+      
+      return true;
+    } catch (error) {
+      console.error("Error deleting note:", error);
+      throw error;
     }
   }
 }

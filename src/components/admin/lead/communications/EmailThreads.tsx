@@ -2,12 +2,16 @@ import React, { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Merchant, BeneficialOwner } from "@/types/merchant"
 import { useToast } from "@/hooks/use-toast"
-import { formatDistanceToNow } from "date-fns"
+import { format } from "date-fns"
 import { Activity } from "@/types/activity"
 import { Skeleton } from "@/components/ui/skeleton"
 import { EmailEditor } from "./EmailEditor"
 import { merchantCommunication } from "@/services/merchantCommunication"
-import { ApiSettingsDebug } from "../../debug/ApiSettingsDebug"
+import { ChevronDown, ChevronUp, Mail, Send, Trash2 } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
+import { DeleteEmailDialog } from "./DeleteEmailDialog"
+import { Badge } from "@/components/ui/badge"
 
 interface EmailThreadsProps {
   merchant: Merchant
@@ -16,6 +20,10 @@ interface EmailThreadsProps {
 export function EmailThreads({ merchant }: EmailThreadsProps) {
   const [emailThreads, setEmailThreads] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
+  const [expandedThreads, setExpandedThreads] = useState<Record<string, boolean>>({})
+  const [showEmailEditor, setShowEmailEditor] = useState(false)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [emailToDelete, setEmailToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -143,25 +151,79 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
     }
   }
 
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardContent className="pt-6">
-          <div className="mb-4">
-            <ApiSettingsDebug />
-          </div>
-          <EmailEditor
-            onSend={handleSendEmail}
-            recipientOptions={getRecipientOptions()}
-            placeholder="Compose new email..."
-          />
-        </CardContent>
-      </Card>
+  const toggleThread = (threadId: string) => {
+    setExpandedThreads(prev => ({
+      ...prev,
+      [threadId]: !prev[threadId]
+    }))
+  }
 
-      <div className="space-y-2">
+  const handleDeleteEmail = async () => {
+    if (!emailToDelete) return;
+    
+    try {
+      await merchantCommunication.deleteEmail(merchant.id, emailToDelete);
+      
+      // Update the local state to remove the deleted email
+      setEmailThreads(prevThreads => 
+        prevThreads.filter(thread => thread.id !== emailToDelete)
+      );
+      
+      // Close the dialog
+      setIsDeleteDialogOpen(false);
+      setEmailToDelete(null);
+      
+      toast({
+        title: "Success",
+        description: "Email deleted successfully",
+      });
+    } catch (error) {
+      console.error("Error deleting email:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete email",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h2 className="text-2xl font-semibold">Email Communications</h2>
+          <Badge variant="secondary" className="text-sm">
+            {emailThreads.length} {emailThreads.length === 1 ? 'email' : 'emails'} sent
+          </Badge>
+        </div>
+        <Button 
+          onClick={() => setShowEmailEditor(!showEmailEditor)}
+          className="bg-[#FF9900] hover:bg-[#FF9900]/90 text-white flex items-center gap-2"
+        >
+          <Send className="h-4 w-4" />
+          Send New Email
+        </Button>
+      </div>
+
+      {showEmailEditor && (
+        <Card className="shadow-md border-muted">
+          <CardContent className="pt-6">
+            <EmailEditor
+              onSend={(content, recipient, subject) => {
+                handleSendEmail(content, recipient, subject);
+                setShowEmailEditor(false);
+              }}
+              recipientOptions={getRecipientOptions()}
+              placeholder="Compose new email..."
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="space-y-3">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
+            <Card key={i} className="shadow-sm">
               <CardContent className="py-4">
                 <div className="space-y-2">
                   <Skeleton className="h-4 w-3/4" />
@@ -172,33 +234,79 @@ export function EmailThreads({ merchant }: EmailThreadsProps) {
           ))
         ) : emailThreads.length > 0 ? (
           emailThreads.map((thread) => (
-            <Card key={thread.id}>
+            <Card 
+              key={thread.id} 
+              className={cn(
+                "transition-all duration-200 shadow-sm hover:shadow-md relative",
+                expandedThreads[thread.id] ? "bg-accent/5" : "hover:bg-accent/5"
+              )}
+            >
               <CardContent className="py-4">
                 <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-medium">{thread.metadata?.subject || 'No Subject'}</h4>
-                    <p className="text-sm text-gray-500">To: {thread.metadata?.recipientEmail}</p>
-                    {thread.metadata?.content && (
-                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                        {thread.metadata.content}
-                      </p>
-                    )}
+                  <div className="flex-grow space-y-1">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-medium">{thread.metadata?.subject || 'No Subject'}</h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground">
+                          {format(thread.timestamp.toDate(), "MMM d, yyyy h:mm a")}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-red-500"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEmailToDelete(thread.id);
+                            setIsDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground">To: {thread.metadata?.recipientEmail}</p>
                   </div>
-                  <span className="text-sm text-gray-500">
-                    {formatDistanceToNow(thread.timestamp.toDate(), { addSuffix: true })}
-                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => toggleThread(thread.id)}
+                    className={cn(
+                      "ml-2 transition-transform duration-200",
+                      expandedThreads[thread.id] ? "rotate-180" : ""
+                    )}
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
                 </div>
+                {expandedThreads[thread.id] && thread.metadata?.content && (
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <div 
+                      className="text-sm prose prose-sm max-w-none"
+                      dangerouslySetInnerHTML={{ __html: thread.metadata.content }}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))
         ) : (
-          <Card>
-            <CardContent className="py-4 text-center text-gray-500">
-              No email threads found
+          <Card className="shadow-sm">
+            <CardContent className="py-8 text-center">
+              <Mail className="h-8 w-8 mx-auto mb-3 text-muted-foreground opacity-50" />
+              <p className="text-muted-foreground">No email communications yet</p>
             </CardContent>
           </Card>
         )}
       </div>
+
+      <DeleteEmailDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setEmailToDelete(null);
+        }}
+        onConfirm={handleDeleteEmail}
+      />
     </div>
   )
 }

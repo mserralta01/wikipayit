@@ -42,7 +42,8 @@ export default function WebsiteManagement() {
   const [apiSettings, setApiSettings] = useState<APISettings>({})
   const [showApiKey, setShowApiKey] = useState(false)
   const [validatingKey, setValidatingKey] = useState(false)
-  const [keyStatus, setKeyStatus] = useState<'valid' | 'invalid' | 'unknown'>('unknown')
+  const [mapboxKeyStatus, setMapboxKeyStatus] = useState<'valid' | 'invalid' | 'unknown'>('unknown')
+  const [sendgridKeyStatus, setSendgridKeyStatus] = useState<'valid' | 'invalid' | 'unknown'>('unknown')
   const [testEmailRecipient, setTestEmailRecipient] = useState('')
   const navigate = useNavigate()
   const { toast } = useToast()
@@ -173,7 +174,7 @@ export default function WebsiteManagement() {
 
   const validateMapboxKey = async (key: string) => {
     if (!key) {
-      setKeyStatus('unknown')
+      setMapboxKeyStatus('unknown')
       return false
     }
 
@@ -185,7 +186,7 @@ export default function WebsiteManagement() {
       )
 
       const isValid = response.status !== 401 // 401 means invalid token
-      setKeyStatus(isValid ? 'valid' : 'invalid')
+      setMapboxKeyStatus(isValid ? 'valid' : 'invalid')
 
       if (!isValid) {
         toast({
@@ -198,7 +199,7 @@ export default function WebsiteManagement() {
       return isValid
     } catch (error) {
       console.error('Error validating Mapbox key:', error)
-      setKeyStatus('invalid')
+      setMapboxKeyStatus('invalid')
       toast({
         title: 'Validation Error',
         description: 'Failed to validate the API key. Please check your internet connection and try again.',
@@ -217,14 +218,14 @@ export default function WebsiteManagement() {
         description: 'Please enable SendGrid, configure the from email address, and provide a test recipient email.',
         variant: 'destructive',
       });
-      return;
+      return false;
     }
 
     try {
       setValidatingKey(true);
-      setKeyStatus('unknown');
+      setSendgridKeyStatus('unknown');
 
-      // First update the settings with the new API key
+      // First save the settings temporarily
       await apiSettingsService.updateSettings({
         sendgrid: {
           enabled: true,
@@ -233,25 +234,34 @@ export default function WebsiteManagement() {
         }
       });
 
-      // Then attempt to send test email with the new key
+      // Then attempt to send test email using our email service
       const success = await emailService.sendTestEmail(testEmailRecipient);
-      setKeyStatus(success ? 'valid' : 'invalid');
       
-      toast({
-        title: success ? 'Success' : 'Error',
-        description: success
-          ? 'Test email sent successfully.'
-          : 'Failed to send test email. Please check your API key and configuration.',
-        variant: success ? 'default' : 'destructive',
-      });
+      if (success) {
+        setSendgridKeyStatus('valid');
+        toast({
+          title: 'Success',
+          description: 'Test email sent successfully.',
+        });
+        return true;
+      } else {
+        setSendgridKeyStatus('invalid');
+        toast({
+          title: 'Error',
+          description: 'Failed to send test email. Please check your API key and configuration.',
+          variant: 'destructive',
+        });
+        return false;
+      }
     } catch (error) {
       console.error('Error validating SendGrid key:', error);
-      setKeyStatus('invalid');
+      setSendgridKeyStatus('invalid');
       toast({
         title: 'Error',
         description: 'Failed to validate SendGrid settings. Please try again.',
         variant: 'destructive',
       });
+      return false;
     } finally {
       setValidatingKey(false);
     }
@@ -260,7 +270,7 @@ export default function WebsiteManagement() {
   const updateMapboxSettings = async (key: string, value: string | boolean) => {
     if (key === 'apiKey' && typeof value === 'string') {
       // Reset status when starting to type a new key
-      setKeyStatus('unknown')
+      setMapboxKeyStatus('unknown')
     }
 
     setApiSettings(prev => ({
@@ -274,7 +284,7 @@ export default function WebsiteManagement() {
 
   const updateSendGridSettings = async (key: string, value: string | boolean) => {
     if (key === 'apiKey' && typeof value === 'string') {
-      setKeyStatus('unknown')
+      setSendgridKeyStatus('unknown')
     }
 
     setApiSettings(prev => ({
@@ -330,33 +340,33 @@ export default function WebsiteManagement() {
 
   const handleSaveSendGridSettings = async () => {
     try {
-      setSaving(true)
+      setSaving(true);
 
-      // Create settings object with only sendgrid settings
+      // Create settings object with sendgrid settings
       const settingsToSave: Partial<APISettings> = {
         sendgrid: {
           enabled: apiSettings.sendgrid?.enabled || false,
-          ...(apiSettings.sendgrid?.apiKey && { apiKey: apiSettings.sendgrid.apiKey }),
-          ...(apiSettings.sendgrid?.fromEmail && { fromEmail: apiSettings.sendgrid.fromEmail })
+          apiKey: apiSettings.sendgrid?.apiKey || '',
+          fromEmail: apiSettings.sendgrid?.fromEmail || ''
         }
-      }
+      };
 
-      await apiSettingsService.updateSettings(settingsToSave)
-      await loadApiSettings()
+      await apiSettingsService.updateSettings(settingsToSave);
+      await loadApiSettings();
 
       toast({
         title: 'Success',
         description: 'SendGrid settings saved successfully',
-      })
+      });
     } catch (error) {
-      console.error('Error saving SendGrid settings:', error)
+      console.error('Error saving SendGrid settings:', error);
       toast({
         title: 'Error',
         description: 'Failed to save SendGrid settings. Please try again.',
         variant: 'destructive',
-      })
+      });
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
@@ -468,16 +478,16 @@ export default function WebsiteManagement() {
                             onChange={(e) => updateMapboxSettings('apiKey', e.target.value)}
                             className={cn(
                               "pr-20",
-                              keyStatus === 'valid' && "border-green-500",
-                              keyStatus === 'invalid' && "border-red-500"
+                              mapboxKeyStatus === 'valid' && "border-green-500",
+                              mapboxKeyStatus === 'invalid' && "border-red-500"
                             )}
                           />
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-2">
                             {validatingKey ? (
                               <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                            ) : keyStatus === 'valid' ? (
+                            ) : mapboxKeyStatus === 'valid' ? (
                               <div className="text-green-500 text-xs">Valid</div>
-                            ) : keyStatus === 'invalid' ? (
+                            ) : mapboxKeyStatus === 'invalid' ? (
                               <div className="text-red-500 text-xs">Invalid</div>
                             ) : null}
                             <button
@@ -596,16 +606,16 @@ export default function WebsiteManagement() {
                             onChange={(e) => updateSendGridSettings('apiKey', e.target.value)}
                             className={cn(
                               "pr-20",
-                              keyStatus === 'valid' && "border-green-500",
-                              keyStatus === 'invalid' && "border-red-500"
+                              sendgridKeyStatus === 'valid' && "border-green-500",
+                              sendgridKeyStatus === 'invalid' && "border-red-500"
                             )}
                           />
                           <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-2">
                             {validatingKey ? (
                               <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                            ) : keyStatus === 'valid' ? (
+                            ) : sendgridKeyStatus === 'valid' ? (
                               <div className="text-green-500 text-xs">Valid</div>
-                            ) : keyStatus === 'invalid' ? (
+                            ) : sendgridKeyStatus === 'invalid' ? (
                               <div className="text-red-500 text-xs">Invalid</div>
                             ) : null}
                             <button

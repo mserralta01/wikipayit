@@ -1,78 +1,148 @@
-import React, { useState, useEffect } from "react"
-import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Merchant as PipelineMerchant } from "@/types/merchant"
-import { merchantCommunication } from "@/services/merchantCommunication"
-import { useToast } from "@/hooks/use-toast"
-import { useAuth } from "@/contexts/AuthContext"
+import React, { useState } from "react"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as z from "zod"
+import { format } from "date-fns"
 import { Timestamp } from "firebase/firestore"
+import { useToast } from "@/hooks/use-toast"
+import { merchantCommunication } from "@/services/merchantCommunication"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import { Activity } from "@/types/activity"
-import { Skeleton } from "@/components/ui/skeleton"
-import { formatDistanceToNow } from "date-fns"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Pin, PinOff } from "lucide-react"
-import { AlertCircle as LucideAlertCircle } from "lucide-react"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useAuth } from "@/contexts/AuthContext"
+import { Merchant as PipelineMerchant } from "@/types/merchant"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Trash2, StickyNote, Pin, PlusCircle, ScrollText } from "lucide-react"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
+import { cn } from "@/lib/utils"
 
 interface InternalNotesProps {
   merchant: PipelineMerchant
 }
 
+const noteSchema = z.object({
+  content: z.string().min(1, "Note content is required"),
+  isPinned: z.boolean().default(false),
+})
+
+type NoteFormValues = z.infer<typeof noteSchema>
+
 export function InternalNotes({ merchant }: InternalNotesProps) {
-  const [noteContent, setNoteContent] = useState("")
-  const [notes, setNotes] = useState<Activity[]>([])
-  const [loading, setLoading] = useState(true)
-  const { toast } = useToast()
-  const { user, isAdmin } = useAuth()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [isPinning, setIsPinning] = useState(false)
-  
-  useEffect(() => {
-    const loadNotes = async () => {
-      try {
-        const fetchedNotes = await merchantCommunication.getActivities(merchant.id, 'note')
-        setNotes(fetchedNotes)
-      } catch (error) {
-        console.error("Error loading notes:", error)
-        toast({
-          title: "Failed to load notes",
-          description: error instanceof Error ? error.message : "Unknown error occurred",
-          variant: "destructive"
-        })
-      } finally {
-        setLoading(false)
-      }
+  const { toast } = useToast()
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+
+  const form = useForm<NoteFormValues>({
+    resolver: zodResolver(noteSchema),
+    defaultValues: {
+      content: "",
+      isPinned: false,
+    },
+  })
+
+  const { data: activities, isLoading } = useQuery({
+    queryKey: ['notes', merchant.id],
+    queryFn: async () => {
+      const notes = await merchantCommunication.getActivities(merchant.id, 'note')
+      return notes.sort((a, b) => {
+        if (a.metadata?.isPinned && !b.metadata?.isPinned) return -1
+        if (!a.metadata?.isPinned && b.metadata?.isPinned) return 1
+        return b.timestamp.toMillis() - a.timestamp.toMillis()
+      })
+    },
+    retry: 3,
+  })
+
+  const handleDelete = async (noteId: string) => {
+    try {
+      await merchantCommunication.deleteNote(merchant.id, noteId)
+      await queryClient.invalidateQueries({ queryKey: ['notes', merchant.id] })
+      toast({
+        title: "Success",
+        description: "Note deleted successfully.",
+      })
+    } catch (error) {
+      console.error("Error deleting note:", error)
+      toast({
+        title: "Error",
+        description: "Failed to delete note.",
+        variant: "destructive",
+      })
     }
+  }
 
-    loadNotes()
-  }, [merchant.id, toast])
+  const handleTogglePin = async (noteId: string, currentPinned: boolean) => {
+    try {
+      await merchantCommunication.updateNote(merchant.id, noteId, {
+        metadata: {
+          isPinned: !currentPinned,
+          pinnedAt: !currentPinned ? new Date() : null
+        }
+      })
+      await queryClient.invalidateQueries({ queryKey: ['notes', merchant.id] })
+      toast({
+        title: "Success",
+        description: `Note ${!currentPinned ? 'pinned' : 'unpinned'} successfully.`,
+      })
+    } catch (error) {
+      console.error("Error toggling pin:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update note pin status.",
+        variant: "destructive",
+      })
+    }
+  }
 
-  const handleAddNote = async () => {
-    if (!noteContent.trim() || !user) return
+  const onSubmit = async (values: NoteFormValues) => {
+    if (!user) return
 
     setIsSubmitting(true)
     try {
       await merchantCommunication.addNote(merchant.id, {
-        content: noteContent.trim(),
-        createdAt: Timestamp.now(),
+        content: values.content,
         createdBy: user.uid,
-        agentName: user.displayName || user.email || "Unknown Staff Member",
-        isPinned: false
+        agentName: user.displayName || user.email || "Unknown Agent",
+        isPinned: values.isPinned,
+        createdAt: Timestamp.now(),
       })
 
-      // Refresh notes after adding
-      const updatedNotes = await merchantCommunication.getActivities(merchant.id, 'note')
-      setNotes(updatedNotes)
-      setNoteContent("")
-
+      await queryClient.invalidateQueries({ queryKey: ['notes', merchant.id] })
+      
+      form.reset()
       toast({
-        title: "Note added successfully",
-        description: "Your note has been saved.",
+        title: "Success",
+        description: "Note added successfully.",
       })
     } catch (error) {
       console.error("Error adding note:", error)
       toast({
-        title: "Failed to add note",
-        description: "There was an error saving your note. Please try again.",
+        title: "Error",
+        description: "Failed to add note. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -80,153 +150,160 @@ export function InternalNotes({ merchant }: InternalNotesProps) {
     }
   }
 
-  if (!isAdmin) {
+  if (isLoading) {
     return (
-      <Alert variant="destructive">
-        <LucideAlertCircle className="h-4 w-4" />
-        <AlertTitle>Access Denied</AlertTitle>
-        <AlertDescription>
-          Only administrators can view and manage internal notes.
-        </AlertDescription>
-      </Alert>
+      <div className="flex justify-center items-center h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      </div>
     )
   }
 
-  const handlePinToggle = async (note: Activity): Promise<void> => {
-    if (!user) return
-    setIsPinning(true)
-    try {
-      const updatedNote: Activity = {
-        ...note,
-        metadata: {
-          ...note.metadata,
-          isPinned: !note.metadata?.isPinned,
-          pinnedAt: !note.metadata?.isPinned ? Timestamp.now() : undefined
-        }
-      } as Activity
-      
-      // Update the note in Firestore
-      await merchantCommunication.updateNote(merchant.id, note.id, updatedNote)
-      
-      // Refresh notes
-      const updatedNotes = await merchantCommunication.getActivities(merchant.id, 'note')
-      setNotes(updatedNotes)
-      
-      toast({
-        title: updatedNote.metadata?.isPinned ? "Note pinned" : "Note unpinned",
-        description: "Note status updated successfully.",
-      })
-    } catch (error) {
-      console.error("Error toggling pin status:", error)
-      toast({
-        title: "Failed to update note",
-        description: "There was an error updating the note status. Please try again.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsPinning(false)
-    }
-  }
-
   return (
-    <div className="space-y-4">
-      {/* Note creation form */}
+    <div className="space-y-6">
       <Card>
-        <CardContent className="pt-6">
-          <textarea
-            value={noteContent}
-            onChange={(e) => setNoteContent(e.target.value)}
-            className="w-full min-h-[100px] p-2 border rounded-md"
-            placeholder="Add a note..."
-            disabled={isSubmitting}
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <PlusCircle className="h-5 w-5" />
+            Add Note
+          </CardTitle>
+          <FormField
+            control={form.control}
+            name="isPinned"
+            render={({ field }) => (
+              <FormItem className="flex items-center gap-2 space-y-0">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "p-2 hover:bg-gray-100",
+                    field.value && "text-yellow-600"
+                  )}
+                  onClick={() => field.onChange(!field.value)}
+                >
+                  <Pin className={cn(
+                    "h-4 w-4",
+                    field.value && "fill-current"
+                  )} />
+                </Button>
+              </FormItem>
+            )}
           />
-          <div className="mt-2 flex justify-end">
-            <Button
-              onClick={handleAddNote}
-              disabled={!noteContent.trim() || isSubmitting}
-            >
-              {isSubmitting ? "Adding..." : "Add Note"}
-            </Button>
-          </div>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="content"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Textarea {...field} placeholder="Enter note content" className="min-h-[100px]" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="flex justify-end">
+                <Button type="submit" disabled={isSubmitting}>
+                  Add Note
+                </Button>
+              </div>
+            </form>
+          </Form>
         </CardContent>
       </Card>
 
-      {/* Notes list */}
-      <div className="space-y-2">
-        {loading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}>
-              <CardContent className="py-4">
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : notes.length > 0 ? (
-          notes.map((note) => (
-            <Card 
-                key={note.id} 
-                className={`transition-all duration-200 ${
-                  note.metadata?.isPinned 
-                    ? "border-2 border-blue-500 bg-blue-50/50 shadow-md" 
-                    : "hover:shadow-sm"
-                }`}
-              >
-              <CardContent className="py-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-grow">
-                    <div className="flex items-center gap-2 mb-1">
-                      {note.metadata?.isPinned && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
-                          <Pin className="h-3 w-3 mr-1" />
-                          Pinned
-                        </span>
-                      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <ScrollText className="h-5 w-5" />
+            Notes History
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[400px] pr-4">
+            {!activities?.length ? (
+              <div className="flex flex-col items-center justify-center h-[200px] text-gray-500">
+                <StickyNote className="h-12 w-12 mb-2 opacity-50" />
+                <p>No notes added yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {activities.map((activity) => (
+                  <Card key={activity.id} className="p-4 relative group">
+                    <div className="absolute right-2 top-2 flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          "h-8 w-8",
+                          activity.metadata?.isPinned 
+                            ? "text-yellow-600" 
+                            : "opacity-0 group-hover:opacity-100"
+                        )}
+                        onClick={() => handleTogglePin(activity.id, !!activity.metadata?.isPinned)}
+                      >
+                        <Pin className={cn(
+                          "h-4 w-4",
+                          activity.metadata?.isPinned && "fill-current"
+                        )} />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Note</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this note? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleDelete(activity.id)}
+                              className="bg-red-500 hover:bg-red-600"
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
-                    <p className="text-sm">{note.metadata?.noteContent}</p>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Added by {note.metadata?.agentName || "Unknown Staff Member"}
-                    </p>
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    <Button
-                      variant={note.metadata?.isPinned ? "secondary" : "ghost"}
-                      size="sm"
-                      onClick={() => handlePinToggle(note)}
-                      disabled={isPinning}
-                      className="p-2 hover:bg-blue-100/50"
-                    >
-                      {note.metadata?.isPinned ? (
-                        <PinOff className="h-4 w-4 text-blue-600" />
-                      ) : (
-                        <Pin className="h-4 w-4" />
-                      )}
-                    </Button>
-                    <div className="flex flex-col items-end text-xs text-gray-500">
-                      <span>
-                        {formatDistanceToNow(note.timestamp.toDate(), { addSuffix: true })}
-                      </span>
-                      {note.metadata?.isPinned && note.metadata?.pinnedAt && (
-                        <span className="text-blue-600">
-                          Pinned {formatDistanceToNow(note.metadata.pinnedAt.toDate(), { addSuffix: true })}
-                        </span>
-                      )}
+                    
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium">{activity.metadata?.agentName || "Unknown Agent"}</p>
+                        {activity.metadata?.isPinned && (
+                          <Badge variant="secondary" className="text-yellow-600">
+                            Pinned
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {format(activity.timestamp instanceof Timestamp ? activity.timestamp.toDate() : new Date(activity.timestamp), "MMM d, yyyy h:mm a")}
+                      </p>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <Card>
-            <CardContent className="py-4 text-center text-gray-500">
-              No notes found
-            </CardContent>
-          </Card>
-        )}
-      </div>
+                    <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                      <p className="text-sm text-gray-700">{activity.metadata?.content}</p>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+        </CardContent>
+      </Card>
     </div>
   )
 }

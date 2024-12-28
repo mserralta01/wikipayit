@@ -43,6 +43,7 @@ import {
   Clock,
   DollarSign,
   Mail,
+  FileIcon,
 } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
 import { cn } from "../../../lib/utils";
@@ -50,7 +51,6 @@ import { PipelineStatus, PipelineFormData } from "../../../types/pipeline";
 import { BankDetailsDisplay } from "./BankDetailsDisplay";
 import { BeneficialOwnersDisplay } from "./BeneficialOwnersDisplay";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../ui/tabs";
-import DocumentsSection from "./DocumentsSection";
 
 interface LeadDetailsProps {
   merchant: MerchantDTO;
@@ -346,14 +346,118 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   };
 
   const handleBeneficialOwnerChange = (index: number, field: string, value: string) => {
+    // Update formData state
     setFormData((prev) => ({
       ...prev,
       beneficialOwners: {
-        owners: prev.beneficialOwners.owners.map((owner, i) =>
+        owners: prev.beneficialOwners.owners.map((owner, i) => 
           i === index ? { ...owner, [field]: value } : owner
         ),
       },
     }));
+
+    // Update merchant state with the same data
+    setMerchant((prev) => ({
+      ...prev,
+      formData: {
+        ...prev.formData,
+        // Ensure we maintain all existing formData fields
+        businessName: prev.formData?.businessName || "",
+        dba: prev.formData?.dba || "",
+        phone: prev.formData?.phone || "",
+        businessType: prev.formData?.businessType || "",
+        taxId: prev.formData?.taxId || "",
+        businessDescription: prev.formData?.businessDescription || "",
+        yearEstablished: prev.formData?.yearEstablished || "",
+        website: prev.formData?.website || "",
+        customerServiceEmail: prev.formData?.customerServiceEmail || "",
+        customerServicePhone: prev.formData?.customerServicePhone || "",
+        companyAddress: prev.formData?.companyAddress || {
+          street: "",
+          city: "",
+          state: "",
+          zipCode: "",
+        },
+        bankName: prev.formData?.bankName || "",
+        routingNumber: prev.formData?.routingNumber || "",
+        accountNumber: prev.formData?.accountNumber || "",
+        confirmAccountNumber: prev.formData?.accountNumber || "",
+        processingHistory: prev.formData?.processingHistory || {
+          averageTicket: 0,
+          cardPresentPercentage: 0,
+          currentProcessor: "",
+          ecommercePercentage: 0,
+          hasBeenTerminated: "no",
+          highTicket: 0,
+          isCurrentlyProcessing: "no",
+          monthlyVolume: 0,
+          terminationExplanation: "",
+        },
+        beneficialOwners: {
+          owners: prev.formData?.beneficialOwners?.owners.map((owner, i) => 
+            i === index ? { ...owner, [field]: value } : owner
+          ) || [],
+        },
+      },
+    }));
+  };
+
+  const handleBeneficialOwnerBlur = async (index: number, field: string) => {
+    if (!merchant.id) return;
+
+    try {
+      const leadRef = doc(db, 'leads', merchant.id);
+      const updateData = {
+        formData: {
+          ...merchant.formData,
+          // Ensure all required fields are present
+          businessName: merchant.formData?.businessName || "",
+          dba: merchant.formData?.dba || "",
+          phone: merchant.formData?.phone || "",
+          businessType: merchant.formData?.businessType || "",
+          taxId: merchant.formData?.taxId || "",
+          businessDescription: merchant.formData?.businessDescription || "",
+          yearEstablished: merchant.formData?.yearEstablished || "",
+          website: merchant.formData?.website || "",
+          customerServiceEmail: merchant.formData?.customerServiceEmail || "",
+          customerServicePhone: merchant.formData?.customerServicePhone || "",
+          companyAddress: merchant.formData?.companyAddress || {
+            street: "",
+            city: "",
+            state: "",
+            zipCode: "",
+          },
+          bankName: merchant.formData?.bankName || "",
+          routingNumber: merchant.formData?.routingNumber || "",
+          accountNumber: merchant.formData?.accountNumber || "",
+          confirmAccountNumber: merchant.formData?.accountNumber || "",
+          processingHistory: merchant.formData?.processingHistory || {
+            averageTicket: 0,
+            cardPresentPercentage: 0,
+            currentProcessor: "",
+            ecommercePercentage: 0,
+            hasBeenTerminated: "no",
+            highTicket: 0,
+            isCurrentlyProcessing: "no",
+            monthlyVolume: 0,
+            terminationExplanation: "",
+          },
+          beneficialOwners: {
+            owners: formData.beneficialOwners.owners,
+          },
+        },
+        updatedAt: Timestamp.fromDate(new Date())
+      };
+
+      await updateDoc(leadRef, updateData);
+    } catch (error) {
+      console.error('Error updating beneficial owner:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update beneficial owner information',
+        variant: 'destructive',
+      });
+    }
   };
 
   const statusProgress: Record<PipelineStatus, number> = {
@@ -747,6 +851,16 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   <BeneficialOwnersDisplay
                     formData={convertToPipelineFormData(merchant.formData)}
                     onOwnerChange={handleBeneficialOwnerChange}
+                    editMode={editMode}
+                    onFieldClick={toggleEdit}
+                    onBlur={(field) => {
+                      const [_, indexStr, fieldName] = field.split('.');
+                      const index = parseInt(indexStr, 10);
+                      if (!isNaN(index)) {
+                        handleBeneficialOwnerBlur(index, fieldName);
+                      }
+                      toggleEdit(field);
+                    }}
                     onAddOwner={() => {
                       setFormData((prev) => ({
                         ...prev,
@@ -779,10 +893,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                         },
                       }));
                     }}
-                    editMode={editMode}
-                    onFieldClick={handleFieldClick}
-                    onBlur={handleBlur}
-                    hideHeader={true}
                   />
                 </AccordionContent>
               </AccordionItem>
@@ -803,9 +913,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   </Card>
                 </AccordionContent>
               </AccordionItem>
-
-              {/* Remove Documents Section */}
-              {/* Documents section has been removed as per the request */}
 
               {/* Status Section */}
               <AccordionItem value="status">
@@ -846,26 +953,64 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
 
       {/* Right Column */}
       <div className="flex-1 min-w-[600px]">
-        <Card>
-          <Tabs defaultValue="emails">
-            <TabsList>
-              <TabsTrigger value="emails">Emails</TabsTrigger>
-              <TabsTrigger value="phone">Phone Calls</TabsTrigger>
-              <TabsTrigger value="notes">Internal Notes</TabsTrigger>
-              <TabsTrigger value="documents">Documents</TabsTrigger>
-            </TabsList>
-            <TabsContent value="emails">
-              <CommunicationsSection merchant={merchant} tab="emails" />
-            </TabsContent>
-            <TabsContent value="phone">
-              <CommunicationsSection merchant={merchant} tab="phone" />
-            </TabsContent>
-            <TabsContent value="notes">
-              <CommunicationsSection merchant={merchant} tab="notes" />
-            </TabsContent>
-            <TabsContent value="documents">
-              <DocumentsSection merchant={merchant} />
-            </TabsContent>
+        <Card className="h-full">
+          <Tabs defaultValue="emails" className="w-full">
+            <div className="border-b">
+              <div className="px-4">
+                <TabsList className="h-12 w-full justify-start gap-4 bg-transparent">
+                  <TabsTrigger 
+                    value="emails" 
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent px-2 rounded-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      <span>Emails</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="phone" 
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent px-2 rounded-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      <span>Phone Calls</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="notes" 
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent px-2 rounded-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      <span>Internal Notes</span>
+                    </div>
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="documents" 
+                    className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent px-2 rounded-none"
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileIcon className="h-4 w-4" />
+                      <span>Documents</span>
+                    </div>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+            </div>
+            <div className="flex-1 p-6">
+              <TabsContent value="emails" className="mt-0 border-none p-0">
+                <CommunicationsSection merchant={merchant} tab="emails" />
+              </TabsContent>
+              <TabsContent value="phone" className="mt-0 border-none p-0">
+                <CommunicationsSection merchant={merchant} tab="phone" />
+              </TabsContent>
+              <TabsContent value="notes" className="mt-0 border-none p-0">
+                <CommunicationsSection merchant={merchant} tab="notes" />
+              </TabsContent>
+              <TabsContent value="documents" className="mt-0 border-none p-0">
+                <CommunicationsSection merchant={merchant} tab="documents" />
+              </TabsContent>
+            </div>
           </Tabs>
         </Card>
       </div>

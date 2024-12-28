@@ -17,10 +17,9 @@ import EmailTemplates from "./components/admin/settings/EmailTemplates"
 import TeamManagement from "./components/admin/settings/TeamManagement"
 import { LoginModal } from "./components/auth/LoginModal"
 import { ProtectedRoute } from "./components/auth/ProtectedRoute"
-import { FirebaseAuthDebug } from "./components/admin/debug/FirebaseAuthDebug"
-import { AuthDebug } from "./components/admin/debug/AuthDebug"
 import { LeadDetailView } from "./components/admin/LeadDetailView"
 import TermsPage from "./pages/TermsPage"
+import { Toaster } from "./components/ui/toaster"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -32,22 +31,11 @@ const queryClient = new QueryClient({
   },
 })
 
-// Wrapper component to provide children to AdminLayout
-const AdminLayoutWrapper = () => {
-  return (
-    <AdminLayout>
-      <Outlet />
-    </AdminLayout>
-  )
-}
-
 function App() {
   return (
-    <Router>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>
-          <FirebaseAuthDebug />
-          <AuthDebug />
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <Router>
           <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<LoginModal standalone={true} />} />
@@ -62,7 +50,9 @@ function App() {
               path="/admin"
               element={
                 <ProtectedRoute>
-                  <AdminLayoutWrapper />
+                  <AdminLayout>
+                    <Outlet />
+                  </AdminLayout>
                 </ProtectedRoute>
               }
             >
@@ -73,13 +63,16 @@ function App() {
               <Route path="merchants" element={<MerchantList />} />
               <Route path="website" element={<WebsiteManagement />} />
               <Route path="super" element={<SuperAdmin />} />
-              <Route path="settings/email-templates" element={<EmailTemplates />} />
-              <Route path="settings/team" element={<TeamManagement />} />
+              <Route path="settings">
+                <Route path="email-templates" element={<EmailTemplates />} />
+                <Route path="team" element={<TeamManagement />} />
+              </Route>
             </Route>
           </Routes>
-        </AuthProvider>
-      </QueryClientProvider>
-    </Router>
+          <Toaster />
+        </Router>
+      </AuthProvider>
+    </QueryClientProvider>
   )
 }
 
