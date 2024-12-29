@@ -714,3 +714,205 @@ The system tracks the following high-risk industries that banking partners can s
    - Required document checklists
    - Audit logs for all changes
    - High-risk industry compliance monitoring 
+
+## Pipeline Management System
+
+### Status Management
+
+The system uses a single source of truth for status management through the `pipelineStatus` field. This field is used consistently across all collections and components.
+
+#### Pipeline Status Types
+```typescript
+export type PipelineStatus = 
+  | 'lead'
+  | 'phone'
+  | 'offer'
+  | 'underwriting'
+  | 'documents'
+  | 'approved';
+```
+
+#### Column Configuration
+Column configurations are stored in two places:
+1. Default configurations in code constants (`COLUMN_CONFIGS`)
+2. Custom configurations in Firestore (`pipeline-columns` collection)
+
+```typescript
+interface ColumnConfig {
+  id: PipelineStatus;
+  title: string;
+  color: string;
+  position: number;
+}
+```
+
+#### Status Update Flow
+1. All status updates should go through the merchant service
+2. Updates maintain data integrity through consistent field updates
+3. Column configurations are maintained for all statuses, even when empty
+
+### Database Structure
+
+#### Leads Collection
+```typescript
+interface Lead {
+  id: string;
+  email: string;
+  pipelineStatus: PipelineStatus;  // Single source of truth for status
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  position: number;  // Position within the pipeline column
+  formData?: FormData;
+  // ... other fields
+}
+```
+
+#### Pipeline Columns Collection
+```typescript
+interface PipelineColumn {
+  id: PipelineStatus;
+  title: string;
+  color: string;
+  position: number;
+}
+```
+
+### Best Practices
+
+1. **Status Updates**
+   - Always use the merchant service for status updates
+   - Update both the item status and column configuration
+   - Maintain column configurations for all statuses
+
+2. **Column Management**
+   - Use the pipeline service for column operations
+   - Maintain position information for items within columns
+   - Ensure column configurations exist for all statuses
+
+3. **Data Integrity**
+   - Validate status transitions
+   - Maintain consistent timestamps
+   - Use batch updates when necessary
+
+### API Examples
+
+```typescript
+// Update lead status
+await merchantService.updateLeadStatus(leadId, newStatus);
+
+// Update column configuration
+await pipelineService.updateColumnConfig(columnId, config);
+
+// Move item between columns
+await pipelineService.moveItem(itemId, sourceColumn, targetColumn);
+```
+
+### Status Transitions
+
+The pipeline enforces a logical progression of statuses:
+
+1. `lead` → Initial state for new leads
+2. `phone` → After initial contact
+3. `offer` → When pricing is proposed
+4. `underwriting` → During review process
+5. `documents` → While collecting required documents
+6. `approved` → Final approved state
+
+Each transition updates:
+- The lead's `pipelineStatus`
+- `updatedAt` timestamp
+- Position in the new column
+- Any related activity logs
+
+### Column Configuration Management
+
+Column configurations are managed through a two-step process:
+
+1. **Default Configuration**
+   - Stored in code constants
+   - Provides fallback values
+   - Ensures all statuses have basic configuration
+
+2. **Custom Configuration**
+   - Stored in Firestore
+   - Overrides default values
+   - Persists user customizations
+
+```typescript
+const COLUMN_CONFIGS = {
+  lead: {
+    title: "Leads",
+    color: "#2196f3",
+    position: 0
+  },
+  phone: {
+    title: "Phone Calls",
+    color: "#9c27b0",
+    position: 1
+  },
+  // ... other statuses
+};
+```
+
+### Activity Tracking
+
+Status changes are tracked in the communications subcollection:
+
+```typescript
+interface StatusChangeActivity {
+  type: 'status_change';
+  oldStatus: PipelineStatus;
+  newStatus: PipelineStatus;
+  timestamp: Timestamp;
+  userId: string;
+  metadata?: {
+    notes?: string;
+    reason?: string;
+  };
+}
+```
+
+### Email Notifications
+
+The system can trigger email notifications on status changes:
+
+1. Status change detection
+2. Template selection based on new status
+3. Email composition with dynamic data
+4. Delivery tracking in communications log
+
+### Migration Considerations
+
+When updating existing leads:
+
+1. Use the `migrateMerchantStatuses` function for batch updates
+2. Ensure all documents have the correct fields
+3. Validate data consistency after migration
+4. Log any migration issues for review
+
+### Error Handling
+
+The system includes comprehensive error handling:
+
+1. Status validation
+2. Column configuration verification
+3. Position conflict resolution
+4. Data integrity checks
+5. Automatic retry for transient failures
+
+### Future Improvements
+
+1. **Status Management**
+   - Add status change validation rules
+   - Implement status change approval workflows
+   - Add custom fields per status
+
+2. **Column Configuration**
+   - Add column-specific workflows
+   - Implement column access controls
+   - Add custom column actions
+
+3. **Data Integrity**
+   - Add automated data validation
+   - Implement backup and recovery
+   - Add audit logging 
