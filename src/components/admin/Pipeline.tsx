@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
-import { Mail, Building2 } from 'lucide-react'
+import { Mail, Building2, MoreHorizontal } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { writeBatch, doc } from 'firebase/firestore'
+import { writeBatch, doc, collection, getDocs, setDoc } from 'firebase/firestore'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../../lib/firebase'
 import { merchantService } from '../../services/merchantService'
@@ -17,14 +17,23 @@ import {
   isPipelineLead,
   isPipelineMerchant
 } from '../../types/pipeline'
-import { Lead, Merchant, timestampToString, BeneficialOwner } from '../../types/merchant'
+import { Lead, Merchant, timestampToString } from '../../types/merchant'
 import { Badge } from '../../components/ui/badge'
 import { Progress } from '../../components/ui/progress'
 import { cn } from '../../lib/utils'
 import { useToast } from '../../hooks/use-toast'
 import { AuthDebug } from './debug/AuthDebug'
-import { FormData } from "@/types/merchant";
+import { FormData } from "@/types/merchant"
 import { calculateProgress } from '../../services/pipelineTransforms'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 
 interface PipelineFormData {
   businessName?: string;
@@ -53,6 +62,7 @@ interface Column {
   title: string
   items: PipelineItem[]
   color: string
+  position?: number
 }
 
 const sections = {
@@ -163,6 +173,46 @@ export function Pipeline() {
   const navigate = useNavigate()
 
   const [localColumns, setColumns] = useState<Column[]>([])
+  const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false)
+  const [columnToRename, setColumnToRename] = useState<Column | null>(null)
+  const [newColumnTitle, setNewColumnTitle] = useState('')
+
+  const handleItemClick = (item: PipelineItem) => {
+    navigate(`/admin/pipeline/${item.id}`)
+  }
+
+  const { data: columnConfigs = {} } = useQuery({
+    queryKey: ['pipeline-columns'],
+    queryFn: async () => {
+      const columnConfigsRef = collection(db, 'pipeline-columns')
+      const snapshot = await getDocs(columnConfigsRef)
+      const configs: Record<string, { title: string; position: number; color: string }> = {}
+      
+      // Initialize with default configs
+      PIPELINE_STATUSES.forEach((status, index) => {
+        configs[status] = {
+          title: COLUMN_CONFIGS[status].title,
+          position: index,
+          color: COLUMN_CONFIGS[status].color
+        }
+      })
+      
+      // Override with custom configs from Firestore
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        if (doc.id in configs) {
+          configs[doc.id] = {
+            ...configs[doc.id],
+            ...data
+          }
+        }
+      })
+      
+      return configs
+    },
+    staleTime: 1000 * 60 * 5 // Cache for 5 minutes
+  })
+
   const { data: columns = [], isLoading } = useQuery<Column[]>({
     queryKey: ['pipeline-items'],
     queryFn: async () => {
@@ -171,10 +221,12 @@ export function Pipeline() {
         merchantService.getMerchants()
       ])
 
-      const initialColumns: Column[] = PIPELINE_STATUSES.map(status => ({
-        ...COLUMN_CONFIGS[status],
+      const initialColumns: Column[] = PIPELINE_STATUSES.map((status) => ({
         id: status,
-        items: []
+        title: columnConfigs[status]?.title || COLUMN_CONFIGS[status].title,
+        color: columnConfigs[status]?.color || COLUMN_CONFIGS[status].color,
+        items: [],
+        position: columnConfigs[status]?.position || 0
       }))
 
       // Convert leads to pipeline items, ensuring dates are strings
@@ -227,12 +279,59 @@ export function Pipeline() {
       })
 
       return initialColumns
-    }
+    },
+    enabled: !!columnConfigs
   })
 
+  useEffect(() => {
+    if (columns.length > 0) {
+      setColumns(columns)
+    }
+  }, [columns])
+
   const handleDragEnd = async (result: DropResult) => {
-    const { source, destination } = result
+    const { source, destination, type } = result
     if (!destination) return
+
+    // Handle column reordering
+    if (type === 'column') {
+      const newColumns = Array.from(localColumns)
+      const [removed] = newColumns.splice(source.index, 1)
+      newColumns.splice(destination.index, 0, removed)
+      
+      // Update positions
+      const updatedColumns = newColumns.map((col, index) => ({
+        ...col,
+        position: index
+      }))
+      
+      setColumns(updatedColumns)
+      
+      // Update in database
+      const batch = writeBatch(db)
+      updatedColumns.forEach(column => {
+        const columnRef = doc(db, 'pipeline-columns', column.id)
+        batch.update(columnRef, { position: column.position })
+      })
+      
+      try {
+        await batch.commit()
+        queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
+      } catch (error) {
+        console.error('Error updating column positions:', error)
+        toast({
+          title: 'Error',
+          description: 'Failed to update column positions',
+          variant: 'destructive'
+        })
+      }
+      return
+    }
+
+    // Handle card dragging (existing code)
+    const sourceColumn = localColumns.find(col => col.id === source.droppableId)
+    const destinationColumn = localColumns.find(col => col.id === destination.droppableId)
+    if (!sourceColumn || !destinationColumn) return
 
     // Return if dropped in same position
     if (
@@ -243,13 +342,6 @@ export function Pipeline() {
     }
 
     try {
-      const sourceColumn = columns.find(col => col.id === source.droppableId)
-      const destinationColumn = columns.find(col => col.id === destination.droppableId)
-      if (!sourceColumn || !destinationColumn) {
-        console.error('Source or destination column not found')
-        return
-      }
-
       const sourceItems = [...sourceColumn.items]
       const [movedItem] = sourceItems.splice(source.index, 1)
       const destinationItems = [...destinationColumn.items]
@@ -269,7 +361,7 @@ export function Pipeline() {
       })
 
       // Update columns state
-      const newColumns = columns.map(col => {
+      const newColumns = localColumns.map(col => {
         if (col.id === source.droppableId) {
           return {
             ...col,
@@ -337,79 +429,307 @@ export function Pipeline() {
     }
   }
 
-  const handleItemClick = (item: PipelineItem) => {
-    navigate(`/admin/pipeline/${item.id}`)
+  const handleRenameColumn = async () => {
+    if (!columnToRename || !newColumnTitle.trim()) return;
+
+    try {
+      const columnRef = doc(db, 'pipeline-columns', columnToRename.id);
+
+      // Create the column config update
+      const columnConfig = {
+        title: newColumnTitle,
+        position: columnToRename.position,
+        color:
+          COLUMN_CONFIGS[columnToRename.id as PipelineStatus]?.color ||
+          columnToRename.color,
+      };
+
+      // Update the column configuration with merge to prevent overwriting other fields
+      await setDoc(columnRef, columnConfig, { merge: true });
+
+      // Update local state
+      const updatedColumns = localColumns.map((col) =>
+        col.id === columnToRename.id ? { ...col, title: newColumnTitle } : col
+      );
+      setColumns(updatedColumns);
+
+      // Update the column configs cache
+      queryClient.setQueryData(['pipeline-columns'], (old: Record<string, any> = {}) => ({
+        ...old,
+        [columnToRename.id]: {
+          ...old[columnToRename.id],
+          ...columnConfig,
+        },
+      }));
+
+      toast({
+        title: 'Success',
+        description: 'Column renamed successfully',
+      });
+
+      // Close the dialog
+      setIsRenameDialogOpen(false);
+      setColumnToRename(null);
+      setNewColumnTitle('');
+
+      // Invalidate and refetch both queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['pipeline-columns'] }),
+        queryClient.invalidateQueries({ queryKey: ['pipeline-items'] }),
+      ]);
+    } catch (error) {
+      console.error('Error renaming column:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to rename column',
+        variant: 'destructive',
+      });
+      setIsRenameDialogOpen(false);
+      setColumnToRename(null);
+      setNewColumnTitle('');
+    }
+  };
+
+  const handleAddColumn = async () => {
+    const newColumnId = `custom-${Date.now()}`
+    const newColumn: Column = {
+      id: newColumnId as PipelineStatus,
+      title: 'New Column',
+      items: [],
+      color: '#6B7280', // Using a default gray color
+      position: localColumns.length
+    }
+
+    try {
+      // Update local state first
+      const updatedColumns = [...localColumns, newColumn]
+      setColumns(updatedColumns)
+
+      // Update Firestore
+      const columnRef = doc(db, 'pipeline-columns', newColumnId)
+      await setDoc(columnRef, {
+        title: newColumn.title,
+        position: newColumn.position,
+        color: newColumn.color
+      })
+      
+      // Update caches
+      queryClient.setQueryData(['pipeline-columns'], (old: Record<string, { title: string }> = {}) => ({
+        ...old,
+        [newColumnId]: { title: newColumn.title }
+      }))
+
+      queryClient.setQueryData(['pipeline-items'], (oldColumns: Column[] = []) => [...oldColumns, newColumn])
+      
+      toast({
+        title: 'Success',
+        description: 'New column added'
+      })
+
+      // Force a page refresh
+      window.location.reload()
+    } catch (error) {
+      console.error('Error adding column:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to add column',
+        variant: 'destructive'
+      })
+    }
   }
 
-  useEffect(() => {
-    setColumns(columns)
-  }, [columns])
+  const handleDeleteColumn = async (column: Column) => {
+    if (column.items.length > 0) {
+      toast({
+        title: 'Error',
+        description: 'Cannot delete column with items',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    try {
+      const columnRef = doc(db, 'pipeline-columns', column.id)
+      await writeBatch(db).delete(columnRef).commit()
+      
+      const updatedColumns = localColumns.filter(col => col.id !== column.id)
+      setColumns(updatedColumns)
+      
+      toast({
+        title: 'Success',
+        description: 'Column deleted successfully'
+      })
+
+      // Force a page refresh
+      window.location.reload()
+    } catch (error) {
+      console.error('Error deleting column:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to delete column',
+        variant: 'destructive'
+      })
+    }
+  }
 
   if (isLoading) {
-    return <div className="p-4">Loading...</div>
+    return <div>Loading...</div>
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <AuthDebug />
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex p-2 overflow-auto">
-          {localColumns.map(column => (
-            <Droppable key={column.id} droppableId={column.id}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  className={`w-80 bg-white rounded-lg p-4 m-2 min-h-[calc(100vh-200px)] shadow-sm ${
-                    snapshot.isDraggingOver ? 'bg-gray-50' : ''
-                  }`}
-                >
-                  <div className="mb-4">
-                    <h3 className="text-lg font-semibold text-gray-700">
-                      {column.title}
-                    </h3>
-                    <p className="text-sm text-gray-500">
-                      {column.items.length} items
-                    </p>
-                  </div>
-                  {column.items.map((item, index) => (
-                    <Draggable
-                      key={item.id}
-                      draggableId={item.id}
-                      index={index}
-                    >
-                      {(dragProvided, dragSnapshot) => (
-                        <div
-                          ref={dragProvided.innerRef}
-                          {...dragProvided.draggableProps}
-                          {...dragProvided.dragHandleProps}
-                          onClick={() => handleItemClick(item)}
-                          className={`bg-white rounded-lg p-4 mb-2 cursor-move shadow-sm transition-shadow ${
-                            dragSnapshot.isDragging ? 'shadow-lg' : 'hover:shadow-md'
-                          }`}
-                        >
-                          {isPipelineLead(item)
-                            ? <LeadCard item={item} />
-                            : <MerchantCard item={item} />}
+    <DragDropContext onDragEnd={handleDragEnd}>
+      <Droppable droppableId="board" type="column" direction="horizontal">
+        {(provided) => (
+          <div
+            {...provided.droppableProps}
+            ref={provided.innerRef}
+            className="flex gap-4 p-4 overflow-x-auto min-h-screen"
+          >
+            {localColumns.map((column, index) => (
+              <Draggable
+                key={column.id}
+                draggableId={column.id}
+                index={index}
+              >
+                {(provided) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.draggableProps}
+                    className="w-80 flex-shrink-0"
+                  >
+                    <div className="bg-white rounded-lg shadow">
+                      <div
+                        {...provided.dragHandleProps}
+                        className="p-3 flex items-center justify-between border-b"
+                      >
+                        <h3 className="font-semibold">{column.title}</h3>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">
+                            {column.items.length}
+                          </Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger>
+                              <MoreHorizontal className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setColumnToRename(column)
+                                  setNewColumnTitle(column.title)
+                                  setIsRenameDialogOpen(true)
+                                }}
+                              >
+                                Rename Column
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={handleAddColumn}>
+                                Add Column
+                              </DropdownMenuItem>
+                              {column.items.length === 0 && (
+                                <DropdownMenuItem
+                                  className="text-red-600"
+                                  onClick={() => handleDeleteColumn(column)}
+                                >
+                                  Delete Column
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      )}
-                    </Draggable>
-                  ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          ))}
-        </div>
-      </DragDropContext>
-    </div>
+                      </div>
+                      <Droppable droppableId={column.id} type="card">
+                        {(provided) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.droppableProps}
+                            className="p-2 min-h-[200px]"
+                          >
+                            {column.items.map((item, index) => (
+                              <Draggable
+                                key={item.id}
+                                draggableId={item.id}
+                                index={index}
+                              >
+                                {(provided, snapshot) => (
+                                  <div
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    {...provided.dragHandleProps}
+                                    onClick={(e) => {
+                                      // Prevent click during drag
+                                      if (!snapshot.isDragging) {
+                                        handleItemClick(item)
+                                      }
+                                    }}
+                                    className={cn(
+                                      "mb-3 last:mb-0 cursor-pointer",
+                                      snapshot.isDragging && "opacity-50"
+                                    )}
+                                  >
+                                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow duration-200">
+                                      {isPipelineLead(item) ? (
+                                        <LeadCard item={item} />
+                                      ) : (
+                                        <MerchantCard item={item} />
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
+                        )}
+                      </Droppable>
+                    </div>
+                  </div>
+                )}
+              </Draggable>
+            ))}
+            {provided.placeholder}
+          </div>
+        )}
+      </Droppable>
+
+      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Column</DialogTitle>
+            <DialogDescription>
+              Enter a new name for the column.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Input
+              value={newColumnTitle}
+              onChange={(e) => setNewColumnTitle(e.target.value)}
+              placeholder="Enter new column title"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleRenameColumn()
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsRenameDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleRenameColumn}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </DragDropContext>
   )
 }
 
 const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   const config = COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
-  console.log('Lead Progress:', progress, item)
   const displayName = item.formData?.dba || item.companyName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
   const fullName = beneficialOwner
@@ -419,7 +739,7 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   const agingInfo = getAgingInfo(item.updatedAt || new Date().toISOString())
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Badge
           variant="secondary"
@@ -433,68 +753,73 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
         </span>
       </div>
 
-      {fullName && (
+      <div className="space-y-2">
+        {fullName && (
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-blue-500 flex-shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="text-sm font-medium truncate">{fullName}</span>
+          </div>
+        )}
+        {item.companyName && (
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <span className="text-sm text-gray-700 truncate">{item.companyName}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          <span className="text-sm font-medium">{fullName}</span>
+          <Mail className="h-4 w-4 text-blue-500 flex-shrink-0" />
+          <span className="text-sm text-gray-600 truncate">{item.email}</span>
         </div>
-      )}
-      {item.companyName && (
-        <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-blue-500" />
-          <span className="text-sm text-gray-700">{item.companyName}</span>
-        </div>
-      )}
-      <div className="flex items-center gap-2">
-        <Mail className="h-4 w-4 text-blue-500" />
-        <span className="text-sm text-gray-600">{item.email}</span>
+        {phoneNumber && (
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-blue-500 flex-shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+            <span className="text-sm text-gray-600 truncate">{phoneNumber}</span>
+          </div>
+        )}
       </div>
-      {phoneNumber && (
-        <div className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-          </svg>
-          <span className="text-sm text-gray-600">{phoneNumber}</span>
-        </div>
-      )}
-      <Progress 
-        value={progress} 
-        className={cn(
-          "h-2",
-          getProgressColor(progress)
-        )} 
-      />
-      <div className="flex items-center justify-end">
-        <span
+
+      <div className="space-y-2">
+        <Progress 
+          value={progress} 
           className={cn(
-            "text-xs font-medium",
-            agingInfo.color,
-            agingInfo.animate && "animate-pulse"
-          )}
-        >
-          {agingInfo.text}
-        </span>
+            "h-2",
+            getProgressColor(progress)
+          )} 
+        />
+        <div className="flex items-center justify-end">
+          <span
+            className={cn(
+              "text-xs font-medium",
+              agingInfo.color,
+              agingInfo.animate && "animate-pulse"
+            )}
+          >
+            {agingInfo.text}
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -507,7 +832,6 @@ interface MerchantCardProps {
 const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
   const config = COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
-  console.log('Merchant Progress:', progress, item)
   const displayName = item.formData?.dba || item.businessName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
   const fullName = beneficialOwner
@@ -517,7 +841,7 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
   const agingInfo = getAgingInfo(item.updatedAt)
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Badge
           variant="secondary"
@@ -531,71 +855,73 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
         </span>
       </div>
 
-      {fullName && (
+      <div className="space-y-2">
+        {fullName && (
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-blue-500 flex-shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="text-sm font-medium truncate">{fullName}</span>
+          </div>
+        )}
+        {item.businessName && (
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <span className="text-sm text-gray-700 truncate">{item.businessName}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          <span className="text-sm font-medium">{fullName}</span>
+          <Mail className="h-4 w-4 text-blue-500 flex-shrink-0" />
+          <span className="text-sm text-gray-600 truncate">{item.email}</span>
         </div>
-      )}
-      {item.businessName && (
-        <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-blue-500" />
-          <span className="text-sm text-gray-700">{item.businessName}</span>
-        </div>
-      )}
-
-      <div className="flex items-center gap-2">
-        <Mail className="h-4 w-4 text-blue-500" />
-        <span className="text-sm text-gray-600">{item.email}</span>
+        {phoneNumber && (
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-blue-500 flex-shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+            <span className="text-sm text-gray-600 truncate">{phoneNumber}</span>
+          </div>
+        )}
       </div>
 
-      {phoneNumber && (
-        <div className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-          </svg>
-          <span className="text-sm text-gray-600">{phoneNumber}</span>
-        </div>
-      )}
-      <Progress 
-        value={progress} 
-        className={cn(
-          "h-2",
-          getProgressColor(progress)
-        )} 
-      />
-
-      <div className="flex items-center justify-end">
-        <span
+      <div className="space-y-2">
+        <Progress 
+          value={progress} 
           className={cn(
-            "text-xs font-medium",
-            agingInfo.color,
-            agingInfo.animate && "animate-pulse"
-          )}
-        >
-          {agingInfo.text}
-        </span>
+            "h-2",
+            getProgressColor(progress)
+          )} 
+        />
+        <div className="flex items-center justify-end">
+          <span
+            className={cn(
+              "text-xs font-medium",
+              agingInfo.color,
+              agingInfo.animate && "animate-pulse"
+            )}
+          >
+            {agingInfo.text}
+          </span>
+        </div>
       </div>
     </div>
   )
