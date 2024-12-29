@@ -15,13 +15,6 @@ export type MerchantStatus =
   | "in_progress"
   | "completed"
 
-export type PricingType = "tier" | "interchange" | "flat" | "surcharge"
-
-export interface PricingTier {
-  volume: number
-  rate: number
-}
-
 export interface Note {
   content: string
   createdAt: Timestamp
@@ -29,17 +22,6 @@ export interface Note {
   agentName?: string
   isPinned?: boolean
   pinnedAt?: Timestamp
-}
-
-export interface PricingDetails {
-  type: PricingType
-  tiers?: PricingTier[]
-  interchangeMarkup?: number
-  flatRate?: number
-  surchargeRate?: number
-  transactionFee?: number
-  lastUpdated?: Timestamp
-  updatedBy?: string
 }
 
 // Zod schemas
@@ -189,7 +171,6 @@ export interface Lead {
   averageTicket?: number;
   highTicket?: number;
   beneficialOwners?: BeneficialOwner[];
-  pricing?: PricingDetails;
   currentStep?: number;
   uid?: string;
   bank_statements?: string[];
