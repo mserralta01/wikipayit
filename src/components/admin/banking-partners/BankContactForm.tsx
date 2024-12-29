@@ -25,6 +25,7 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { bankingPartnerService } from '@/services/bankingPartnerService';
 import { toast } from '@/hooks/use-toast';
+import { serverTimestamp } from 'firebase/firestore';
 
 const formSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -70,6 +71,9 @@ export function BankContactForm({ bankingPartnerId, initialData, onSuccess }: Ba
         await bankingPartnerService.addContact({
           ...values,
           bankingPartnerId,
+          isMain: values.isMainContact,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
         toast({
           title: 'Success',

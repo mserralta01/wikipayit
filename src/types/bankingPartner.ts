@@ -3,7 +3,8 @@ import { Timestamp } from 'firebase/firestore';
 export interface BankingPartner {
   id: string;
   name: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'pending';
+  color?: string;
   description?: string;
   website?: string;
   contacts: BankContact[];
@@ -14,10 +15,13 @@ export interface BankingPartner {
 
 export interface BankContact {
   id: string;
+  bankingPartnerId: string;
   name: string;
   email: string;
   phone?: string;
   role: string;
+  department: string;
+  isMainContact: boolean;
   isMain: boolean;
   createdAt: any;
   updatedAt: any;
@@ -38,6 +42,7 @@ export interface RiskTerms {
   processingFees: ProcessingFees;
   transactionFees: TransactionFees;
   monthlyFee: number;
+  monthlyMinimumFee: number;
   chargebackFee: number;
   retrievalFee: number;
   avsFee: number;

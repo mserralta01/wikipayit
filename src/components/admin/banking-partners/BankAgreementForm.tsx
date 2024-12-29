@@ -140,8 +140,14 @@ export function BankAgreementForm({ bankingPartnerId, initialData, onSuccess }: 
         startDate: serverTimestamp(),
         endDate: data.endDate ? serverTimestamp() : null,
         status: data.status,
-        lowRisk: data.lowRisk,
-        highRisk: data.highRisk,
+        lowRisk: {
+          ...data.lowRisk,
+          monthlyMinimumFee: data.lowRisk.monthlyFee || 0,
+        },
+        highRisk: {
+          ...data.highRisk,
+          monthlyMinimumFee: data.highRisk.monthlyFee || 0,
+        },
         supportedHighRiskIndustries: data.supportedHighRiskIndustries,
         documentUrls: data.documentUrls,
         updatedAt: serverTimestamp(),
