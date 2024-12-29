@@ -20,12 +20,15 @@ import { ProcessingFormData } from "../components/merchant/ProcessingHistoryStep
 import { PipelineStatus } from "../types/pipeline"
 
 // Application specific type
-export interface ApplicationData extends Omit<Merchant, 'status'> {
-  businessName: string;
-  contactName: string;
-  businessType: 'sole_proprietorship' | 'partnership' | 'llc' | 'corporation' | 'non_profit';
-  processingVolume: number;
-  phone: string;
+export interface ApplicationData {
+  id: string
+  status: 'Lead' | 'Phone Calls' | 'Offer Sent' | 'Underwriting' | 'Documents' | 'Approved'
+  email: string
+  firstName?: string
+  lastName?: string
+  businessName?: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 // Helper to safely convert Firestore Timestamp or string to ISO string
@@ -339,4 +342,23 @@ export const merchantService = {
 
   getDashboardMetrics,
   getRecentActivity,
+
+  async getApplications(): Promise<ApplicationData[]> {
+    const applicationsRef = collection(db, 'applications')
+    const snapshot = await getDocs(applicationsRef)
+    return snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate(),
+      updatedAt: doc.data().updatedAt?.toDate(),
+    })) as ApplicationData[]
+  },
+
+  async updateMerchantStatus(merchantId: string, status: ApplicationData['status']): Promise<void> {
+    const merchantRef = doc(db, 'applications', merchantId)
+    await updateDoc(merchantRef, {
+      status,
+      updatedAt: new Date()
+    })
+  }
 }

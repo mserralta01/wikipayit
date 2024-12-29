@@ -9,7 +9,7 @@ import MerchantApplicationPage from './pages/MerchantApplicationPage'
 import MainLayout from "./components/layouts/MainLayout"
 import { AdminLayout } from "./components/admin/AdminLayout"
 import Dashboard from "./components/admin/Dashboard"
-import Applications from "./components/admin/Applications"
+import { Applications } from "./components/admin/Applications"
 import Pipeline from "./components/admin/Pipeline"
 import MerchantList from "./components/admin/MerchantList"
 import WebsiteManagement from "./components/admin/WebsiteManagement"
