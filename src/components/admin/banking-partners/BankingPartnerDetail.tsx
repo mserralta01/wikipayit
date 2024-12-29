@@ -1,160 +1,87 @@
-import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { Plus } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Trash, Save, Phone, Mail, Building2, Calendar, Plus } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { bankingPartnerService } from '@/services/bankingPartnerService';
-import { BankingPartner, BankContact, BankAgreement } from '@/types/bankingPartner';
-import { useToast } from '@/hooks/use-toast';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import { bankingPartnerService } from '@/services/bankingPartnerService';
+import type { BankingPartner, BankContact, BankAgreement } from '@/types/bankingPartner';
 import { formatDate } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const getStatusColor = (status: string): "default" | "secondary" | "destructive" | "success" => {
+  switch (status) {
+    case 'active':
+      return "success";
+    case 'inactive':
+      return "destructive";
+    case 'pending':
+      return "secondary";
+    default:
+      return "default";
+  }
+};
 
 export function BankingPartnerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [partner, setPartner] = useState<BankingPartner | null>(null);
-  const [contacts, setContacts] = useState<BankContact[]>([]);
-  const [agreements, setAgreements] = useState<BankAgreement[]>([]);
-  const [activeTab, setActiveTab] = useState('details');
 
-  useEffect(() => {
-    if (id) {
-      loadPartnerData();
-    }
-  }, [id]);
+  const { data: partner, isLoading: isLoadingPartner } = useQuery({
+    queryKey: ['bankingPartner', id],
+    queryFn: () => bankingPartnerService.getBankingPartner(id!),
+    enabled: !!id,
+  });
 
-  const loadPartnerData = async () => {
+  const { data: contacts = [], isLoading: isLoadingContacts } = useQuery({
+    queryKey: ['bankingPartnerContacts', id],
+    queryFn: () => bankingPartnerService.getContactsByPartnerId(id!),
+    enabled: !!id,
+  });
+
+  const { data: agreements = [], isLoading: isLoadingAgreements } = useQuery({
+    queryKey: ['bankingPartnerAgreements', id],
+    queryFn: () => bankingPartnerService.getAgreementsByPartnerId(id!),
+    enabled: !!id,
+  });
+
+  const mainContact = contacts.find((contact: BankContact) => contact.isMainContact);
+  const activeAgreement = agreements.find((agreement: BankAgreement) => agreement.status === 'active');
+
+  const handleColorChange = async (color: string) => {
     try {
-      setLoading(true);
-      const [partnerData, contactsData, agreementsData] = await Promise.all([
-        bankingPartnerService.getBankingPartner(id!),
-        bankingPartnerService.getContactsByPartnerId(id!),
-        bankingPartnerService.getAgreementsByPartnerId(id!),
-      ]);
-      
-      if (partnerData) {
-        setPartner(partnerData);
-        setContacts(contactsData);
-        setAgreements(agreementsData);
-      } else {
-        toast({
-          title: 'Error',
-          description: 'Banking partner not found',
-          variant: 'destructive',
-        });
-        navigate('/admin/banking-partners');
-      }
+      await bankingPartnerService.updateBankingPartner(id!, { color });
     } catch (error) {
-      console.error('Error loading partner data:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load banking partner data',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+      console.error('Error updating partner color:', error);
     }
   };
 
-  const handleSave = async () => {
-    if (!partner) return;
-    
-    try {
-      setSaving(true);
-      await bankingPartnerService.updateBankingPartner(partner.id, partner);
-      toast({
-        title: 'Success',
-        description: 'Banking partner updated successfully',
-      });
-    } catch (error) {
-      console.error('Error saving partner:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to update banking partner',
-        variant: 'destructive',
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!partner) return;
-    
-    try {
-      await bankingPartnerService.deleteBankingPartner(partner.id);
-      toast({
-        title: 'Success',
-        description: 'Banking partner deleted successfully',
-      });
-      navigate('/admin/banking-partners');
-    } catch (error) {
-      console.error('Error deleting partner:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete banking partner',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (status) {
-      case 'active':
-        return 'default';
-      case 'inactive':
-        return 'secondary';
-      case 'pending':
-        return 'outline';
-      default:
-        return 'secondary';
-    }
-  };
-
-  if (loading) {
+  if (isLoadingPartner || !partner) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-10 w-[150px]" />
-          <div className="space-x-2">
-            <Skeleton className="h-10 w-[120px] inline-block" />
-            <Skeleton className="h-10 w-[120px] inline-block" />
-          </div>
-        </div>
+        <Skeleton className="h-8 w-[200px]" />
+        <Skeleton className="h-4 w-[300px]" />
         <Card>
           <CardHeader>
-            <Skeleton className="h-8 w-[200px]" />
+            <Skeleton className="h-6 w-[150px]" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+            <Separator />
             <div className="space-y-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-6 w-[100px]" />
+              <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+                <Skeleton className="h-16" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -162,238 +89,318 @@ export function BankingPartnerDetail() {
     );
   }
 
-  if (!partner) return null;
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/admin/banking-partners')}
-          className="flex items-center gap-2"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Partners
-        </Button>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-2"
-          >
-            <Save className="h-4 w-4" />
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="flex items-center gap-2">
-                <Trash className="h-4 w-4" />
-                Delete Partner
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the
-                  banking partner and all associated data.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">{partner.name}</h1>
+        <p className="text-muted-foreground">
+          Banking Partner Details and Management
+        </p>
       </div>
 
-      <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <CardTitle>{partner.name}</CardTitle>
-                <div className="text-sm text-muted-foreground">
-                  Created {formatDate(partner.createdAt.toDate())}
+      <Tabs defaultValue="details" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="contacts">Contacts</TabsTrigger>
+          <TabsTrigger value="agreements">Agreements</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="details" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Partner Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <div>
+                    <Badge variant={getStatusColor(partner.status)}>
+                      {partner.status.charAt(0).toUpperCase() + partner.status.slice(1)}
+                    </Badge>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Partner Color</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="color"
+                      value={partner.color || '#000000'}
+                      onChange={(e) => handleColorChange(e.target.value)}
+                      className="w-20 h-10"
+                    />
+                    <span className="text-sm text-muted-foreground">
+                      Choose a color for this partner
+                    </span>
+                  </div>
                 </div>
               </div>
-              <Badge variant={getStatusBadgeVariant(partner.status)}>
-                {partner.status.charAt(0).toUpperCase() + partner.status.slice(1)}
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="contacts">
-                  Contacts ({contacts.length})
-                </TabsTrigger>
-                <TabsTrigger value="agreements">
-                  Agreements ({agreements.length})
-                </TabsTrigger>
-              </TabsList>
 
-              <TabsContent value="details" className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Partner Name</Label>
-                    <Input
-                      id="name"
-                      value={partner.name}
-                      onChange={(e) =>
-                        setPartner({ ...partner, name: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <Select
-                      value={partner.status}
-                      onValueChange={(value: 'active' | 'inactive' | 'pending') =>
-                        setPartner({ ...partner, status: value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </TabsContent>
+              <Separator />
 
-              <TabsContent value="contacts">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Contact List</h3>
-                    <Button
-                      onClick={() => navigate(`/admin/banking-partners/${id}/contacts/new`)}
-                      className="flex items-center gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Contact
-                    </Button>
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Key Contact</h3>
+                {isLoadingContacts ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <Skeleton className="h-16" />
+                    <Skeleton className="h-16" />
+                    <Skeleton className="h-16" />
+                    <Skeleton className="h-16" />
                   </div>
-                  
-                  <div className="grid gap-4">
-                    {contacts.map((contact) => (
-                      <Card key={contact.id}>
-                        <CardContent className="pt-6">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <h4 className="font-medium">{contact.name}</h4>
-                              <p className="text-sm text-muted-foreground">{contact.role}</p>
-                            </div>
-                            {contact.isMainContact && (
-                              <Badge>Main Contact</Badge>
-                            )}
-                          </div>
-                          <div className="mt-4 grid gap-2">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Mail className="h-4 w-4" />
-                              <a href={`mailto:${contact.email}`} className="hover:text-primary">
-                                {contact.email}
-                              </a>
-                            </div>
-                            {contact.phone && (
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Phone className="h-4 w-4" />
-                                <a href={`tel:${contact.phone}`} className="hover:text-primary">
-                                  {contact.phone}
-                                </a>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Building2 className="h-4 w-4" />
-                              {contact.department}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    {contacts.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No contacts found. Click "Add Contact" to create one.
+                ) : mainContact ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Name</Label>
+                      <p className="text-sm">{mainContact.name}</p>
+                    </div>
+                    <div>
+                      <Label>Role</Label>
+                      <p className="text-sm">{mainContact.role}</p>
+                    </div>
+                    <div>
+                      <Label>Email</Label>
+                      <p className="text-sm">
+                        <a href={`mailto:${mainContact.email}`} className="text-blue-600 hover:underline">
+                          {mainContact.email}
+                        </a>
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Phone</Label>
+                      <p className="text-sm">
+                        {mainContact.phone ? (
+                          <a href={`tel:${mainContact.phone}`} className="text-blue-600 hover:underline">
+                            {mainContact.phone}
+                          </a>
+                        ) : (
+                          'N/A'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No main contact assigned</p>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Active Agreement</h3>
+                {isLoadingAgreements ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <Skeleton className="h-16" />
+                    <Skeleton className="h-16" />
+                    <Skeleton className="h-16" />
+                    <Skeleton className="h-16" />
+                  </div>
+                ) : activeAgreement ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Start Date</Label>
+                      <p className="text-sm">{formatDate(activeAgreement.startDate.toDate())}</p>
+                    </div>
+                    <div>
+                      <Label>End Date</Label>
+                      <p className="text-sm">
+                        {activeAgreement.endDate ? formatDate(activeAgreement.endDate.toDate()) : 'No end date'}
+                      </p>
+                    </div>
+                    <div>
+                      <Label>Low Risk Revenue Share</Label>
+                      <p className="text-sm">{activeAgreement.lowRisk.revenueSharePercentage}%</p>
+                    </div>
+                    <div>
+                      <Label>High Risk Revenue Share</Label>
+                      <p className="text-sm">{activeAgreement.highRisk.revenueSharePercentage}%</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No active agreement</p>
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <Label>Created</Label>
+                <p className="text-sm text-muted-foreground">
+                  {formatDate(partner.createdAt.toDate())}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="contacts" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold tracking-tight">Contacts</h2>
+            <Button
+              onClick={() => navigate(`/admin/banking-partners/${id}/contacts/new`)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Contact
+            </Button>
+          </div>
+          
+          <div className="grid gap-4">
+            {isLoadingContacts ? (
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-[200px]" />
+                        <Skeleton className="h-4 w-[150px]" />
+                        <Skeleton className="h-4 w-[180px]" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : contacts.length > 0 ? (
+              contacts.map((contact: BankContact) => (
+                <Card key={contact.id}>
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <h3 className="font-medium">{contact.name}</h3>
+                        <p className="text-sm text-muted-foreground">{contact.role}</p>
+                      </div>
+                      {contact.isMainContact && (
+                        <Badge>Main Contact</Badge>
+                      )}
+                    </div>
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Email:</span>
+                        <a href={`mailto:${contact.email}`} className="text-blue-600 hover:underline">
+                          {contact.email}
+                        </a>
+                      </div>
+                      {contact.phone && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-muted-foreground">Phone:</span>
+                          <a href={`tel:${contact.phone}`} className="text-blue-600 hover:underline">
+                            {contact.phone}
+                          </a>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-muted-foreground">Department:</span>
+                        <span>{contact.department}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center text-muted-foreground">
+                  No contacts found. Click "Add Contact" to create one.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="agreements" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold tracking-tight">Agreements</h2>
+            <Button
+              onClick={() => navigate(`/admin/banking-partners/${id}/agreements/new`)}
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Agreement
+            </Button>
+          </div>
+
+          <div className="grid gap-4">
+            {isLoadingAgreements ? (
+              <div className="space-y-4">
+                {[...Array(2)].map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-[250px]" />
+                        <Skeleton className="h-4 w-[200px]" />
+                        <Skeleton className="h-4 w-[180px]" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : agreements.length > 0 ? (
+              agreements.map((agreement: BankAgreement) => (
+                <Card key={agreement.id}>
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <h3 className="font-medium">
+                          Agreement {agreement.id.slice(-8)}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Valid from {formatDate(agreement.startDate.toDate())}
+                          {agreement.endDate && ` to ${formatDate(agreement.endDate.toDate())}`}
+                        </p>
+                      </div>
+                      <Badge variant={agreement.status === 'active' ? 'success' : 'secondary'}>
+                        {agreement.status.charAt(0).toUpperCase() + agreement.status.slice(1)}
+                      </Badge>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Low Risk Terms</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Revenue Share: {agreement.lowRisk.revenueSharePercentage}%
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Monthly Minimum: ${agreement.lowRisk.monthlyMinimumFee}
+                        </p>
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">High Risk Terms</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Revenue Share: {agreement.highRisk.revenueSharePercentage}%
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Monthly Minimum: ${agreement.highRisk.monthlyMinimumFee}
+                        </p>
+                      </div>
+                    </div>
+                    {agreement.documentUrls && agreement.documentUrls.length > 0 && (
+                      <div className="mt-4">
+                        <h4 className="text-sm font-medium mb-2">Documents</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {agreement.documentUrls.map((url, index) => (
+                            <a
+                              key={index}
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-sm text-blue-600 hover:underline"
+                            >
+                              Document {index + 1}
+                            </a>
+                          ))}
+                        </div>
                       </div>
                     )}
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="agreements">
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Agreement List</h3>
-                    <Button
-                      onClick={() => navigate(`/admin/banking-partners/${id}/agreements/new`)}
-                      className="flex items-center gap-2"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Agreement
-                    </Button>
-                  </div>
-                  
-                  <div className="grid gap-4">
-                    {agreements.map((agreement) => (
-                      <Card key={agreement.id}>
-                        <CardContent className="pt-6">
-                          <div className="flex items-start justify-between">
-                            <div className="space-y-1">
-                              <h4 className="font-medium">
-                                Agreement {agreement.id.slice(0, 8)}
-                              </h4>
-                              <Badge variant={agreement.status === 'active' ? 'default' : 'secondary'}>
-                                {agreement.status.charAt(0).toUpperCase() + agreement.status.slice(1)}
-                              </Badge>
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              Revenue Share: {agreement.revenueSharePercentage}%
-                            </div>
-                          </div>
-                          <div className="mt-4 grid gap-2">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Calendar className="h-4 w-4" />
-                              Valid from {formatDate(agreement.startDate.toDate())}
-                              {agreement.endDate && ` to ${formatDate(agreement.endDate.toDate())}`}
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {agreement.documentUrls?.map((url, index) => (
-                                <a
-                                  key={index}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-sm text-blue-600 hover:underline"
-                                >
-                                  Document {index + 1}
-                                </a>
-                              ))}
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    {agreements.length === 0 && (
-                      <div className="text-center py-8 text-muted-foreground">
-                        No agreements found. Click "Add Agreement" to create one.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
-      </div>
+                  </CardContent>
+                </Card>
+              ))
+            ) : (
+              <Card>
+                <CardContent className="p-6 text-center text-muted-foreground">
+                  No agreements found. Click "Add Agreement" to create one.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 } 

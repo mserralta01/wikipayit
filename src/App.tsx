@@ -3,6 +3,7 @@
 import { BrowserRouter as Router, Routes, Route, Outlet, useParams } from "react-router-dom"
 import { AuthProvider } from "./contexts/AuthContext"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import HomePage from "./pages/HomePage"
 import MerchantApplicationPage from './pages/MerchantApplicationPage'
 import MainLayout from "./components/layouts/MainLayout"
@@ -31,6 +32,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnWindowFocus: false,
     },
   },
@@ -97,6 +99,7 @@ function App() {
           <Toaster />
         </Router>
       </AuthProvider>
+      <ReactQueryDevtools initialIsOpen={false} />
     </QueryClientProvider>
   )
 }

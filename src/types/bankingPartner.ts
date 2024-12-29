@@ -4,6 +4,7 @@ export interface BankingPartner {
   id: string;
   name: string;
   status: 'active' | 'inactive' | 'pending';
+  color?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
