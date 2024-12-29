@@ -3,7 +3,7 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { format } from 'date-fns'
 import { Mail, Building2, MoreHorizontal } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { writeBatch, doc } from 'firebase/firestore'
+import { writeBatch, doc, collection, getDocs, setDoc } from 'firebase/firestore'
 import { useNavigate } from 'react-router-dom'
 import { db } from '../../lib/firebase'
 import { merchantService } from '../../services/merchantService'
@@ -177,6 +177,21 @@ export function Pipeline() {
   const [columnToRename, setColumnToRename] = useState<Column | null>(null)
   const [newColumnTitle, setNewColumnTitle] = useState('')
 
+  const { data: columnConfigs = {} } = useQuery({
+    queryKey: ['pipeline-columns'],
+    queryFn: async () => {
+      const columnConfigsRef = collection(db, 'pipeline-columns')
+      const snapshot = await getDocs(columnConfigsRef)
+      const configs: Record<string, { title: string }> = {}
+      
+      snapshot.forEach((doc) => {
+        configs[doc.id] = doc.data() as { title: string }
+      })
+      
+      return configs
+    }
+  })
+
   const { data: columns = [], isLoading } = useQuery<Column[]>({
     queryKey: ['pipeline-items'],
     queryFn: async () => {
@@ -188,6 +203,7 @@ export function Pipeline() {
       const initialColumns: Column[] = PIPELINE_STATUSES.map((status, index) => ({
         ...COLUMN_CONFIGS[status],
         id: status,
+        title: columnConfigs[status]?.title || COLUMN_CONFIGS[status].title,
         items: [],
         position: index
       }))
@@ -242,7 +258,8 @@ export function Pipeline() {
       })
 
       return initialColumns
-    }
+    },
+    enabled: !!columnConfigs
   })
 
   useEffect(() => {
@@ -394,12 +411,21 @@ export function Pipeline() {
 
     try {
       const columnRef = doc(db, 'pipeline-columns', columnToRename.id)
-      await writeBatch(db).update(columnRef, { title: newColumnTitle }).commit()
+      
+      // Create or update the column config
+      await setDoc(columnRef, { 
+        title: newColumnTitle,
+        position: columnToRename.position 
+      }, { merge: true })
       
       const updatedColumns = localColumns.map(col => 
         col.id === columnToRename.id ? { ...col, title: newColumnTitle } : col
       )
       setColumns(updatedColumns)
+      
+      // Invalidate both queries to refresh the data
+      await queryClient.invalidateQueries({ queryKey: ['pipeline-columns'] })
+      await queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
       
       toast({
         title: 'Success',
