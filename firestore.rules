@@ -10,13 +10,34 @@ service cloud.firestore {
          request.auth.token.email == 'serralta@outlook.com');
     }
 
-    function isTeamMember() {
+    function hasTeamAccess() {
       return request.auth != null &&
-        exists(/databases/$(database)/documents/teamMembers/$(request.auth.uid));
+        get(/databases/$(database)/documents/teamMembers/$(request.auth.uid)).data != null;
     }
 
     function isAuthenticated() {
       return request.auth != null;
+    }
+
+    // Banking Partners
+    match /bankingPartners/{partnerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /bankContacts/{contactId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /bankAgreements/{agreementId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /bankingPartnerNotes/{noteId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
     // Allow authenticated users to read and write leads
@@ -91,7 +112,7 @@ service cloud.firestore {
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
     }
   }
 }
