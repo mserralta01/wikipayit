@@ -25,75 +25,126 @@ WikiPayIt is a payment processing company's web application built with modern te
 The **Banking Partners Module** manages relationships with banking institutions or lead recipients who generate revenue share based on their sales performance. This module centralizes partner details, relevant contacts, contractual information, and pricing agreements to enable seamless collaboration and transparent financial tracking.
 
 ### Key Features
-1. **Left Navigation Integration**  
-   A dedicated **Banking Partners** menu item is added to the left navigation bar, allowing quick access to the module's dashboard and partner records.
+1. **Partner Management**
+   - Create, edit, and delete banking partners
+   - Track partner status (active, inactive, pending)
+   - Manage partner details and agreements
 
-2. **Contact Management**  
-   - **Sales Contact Details**: Store first name, last name, email, and phone for representatives handling sales.  
-   - **Client Management Contact**: Capture first name, last name, and phone for client-facing managers.  
+2. **Contact Management**
+   - Add and edit contact information
+   - Designate main contacts
+   - Track contact roles and departments
+   - Store contact details (name, email, phone)
+   - Department categorization (sales, support, underwriting, management)
 
-3. **Agreement & Pricing Details**  
-   - **Purchase Pricing for Card Types**: Visa, MasterCard, American Express, Discover.  
-   - **Basis Points**: Track the markup charged over the purchase price.  
-   - **Revenue Split Structure**: Specify profit-sharing percentages.  
-   - **Monthly Fee & PCI Fees**: Store and manage any recurring charges.  
-   - **Processor-Specific Notes**: Keep unique instructions or stipulations for each processor.  
-   - **Contract Document Upload**: Upload digital copies of agreements or other relevant documents.  
-
-4. **UI/UX and Animations**  
-   The interface emphasizes a polished user experience with intuitive workflows and micro-animations. These animations highlight user actions (e.g., saving edits, uploading documents) to provide a more dynamic and engaging interface.
+3. **Agreement Management**
+   - Comprehensive fee structure for both low-risk and high-risk merchants
+   - Processing fees for Visa/Mastercard/Discover and AMEX
+   - Transaction fees management
+   - Additional fees tracking (Monthly, Chargeback, Retrieval, AVS, BIN, Sponsor, PCI)
+   - Revenue share percentage tracking
+   - Agreement status tracking (draft, active, expired, terminated)
+   - Document management
+   - High-risk industry support
 
 ### Data Models
 
 ```typescript
-interface CardPricing {
-  visa: number;
-  mastercard: number;
+interface ProcessingFees {
+  visaMasterDiscover: number;
   amex: number;
-  discover: number;
 }
 
-interface BankingPartnerContact {
-  firstName: string;
-  lastName: string;
+interface TransactionFees {
+  visaMasterDiscover: number;
+  amex: number;
+}
+
+interface RiskTerms {
+  revenueSharePercentage: number;
+  processingFees: ProcessingFees;
+  transactionFees: TransactionFees;
+  monthlyFee: number;
+  chargebackFee: number;
+  retrievalFee: number;
+  avsFee: number;
+  binFee: number;
+  sponsorFee: number;
+  pciFee: number;
+}
+
+interface BankContact {
+  id: string;
+  bankingPartnerId: string;
+  name: string;
+  role: string;
   email: string;
-  phone: string;
-  role: 'sales' | 'client_management';
+  phone?: string;
+  department: 'sales' | 'support' | 'underwriting' | 'management' | 'other';
+  isMainContact: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+interface BankAgreement {
+  id: string;
+  bankingPartnerId: string;
+  startDate: Timestamp;
+  endDate: Timestamp | null;
+  status: 'draft' | 'active' | 'expired' | 'terminated';
+  lowRisk: RiskTerms;
+  highRisk: RiskTerms;
+  supportedHighRiskIndustries: string[];
+  documentUrls: string[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 interface BankingPartner {
   id: string;
   name: string;
-  contacts: BankingPartnerContact[];
-  cardPricing: CardPricing;
-  basisPoints: number;
-  revenueSplit: number;
-  monthlyFee: number;
-  pciFee: number;
-  notes: string;
-  contractDocuments: string[];
+  status: 'active' | 'inactive' | 'pending';
+  contacts: BankContact[];
+  agreements: BankAgreement[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  isActive: boolean;
-}
-
-interface BankingPartnerActivity {
-  id: string;
-  partnerId: string;
-  type: 'contract_update' | 'pricing_update' | 'contact_update' | 'note_added';
-  description: string;
-  createdAt: Timestamp;
-  createdBy: string;
-  metadata?: Record<string, any>;
 }
 ```
 
-### Suggested Enhancements
-- **Automated Notifications**: Trigger emails or alerts for contract renewals, fee changes, or missed updates.  
-- **Performance Dashboards**: Include data visualization for monthly revenue, sales leads, and top performers.  
-- **Search & Filtering**: Implement robust filtering by partner name, contact, or contractual parameters to quickly locate records.  
-- **Role-Based Access Control**: Limit access to certain details or editing capabilities based on user roles.  
-- **Versioning & eSign Integration**: Allow multiple versions of contracts with eSign functionality for a streamlined agreement process.
+### UI Components
+
+1. **BankingPartnerForm**
+   - Partner creation and editing
+   - Status management
+   - Basic partner information
+
+2. **BankContactForm**
+   - Contact information management
+   - Department selection
+   - Main contact designation
+   - Grid layout for form fields
+
+3. **BankAgreementForm**
+   - Two-column layout for risk terms
+   - Accordion for high-risk industries
+   - Comprehensive fee management
+   - Date range selection
+   - Status tracking
+
+### High-Risk Industries
+The system supports various high-risk industries including:
+- Adult Content
+- Gambling & Gaming
+- Cryptocurrency
+- Nutraceuticals
+- CBD/Hemp Products
+- Forex Trading
+- Online Pharmacy
+- Tobacco/Vaping
+- Debt Collection
+- Dating Services
+- Travel Services
+- MLM/Direct Marketing
 
 ## System Architecture
 

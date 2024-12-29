@@ -1,6 +1,5 @@
 import React, { useState, ChangeEvent, useEffect } from "react";
 import { CommunicationsSection } from "./CommunicationsSection";
-import { PricingSection } from "./PricingSection";
 import {
   Accordion,
   AccordionContent,
@@ -898,23 +897,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       }));
                     }}
                   />
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Pricing Section */}
-              <AccordionItem value="pricing">
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-1">
-                    <DollarSign className="h-5 w-5 text-blue-500" />
-                    <span className="text-gray-900">Pricing</span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-4">
-                  <Card className="w-full">
-                    <CardContent className="pt-6">
-                      <PricingSection merchant={merchant} />
-                    </CardContent>
-                  </Card>
                 </AccordionContent>
               </AccordionItem>
 
