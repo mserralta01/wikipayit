@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
-import { Mail, Building2, MoreHorizontal } from 'lucide-react'
+import { Mail, Building2, MoreHorizontal, Palette } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { writeBatch, doc, collection, getDocs, setDoc } from 'firebase/firestore'
 import { useNavigate } from 'react-router-dom'
@@ -34,6 +34,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface PipelineFormData {
   businessName?: string;
@@ -64,6 +65,14 @@ interface Column {
   color: string
   position?: number
 }
+
+interface ColumnConfig {
+  title: string;
+  position: number;
+  color: string;
+}
+
+type ColumnConfigs = Record<string, ColumnConfig>;
 
 const sections = {
   basicInfo: {
@@ -601,15 +610,20 @@ export function Pipeline() {
                       <div
                         {...provided.dragHandleProps}
                         className="p-3 flex items-center justify-between border-b"
+                        style={{ 
+                          backgroundColor: column.color,
+                          borderTopLeftRadius: '0.5rem',
+                          borderTopRightRadius: '0.5rem'
+                        }}
                       >
-                        <h3 className="font-semibold">{column.title}</h3>
+                        <h3 className="font-semibold text-white uppercase">{column.title}</h3>
                         <div className="flex items-center gap-2">
-                          <Badge variant="secondary">
+                          <Badge variant="secondary" className="bg-white/20 text-white">
                             {column.items.length}
                           </Badge>
                           <DropdownMenu>
                             <DropdownMenuTrigger>
-                              <MoreHorizontal className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                              <MoreHorizontal className="h-5 w-5 text-white hover:text-white/80" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
                               <DropdownMenuItem
@@ -620,6 +634,43 @@ export function Pipeline() {
                                 }}
                               >
                                 Rename Column
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Popover>
+                                  <PopoverTrigger className="w-full flex items-center">
+                                    <Palette className="mr-2 h-4 w-4" />
+                                    <span>Change Color</span>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-64">
+                                    <div className="grid grid-cols-5 gap-2">
+                                      {[
+                                        '#2196f3', '#9c27b0', '#f44336', '#4caf50', '#ff9800',
+                                        '#795548', '#607d8b', '#3f51b5', '#009688', '#ffc107',
+                                        '#673ab7', '#e91e63', '#8bc34a', '#00bcd4', '#ff5722'
+                                      ].map((color) => (
+                                        <button
+                                          key={color}
+                                          className="w-8 h-8 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2"
+                                          style={{ backgroundColor: color }}
+                                          onClick={async () => {
+                                            try {
+                                              const columnRef = doc(db, 'pipeline-columns', column.id)
+                                              await setDoc(columnRef, { color }, { merge: true })
+                                              queryClient.invalidateQueries({ queryKey: ['pipeline-columns'] })
+                                            } catch (error) {
+                                              console.error('Error updating column color:', error)
+                                              toast({
+                                                title: 'Error',
+                                                description: 'Failed to update column color',
+                                                variant: 'destructive'
+                                              })
+                                            }
+                                          }}
+                                        />
+                                      ))}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={handleAddColumn}>
                                 Add Column
@@ -728,7 +779,37 @@ export function Pipeline() {
 }
 
 const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
-  const config = COLUMN_CONFIGS[item.pipelineStatus]
+  const { data: columnConfigs = {} } = useQuery<ColumnConfigs>({
+    queryKey: ['pipeline-columns'],
+    queryFn: async () => {
+      const columnConfigsRef = collection(db, 'pipeline-columns')
+      const snapshot = await getDocs(columnConfigsRef)
+      const configs: ColumnConfigs = {}
+      
+      // Initialize with default configs
+      PIPELINE_STATUSES.forEach((status, index) => {
+        configs[status] = {
+          title: COLUMN_CONFIGS[status].title,
+          position: index,
+          color: COLUMN_CONFIGS[status].color
+        }
+      })
+      
+      // Override with custom configs from Firestore
+      snapshot.forEach((doc) => {
+        const data = doc.data() as ColumnConfig
+        if (doc.id in configs) {
+          configs[doc.id] = {
+            ...configs[doc.id],
+            ...data
+          }
+        }
+      })
+      
+      return configs
+    }
+  })
+  const config = columnConfigs[item.pipelineStatus] || COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
   const displayName = item.formData?.dba || item.companyName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
@@ -830,7 +911,37 @@ interface MerchantCardProps {
 }
 
 const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
-  const config = COLUMN_CONFIGS[item.pipelineStatus]
+  const { data: columnConfigs = {} } = useQuery<ColumnConfigs>({
+    queryKey: ['pipeline-columns'],
+    queryFn: async () => {
+      const columnConfigsRef = collection(db, 'pipeline-columns')
+      const snapshot = await getDocs(columnConfigsRef)
+      const configs: ColumnConfigs = {}
+      
+      // Initialize with default configs
+      PIPELINE_STATUSES.forEach((status, index) => {
+        configs[status] = {
+          title: COLUMN_CONFIGS[status].title,
+          position: index,
+          color: COLUMN_CONFIGS[status].color
+        }
+      })
+      
+      // Override with custom configs from Firestore
+      snapshot.forEach((doc) => {
+        const data = doc.data() as ColumnConfig
+        if (doc.id in configs) {
+          configs[doc.id] = {
+            ...configs[doc.id],
+            ...data
+          }
+        }
+      })
+      
+      return configs
+    }
+  })
+  const config = columnConfigs[item.pipelineStatus] || COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
   const displayName = item.formData?.dba || item.businessName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
@@ -838,7 +949,7 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
     ? `${beneficialOwner.firstName} ${beneficialOwner.lastName}`.trim()
     : ''
   const phoneNumber = beneficialOwner?.phone || item.phone
-  const agingInfo = getAgingInfo(item.updatedAt)
+  const agingInfo = getAgingInfo(item.updatedAt || new Date().toISOString())
 
   return (
     <div className="space-y-3">
