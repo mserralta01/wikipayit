@@ -1,17 +1,30 @@
-import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Plus } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { bankingPartnerService } from '@/services/bankingPartnerService';
-import type { BankingPartner, BankContact, BankAgreement } from '@/types/bankingPartner';
-import { formatDate } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
+import React, { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Pencil, Trash2, Plus } from 'lucide-react'
+import { Timestamp } from 'firebase/firestore'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Separator } from '@/components/ui/separator'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useToast } from '@/hooks/use-toast'
+import { bankingPartnerService } from '@/services/bankingPartnerService'
+import { BankAgreement, BankContact } from '@/types/bankingPartner'
+import { formatDate } from '@/lib/utils'
 
 const getStatusColor = (status: string): "default" | "secondary" | "destructive" | "success" => {
   switch (status) {
@@ -29,6 +42,9 @@ const getStatusColor = (status: string): "default" | "secondary" | "destructive"
 export function BankingPartnerDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [deleteAgreementId, setDeleteAgreementId] = useState<string | null>(null);
 
   const { data: partner, isLoading: isLoadingPartner } = useQuery({
     queryKey: ['bankingPartner', id],
@@ -54,8 +70,41 @@ export function BankingPartnerDetail() {
   const handleColorChange = async (color: string) => {
     try {
       await bankingPartnerService.updateBankingPartner(id!, { color });
+      await queryClient.invalidateQueries({ queryKey: ['bankingPartner', id] });
+      toast({
+        title: 'Success',
+        description: 'Partner color updated successfully',
+      });
     } catch (error) {
       console.error('Error updating partner color:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update partner color',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditAgreement = (agreementId: string) => {
+    navigate(`/admin/banking-partners/${id}/agreements/${agreementId}/edit`);
+  };
+
+  const handleDeleteAgreement = async (agreementId: string) => {
+    try {
+      await bankingPartnerService.deleteAgreement(agreementId);
+      await queryClient.invalidateQueries({ queryKey: ['bankingPartnerAgreements', id] });
+      toast({
+        title: 'Success',
+        description: 'Agreement deleted successfully',
+      });
+      setDeleteAgreementId(null);
+    } catch (error) {
+      console.error('Error deleting agreement:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete agreement',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -346,9 +395,25 @@ export function BankingPartnerDetail() {
                           {agreement.endDate && ` to ${formatDate(agreement.endDate.toDate())}`}
                         </p>
                       </div>
-                      <Badge variant={agreement.status === 'active' ? 'success' : 'secondary'}>
-                        {agreement.status.charAt(0).toUpperCase() + agreement.status.slice(1)}
-                      </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={agreement.status === 'active' ? 'success' : 'secondary'}>
+                          {agreement.status.charAt(0).toUpperCase() + agreement.status.slice(1)}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditAgreement(agreement.id)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteAgreementId(agreement.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="mt-4 grid grid-cols-2 gap-4">
                       <div>
@@ -401,6 +466,26 @@ export function BankingPartnerDetail() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <AlertDialog open={!!deleteAgreementId} onOpenChange={() => setDeleteAgreementId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the agreement and all its associated documents.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteAgreementId && handleDeleteAgreement(deleteAgreementId)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 
