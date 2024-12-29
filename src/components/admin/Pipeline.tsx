@@ -562,12 +562,15 @@ export function Pipeline() {
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
+                                    className="mb-3 last:mb-0"
                                   >
-                                    {isPipelineLead(item) ? (
-                                      <LeadCard item={item} />
-                                    ) : (
-                                      <MerchantCard item={item} />
-                                    )}
+                                    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow duration-200">
+                                      {isPipelineLead(item) ? (
+                                        <LeadCard item={item} />
+                                      ) : (
+                                        <MerchantCard item={item} />
+                                      )}
+                                    </div>
                                   </div>
                                 )}
                               </Draggable>
@@ -618,7 +621,6 @@ export function Pipeline() {
 const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   const config = COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
-  console.log('Lead Progress:', progress, item)
   const displayName = item.formData?.dba || item.companyName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
   const fullName = beneficialOwner
@@ -628,7 +630,7 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   const agingInfo = getAgingInfo(item.updatedAt || new Date().toISOString())
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Badge
           variant="secondary"
@@ -642,68 +644,73 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
         </span>
       </div>
 
-      {fullName && (
+      <div className="space-y-2">
+        {fullName && (
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-blue-500 flex-shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="text-sm font-medium truncate">{fullName}</span>
+          </div>
+        )}
+        {item.companyName && (
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <span className="text-sm text-gray-700 truncate">{item.companyName}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          <span className="text-sm font-medium">{fullName}</span>
+          <Mail className="h-4 w-4 text-blue-500 flex-shrink-0" />
+          <span className="text-sm text-gray-600 truncate">{item.email}</span>
         </div>
-      )}
-      {item.companyName && (
-        <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-blue-500" />
-          <span className="text-sm text-gray-700">{item.companyName}</span>
-        </div>
-      )}
-      <div className="flex items-center gap-2">
-        <Mail className="h-4 w-4 text-blue-500" />
-        <span className="text-sm text-gray-600">{item.email}</span>
+        {phoneNumber && (
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-blue-500 flex-shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+            <span className="text-sm text-gray-600 truncate">{phoneNumber}</span>
+          </div>
+        )}
       </div>
-      {phoneNumber && (
-        <div className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-          </svg>
-          <span className="text-sm text-gray-600">{phoneNumber}</span>
-        </div>
-      )}
-      <Progress 
-        value={progress} 
-        className={cn(
-          "h-2",
-          getProgressColor(progress)
-        )} 
-      />
-      <div className="flex items-center justify-end">
-        <span
+
+      <div className="space-y-2">
+        <Progress 
+          value={progress} 
           className={cn(
-            "text-xs font-medium",
-            agingInfo.color,
-            agingInfo.animate && "animate-pulse"
-          )}
-        >
-          {agingInfo.text}
-        </span>
+            "h-2",
+            getProgressColor(progress)
+          )} 
+        />
+        <div className="flex items-center justify-end">
+          <span
+            className={cn(
+              "text-xs font-medium",
+              agingInfo.color,
+              agingInfo.animate && "animate-pulse"
+            )}
+          >
+            {agingInfo.text}
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -716,7 +723,6 @@ interface MerchantCardProps {
 const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
   const config = COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
-  console.log('Merchant Progress:', progress, item)
   const displayName = item.formData?.dba || item.businessName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
   const fullName = beneficialOwner
@@ -726,7 +732,7 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
   const agingInfo = getAgingInfo(item.updatedAt)
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
         <Badge
           variant="secondary"
@@ -740,71 +746,73 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
         </span>
       </div>
 
-      {fullName && (
+      <div className="space-y-2">
+        {fullName && (
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-blue-500 flex-shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            <span className="text-sm font-medium truncate">{fullName}</span>
+          </div>
+        )}
+        {item.businessName && (
+          <div className="flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-blue-500 flex-shrink-0" />
+            <span className="text-sm text-gray-700 truncate">{item.businessName}</span>
+          </div>
+        )}
         <div className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          <span className="text-sm font-medium">{fullName}</span>
+          <Mail className="h-4 w-4 text-blue-500 flex-shrink-0" />
+          <span className="text-sm text-gray-600 truncate">{item.email}</span>
         </div>
-      )}
-      {item.businessName && (
-        <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-blue-500" />
-          <span className="text-sm text-gray-700">{item.businessName}</span>
-        </div>
-      )}
-
-      <div className="flex items-center gap-2">
-        <Mail className="h-4 w-4 text-blue-500" />
-        <span className="text-sm text-gray-600">{item.email}</span>
+        {phoneNumber && (
+          <div className="flex items-center gap-2">
+            <svg
+              className="h-4 w-4 text-blue-500 flex-shrink-0"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+            </svg>
+            <span className="text-sm text-gray-600 truncate">{phoneNumber}</span>
+          </div>
+        )}
       </div>
 
-      {phoneNumber && (
-        <div className="flex items-center gap-2">
-          <svg
-            className="h-4 w-4 text-blue-500"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
-          </svg>
-          <span className="text-sm text-gray-600">{phoneNumber}</span>
-        </div>
-      )}
-      <Progress 
-        value={progress} 
-        className={cn(
-          "h-2",
-          getProgressColor(progress)
-        )} 
-      />
-
-      <div className="flex items-center justify-end">
-        <span
+      <div className="space-y-2">
+        <Progress 
+          value={progress} 
           className={cn(
-            "text-xs font-medium",
-            agingInfo.color,
-            agingInfo.animate && "animate-pulse"
-          )}
-        >
-          {agingInfo.text}
-        </span>
+            "h-2",
+            getProgressColor(progress)
+          )} 
+        />
+        <div className="flex items-center justify-end">
+          <span
+            className={cn(
+              "text-xs font-medium",
+              agingInfo.color,
+              agingInfo.animate && "animate-pulse"
+            )}
+          >
+            {agingInfo.text}
+          </span>
+        </div>
       </div>
     </div>
   )
