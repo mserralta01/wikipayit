@@ -916,3 +916,32 @@ The system includes comprehensive error handling:
    - Add automated data validation
    - Implement backup and recovery
    - Add audit logging 
+
+## Interchange Management Module
+
+### Overview
+The Interchange Management module allows administrators to maintain and update card processing base costs for accurate merchant profitability calculations. These rates are used for estimating potential earnings from new accounts during the underwriting process.
+
+### Data Model
+
+```typescript
+interface InterchangeRates {
+  id: string;
+  visaMastercardDiscover: {
+    percentage: number;
+    transactionFee: number;
+  };
+  americanExpress: {
+    percentage: number;
+    transactionFee: number;
+  };
+  lastUpdated: Timestamp;
+  updatedBy: string;
+}
+```
+
+### Default 2023 Rates
+- Visa/Mastercard/Discover: 1.65% + $0.10
+- American Express: 2.30% + $0.10
+
+Note: These rates are for estimation purposes only and may vary based on card type, merchant category, and transaction characteristics. 
