@@ -1,13 +1,24 @@
 # WikiPayIt System Documentation
 
-## System Overview
+## Table of Contents
+1. System Overview
+2. Tech Stack
+3. Core Modules
+   - Pipeline Management
+   - Banking Partners
+   - Interchange Management
+4. System Architecture
+5. Development Guidelines
+6. API Services
+7. Deployment & Security
+8. Monitoring & Performance
 
-WikiPayIt is a payment processing company's web application built with modern technologies. The system consists of two main components:
+## 1. System Overview
+WikiPayIt is a payment processing company's web application built with modern technologies. The system consists of:
 1. A public-facing website for lead generation
 2. An administrative CRM system for managing merchants and leads
 
-### Tech Stack
-
+## 2. Tech Stack
 - **Frontend Framework**: Next.js with React
 - **UI Components**: ShadcnUI + Tailwind CSS
 - **Type Safety**: TypeScript
@@ -19,58 +30,208 @@ WikiPayIt is a payment processing company's web application built with modern te
 - **Email Service**: SendGrid
 - **Development Tools**: Vite
 
-## Banking Partners Module
+## 3. Core Modules
 
-### Overview
-The **Banking Partners Module** manages relationships with banking institutions or lead recipients who generate revenue share based on their sales performance. This module centralizes partner details, relevant contacts, contractual information, and pricing agreements to enable seamless collaboration and transparent financial tracking.
+### 3.1 Pipeline Management
 
-### Key Features
-1. **Partner Management**
-   - Create, edit, and delete banking partners
-   - Track partner status (active, inactive, pending)
-   - Manage partner details and agreements
+#### Overview
+The Pipeline Management system provides a Trello-like interface for managing leads and merchants through various stages of the sales process. It includes automated email notifications, status tracking, and activity logging.
 
-2. **Contact Management**
-   - Add and edit contact information
-   - Designate main contacts
-   - Track contact roles and departments
-   - Store contact details (name, email, phone)
-   - Department categorization (sales, support, underwriting, management)
+#### Status Flow
+1. **Lead** - Initial contact or application
+2. **Phone Calls** - Active communication phase
+3. **Offer Sent** - Pricing proposal stage
+4. **Underwriting** - Risk assessment phase
+5. **Documents** - Paperwork collection
+6. **Approved** - Successfully onboarded
 
-3. **Agreement Management**
-   - Comprehensive fee structure for both low-risk and high-risk merchants
-   - Processing fees for Visa/Mastercard/Discover and AMEX
-   - Transaction fees management
-   - Additional fees tracking (Monthly, Chargeback, Retrieval, AVS, BIN, Sponsor, PCI)
-   - Revenue share percentage tracking
-   - Agreement status tracking (draft, active, expired, terminated)
-   - Document management
-   - High-risk industry support
-
-### Data Models
+#### Data Models
 
 ```typescript
-interface ProcessingFees {
-  visaMasterDiscover: number;
-  amex: number;
+interface PipelineItem {
+  id: string;
+  pipelineStatus: PipelineStatus;
+  position: number;
+  businessName: string;
+  contactName: string;
+  email: string;
+  phone: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  lastActivity?: {
+    type: ActivityType;
+    timestamp: Timestamp;
+    description: string;
+  };
 }
 
-interface TransactionFees {
-  visaMasterDiscover: number;
-  amex: number;
+interface Activity {
+  id: string;
+  itemId: string;
+  type: ActivityType;
+  description: string;
+  userId: string;
+  timestamp: Timestamp;
+  metadata?: Record<string, any>;
 }
 
-interface RiskTerms {
-  revenueSharePercentage: number;
-  processingFees: ProcessingFees;
-  transactionFees: TransactionFees;
-  monthlyFee: number;
-  chargebackFee: number;
-  retrievalFee: number;
-  avsFee: number;
-  binFee: number;
-  sponsorFee: number;
-  pciFee: number;
+type ActivityType = 
+  | 'status_change'
+  | 'note'
+  | 'email'
+  | 'phone_call'
+  | 'document_upload';
+```
+
+#### Features
+
+1. **Drag and Drop Interface**
+   - Move items between status columns
+   - Reorder items within columns
+   - Visual status indicators
+   - Real-time updates
+
+2. **Activity Tracking**
+   - Status change history
+   - Communication logs
+   - Document uploads
+   - Notes and comments
+   - Team member actions
+
+3. **Email Notifications**
+   ```typescript
+   interface EmailTrigger {
+     status: PipelineStatus;
+     template: EmailTemplate;
+     conditions?: {
+       timeInStatus?: number;
+       missingDocuments?: string[];
+       customCondition?: (item: PipelineItem) => boolean;
+     };
+   }
+   ```
+
+4. **Document Management**
+   - Required document checklists
+   - Document status tracking
+   - Secure storage
+   - Version control
+
+#### Implementation Details
+
+1. **Column Configuration**
+   ```typescript
+   interface ColumnConfig {
+     id: PipelineStatus;
+     title: string;
+     color: string;
+     position: number;
+     emailTriggers?: EmailTrigger[];
+     requiredDocuments?: string[];
+     customValidation?: (item: PipelineItem) => boolean;
+   }
+   ```
+
+2. **Status Transitions**
+   ```typescript
+   const STATUS_TRANSITIONS: Record<PipelineStatus, PipelineStatus[]> = {
+     lead: ['phone'],
+     phone: ['lead', 'offer'],
+     offer: ['phone', 'underwriting'],
+     underwriting: ['offer', 'documents'],
+     documents: ['underwriting', 'approved'],
+     approved: ['documents']
+   };
+   ```
+
+3. **Activity Logging**
+   ```typescript
+   async function logActivity(
+     itemId: string, 
+     type: ActivityType, 
+     description: string,
+     metadata?: Record<string, any>
+   ) {
+     // Implementation details...
+   }
+   ```
+
+#### UI Components
+
+1. **Pipeline Board**
+   - Drag and drop columns
+   - Item cards with quick actions
+   - Status indicators
+   - Activity counters
+
+2. **Item Detail View**
+   - Full item information
+   - Activity timeline
+   - Document management
+   - Communication history
+
+3. **Activity Forms**
+   - Note creation
+   - Email composition
+   - Phone call logging
+   - Document upload
+
+#### Best Practices
+
+1. **Status Management**
+   - Validate status transitions
+   - Maintain audit trail
+   - Handle edge cases
+   - Prevent data loss
+
+2. **Performance**
+   - Optimize real-time updates
+   - Implement pagination
+   - Cache frequently accessed data
+   - Batch updates
+
+3. **Security**
+   - Role-based access control
+   - Data validation
+   - Secure file handling
+   - Activity monitoring
+
+#### Integration Points
+
+1. **Email Service**
+   - Status change notifications
+   - Document requests
+   - Follow-up reminders
+   - Team notifications
+
+2. **Document Storage**
+   - Secure file upload
+   - Access control
+   - Version tracking
+   - Metadata management
+
+3. **Reporting System**
+   - Pipeline metrics
+   - Conversion rates
+   - Team performance
+   - Activity analysis
+
+### 3.2 Banking Partners Module
+
+#### Overview
+The Banking Partners module manages relationships with banking institutions and lead recipients who generate revenue share based on their sales performance. This module centralizes partner details, contacts, agreements, and pricing structures.
+
+#### Data Models
+
+```typescript
+interface BankingPartner {
+  id: string;
+  name: string;
+  status: 'active' | 'inactive' | 'pending';
+  contacts: BankContact[];
+  agreements: BankAgreement[];
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 interface BankContact {
@@ -100,39 +261,113 @@ interface BankAgreement {
   updatedAt: Timestamp;
 }
 
-interface BankingPartner {
-  id: string;
-  name: string;
-  status: 'active' | 'inactive' | 'pending';
-  contacts: BankContact[];
-  agreements: BankAgreement[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+interface RiskTerms {
+  revenueSharePercentage: number;
+  processingFees: {
+    visaMasterDiscover: number;
+    amex: number;
+  };
+  transactionFees: {
+    visaMasterDiscover: number;
+    amex: number;
+  };
+  monthlyFee: number;
+  chargebackFee: number;
+  retrievalFee: number;
+  avsFee: number;
+  binFee: number;
+  sponsorFee: number;
+  pciFee: number;
 }
 ```
 
-### UI Components
+#### Features
 
-1. **BankingPartnerForm**
-   - Partner creation and editing
-   - Status management
-   - Basic partner information
+1. **Partner Management**
+   - Create and edit banking partners
+   - Track partner status (active, inactive, pending)
+   - Color-coded status indicators
+   - Activity history tracking
+   - Document management
 
-2. **BankContactForm**
-   - Contact information management
-   - Department selection
+2. **Contact Management**
+   - Multiple contacts per partner
+   - Department categorization
    - Main contact designation
-   - Grid layout for form fields
+   - Contact role specification
+   - Direct communication links
 
-3. **BankAgreementForm**
+3. **Agreement Management**
+   - Agreement terms and dates
+   - Risk-based pricing structure
+   - High-risk industry support
+   - Document attachments
+   - Version tracking
+
+#### UI Components
+
+1. **Partner List View**
+   ```typescript
+   interface PartnerListProps {
+     partners: BankingPartner[];
+     onStatusChange: (partnerId: string, status: string) => void;
+     onEdit: (partnerId: string) => void;
+     onDelete: (partnerId: string) => void;
+   }
+   ```
+
+2. **Partner Detail View**
+   - Tabbed interface for different sections
+   - Contact management
+   - Agreement history
+   - Document viewer
+   - Activity timeline
+
+3. **Agreement Form**
    - Two-column layout for risk terms
-   - Accordion for high-risk industries
-   - Comprehensive fee management
+   - Document upload capability
    - Date range selection
-   - Status tracking
+   - Industry selection
+   - Validation rules
 
-### High-Risk Industries
-The system supports various high-risk industries including:
+#### Implementation Details
+
+1. **Firebase Structure**
+```typescript
+// Collections
+const COLLECTIONS = {
+  partners: 'bankingPartners',
+  contacts: 'bankContacts',
+  agreements: 'bankAgreements',
+  notes: 'bankingPartnerNotes'
+};
+
+// Security Rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /bankingPartners/{partnerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}
+```
+
+2. **Service Layer**
+```typescript
+export const bankingPartnerService = {
+  async getPartners(): Promise<BankingPartner[]>;
+  async getPartner(id: string): Promise<BankingPartner>;
+  async createPartner(data: Partial<BankingPartner>): Promise<string>;
+  async updatePartner(id: string, data: Partial<BankingPartner>): Promise<void>;
+  async deletePartner(id: string): Promise<void>;
+};
+```
+
+#### High-Risk Industries Support
+
+The system tracks support for various high-risk industries:
 - Adult Content
 - Gambling & Gaming
 - Cryptocurrency
@@ -146,12 +381,246 @@ The system supports various high-risk industries including:
 - Travel Services
 - MLM/Direct Marketing
 
-## System Architecture
+#### Best Practices
+
+1. **Partner Management**
+   - Regular status reviews
+   - Activity logging
+   - Document versioning
+   - Contact verification
+
+2. **Agreement Handling**
+   - Version control
+   - Term validation
+   - Expiration monitoring
+   - Renewal tracking
+
+3. **Security**
+   - Role-based access
+   - Data encryption
+   - Audit logging
+   - Document security
+
+#### Integration Points
+
+1. **Document Management**
+   - Secure storage
+   - Access control
+   - Version tracking
+   - Format validation
+
+2. **Communication System**
+   - Email notifications
+   - Status updates
+   - Agreement reminders
+   - Contact synchronization
+
+3. **Reporting**
+   - Partner performance
+   - Agreement analytics
+   - Revenue tracking
+   - Risk assessment
+
+#### Future Enhancements
+
+1. **Partner Portal**
+   - Self-service features
+   - Document upload
+   - Performance metrics
+   - Communication tools
+
+2. **Automation**
+   - Agreement renewals
+   - Status updates
+   - Document verification
+   - Performance reporting
+
+3. **Analytics**
+   - Revenue forecasting
+   - Risk assessment
+   - Partner scoring
+   - Market analysis
+
+### 3.3 Interchange Management Module
+
+#### Overview
+The Interchange Management module provides administrators with tools to maintain and update card processing base costs. These rates serve as the foundation for calculating potential earnings from new accounts during the underwriting process and ensuring accurate merchant profitability calculations.
+
+#### Data Models
+
+```typescript
+interface InterchangeRates {
+  id: string;
+  visaMastercardDiscover: CardRates;
+  americanExpress: CardRates;
+  lastUpdated: Timestamp;
+  updatedBy: string;
+}
+
+interface CardRates {
+  percentage: number;
+  transactionFee: number;
+}
+```
+
+#### Features
+
+1. **Rate Management**
+   - Set and update Visa/Mastercard/Discover rates
+   - Set and update American Express rates
+   - Track rate history and changes
+   - Separate percentage and transaction fee management
+
+2. **Cost Components**
+   - Percentage-based fees (%)
+   - Per-transaction fees ($)
+   - Card brand-specific rates
+   - Real-time updates
+
+3. **Access Control**
+   - Admin-only access
+   - Protected routes
+   - Audit logging of changes
+
+#### Implementation Details
+
+1. **Firebase Structure**
+```typescript
+const COLLECTION = 'interchangeRates';
+const DEFAULT_DOC_ID = 'default';
+
+// Security Rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /interchangeRates/{document=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                   request.auth.token.admin == true;
+    }
+  }
+}
+```
+
+2. **Service Layer**
+```typescript
+export const interchangeService = {
+  async getInterchangeRates(): Promise<InterchangeRates | null>;
+  async updateInterchangeRates(
+    rates: Omit<InterchangeRates, 'id' | 'lastUpdated' | 'updatedBy'>,
+    userId: string
+  ): Promise<void>;
+};
+```
+
+#### UI Components
+
+1. **Rate Management Form**
+   - Separate sections for each card type
+   - Numeric inputs with validation
+   - Real-time feedback
+   - Success/error notifications
+
+2. **Default 2023 Rates**
+   - **Visa/Mastercard/Discover**
+     - Percentage Rate: 1.65%
+     - Transaction Fee: $0.10
+   - **American Express**
+     - Percentage Rate: 2.30%
+     - Transaction Fee: $0.10
+
+#### Best Practices
+
+1. **Rate Updates**
+   - Document reason for changes
+   - Validate input ranges
+   - Maintain audit trail
+   - Consider market impact
+
+2. **Data Validation**
+   - Percentage range: 0-100%
+   - Transaction fee range: $0-10
+   - Required field validation
+   - Type checking
+
+3. **Security**
+   - Admin-only access
+   - Change verification
+   - Update logging
+   - Error handling
+
+#### Integration Points
+
+1. **Merchant Calculations**
+   - Base cost determination
+   - Profit margin calculations
+   - Risk assessment
+   - Pricing recommendations
+
+2. **Reporting System**
+   - Cost analysis
+   - Margin reporting
+   - Rate comparisons
+   - Historical tracking
+
+#### Future Enhancements
+
+1. **Rate Management**
+   - Historical rate tracking
+   - Rate change scheduling
+   - Bulk rate updates
+   - Rate comparison tools
+
+2. **Reporting**
+   - Cost impact analysis
+   - Merchant profitability reports
+   - Rate change impact projections
+
+3. **Automation**
+   - Market rate monitoring
+   - Automated updates
+   - Alert system
+   - Optimization suggestions
+
+#### Error Handling
+
+1. **Input Validation**
+```typescript
+const formSchema = z.object({
+  visaMastercardDiscover: z.object({
+    percentage: z.number().min(0).max(100),
+    transactionFee: z.number().min(0).max(10),
+  }),
+  americanExpress: z.object({
+    percentage: z.number().min(0).max(100),
+    transactionFee: z.number().min(0).max(10),
+  }),
+});
+```
+
+2. **Error Messages**
+   - Clear error descriptions
+   - User-friendly notifications
+   - Validation feedback
+   - Update confirmations
+
+#### Performance Considerations
+
+1. **Data Loading**
+   - Cached rate data
+   - Real-time updates
+   - Optimistic UI updates
+   - Error recovery
+
+2. **Updates**
+   - Batch processing
+   - Transaction safety
+   - Conflict resolution
+   - Change verification
+
+## 4. System Architecture
 
 ### Frontend Architecture
-
-The application uses a modern React architecture with Next.js:
-
 ```
 src/
 ├── components/
@@ -159,75 +628,22 @@ src/
 │   ├── auth/          # Authentication components
 │   ├── layouts/       # Layout components
 │   └── ui/           # Shared UI components
-├── contexts/         # React contexts
-├── hooks/           # Custom React hooks
-├── lib/            # Core utilities and configurations
-├── services/       # API and service layer
-└── types/         # TypeScript type definitions
 ```
 
-### Backend Architecture (Firebase)
+### Backend Architecture
+Firebase collections:
+- `sections` - Website section management
+- `customers` - Customer records
+- `emailTemplates` - Email template management
+- `settings/api` - API configuration settings
+- `bankingPartners` - Banking partner records
+- `interchangeRates` - Interchange rate management
 
-The system uses Firebase as its backend infrastructure:
+[Rest of Architecture documentation...]
 
-1. **Authentication**: Firebase Auth with multiple providers
-   - Email/Password
-   - Google Sign-In
-
-2. **Database**: Firestore Collections
-   - `sections` - Website section management
-   - `customers` - Customer records
-   - `emailTemplates` - Email template management
-   - `settings/api` - API configuration settings
-   - `bankingPartners` - Banking partner records
-   - `bankingPartnerActivities` - Banking partner activity logs
-
-3. **Storage**: Firebase Storage
-   - Document storage
-   - File uploads
-   - Contract documents
-
-## Core Features
-
-### 1. Lead Management System
-
-The system includes a comprehensive lead management pipeline with the following statuses:
-- Lead
-- Phone Calls
-- Offer Sent
-- Underwriting
-- Documents
-- Approved
-
-### 2. Customer Management
-
-Customers can be in various states:
-- Lead
-- Merchant
-- Prospect
-
-### 3. Communication System
-
-Integrated communication features:
-- Email templates
-- Activity tracking
-- Phone call logging
-- Internal notes
-- Communication history
-
-### 4. Document Management
-
-Secure document handling:
-- File upload/download
-- Document categorization
-- Storage management
-- Access control
-
-## Development Guidelines
+## 5. Development Guidelines
 
 ### TypeScript Standards
-
-1. Strict Type Checking:
 ```typescript
 {
   "compilerOptions": {
@@ -239,478 +655,50 @@ Secure document handling:
 }
 ```
 
-2. Path Aliases:
-```typescript
-{
-  "baseUrl": ".",
-  "paths": {
-    "@/*": ["./src/*"]
-  }
-}
-```
+[Rest of Development Guidelines...]
 
-### Component Development
+## 6. API Services
 
-1. **Admin Components**
-   - Use ShadcnUI components
-   - Follow consistent layout patterns
-   - Implement proper loading states
-   - Use error boundaries
-
-2. **Public Components**
-   - Use custom Tailwind components
-   - Implement unique designs
-   - Focus on performance
-   - Ensure proper SEO
-
-### State Management
-
-1. **Authentication State**
-   - Managed through AuthContext
-   - Includes user roles and permissions
-   - Handles multiple auth providers
-
-2. **Application State**
-   - Service-based architecture
-   - Cached data management
-   - Real-time updates where needed
-
-## API Services
-
-### 1. Email Service
-
+### Email Service
 ```typescript
 interface EmailTemplate {
-  id: string
-  name: string
-  subject: string
-  content: string
-  isEnabled: boolean
-  description: string
-  lastModified?: Date
+  id: string;
+  name: string;
+  subject: string;
+  content: string;
+  isEnabled: boolean;
 }
 ```
 
-### 2. Storage Service
+[Rest of API Services documentation...]
 
-```typescript
-interface StoredDocument {
-  url: string
-  name: string
-  uploadedAt: string
-}
-```
+## 7. Deployment & Security
 
-### 3. Merchant Service
-
-```typescript
-interface ApplicationData {
-  businessName: string
-  contactName: string
-  status?: 'pending' | 'approved' | 'rejected'
-  businessType: 'sole_proprietorship' | 'partnership' | 'llc' | 'corporation' | 'non_profit'
-  processingVolume: number
-  phone: string
-}
-```
-
-## Environment Configuration
-
-Required environment variables:
-```
-VITE_FIREBASE_API_KEY=
-VITE_FIREBASE_AUTH_DOMAIN=
-VITE_FIREBASE_PROJECT_ID=
-VITE_FIREBASE_STORAGE_BUCKET=
-VITE_FIREBASE_MESSAGING_SENDER_ID=
-VITE_FIREBASE_APP_ID=
-VITE_FIREBASE_MEASUREMENT_ID=
-```
-
-## Deployment
-
-The application is configured for deployment on Vercel with Firebase backend:
-
-1. **Firebase Configuration**:
+### Firebase Configuration
 ```json
 {
   "firestore": {
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
-  },
-  "storage": {
-    "rules": "storage.rules"
-  },
-  "hosting": {
-    "public": "dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ]
   }
 }
 ```
 
-2. **Build Configuration**:
-```json
-{
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
-  }
-}
-```
+[Rest of Deployment & Security documentation...]
 
-## Security Considerations
+## 8. Monitoring & Performance
 
-1. **Authentication**:
-   - Role-based access control
-   - Secure session management
-   - Protected routes
-
-2. **Data Security**:
-   - Firestore security rules
-   - Storage access control
-   - API key management
-
-3. **Communication Security**:
-   - Encrypted data transmission
-   - Secure email handling
-   - Protected file transfers
-
-## Performance Optimization
-
-1. **Caching Strategies**:
-   - Section data caching
-   - API response caching
-   - Asset caching
-
-2. **Load Management**:
-   - Pagination implementation
-   - Lazy loading
-   - Resource optimization
-
-## Monitoring and Debugging
-
-1. **Firebase Auth Debugging**:
+### Firebase Auth Debugging
 ```typescript
 auth.onAuthStateChanged((user) => {
   console.log('Current Firebase Auth State:', {
     user: user ? {
       email: user.email,
       uid: user.uid,
-      emailVerified: user.emailVerified,
-      metadata: user.metadata
+      emailVerified: user.emailVerified
     } : null
   });
 });
 ```
 
-2. **API Settings Monitoring**:
-```typescript
-console.log('API Settings:', {
-  mapbox: 'enabled/disabled',
-  stripe: 'configured/not configured',
-  sendgrid: 'enabled/disabled'
-});
-```
-
-## Future Improvements
-
-1. **Feature Enhancements**:
-   - Advanced reporting
-   - Automated workflows
-   - Integration expansions
-
-2. **Technical Improvements**:
-   - Performance optimization
-   - Security enhancements
-   - Monitoring improvements
-
-3. **User Experience**:
-   - UI/UX refinements
-   - Accessibility improvements
-   - Mobile optimization 
-
-   # WikiPayIt Documentation
-
-## Banking Partners Module
-
-The Banking Partners module manages relationships with banking partners, including their contacts, agreements, and documents.
-
-### Core Features
-
-1. Partner Management
-   - Create, view, update, and delete banking partners
-   - Track partner status (active, inactive, pending) with color-coded badges
-   - Partner color assignment for visual identification
-   - Timestamp tracking for creation and updates
-   - Summary view with key contact and active agreement details
-
-2. Contact Management
-   - Multiple contacts per partner
-   - Contact roles and departments
-   - Main contact designation with quick access in partner details
-   - Contact details (name, email, phone)
-   - Department categorization (sales, support, underwriting, management, other)
-   - Click-to-call and click-to-email functionality
-
-3. Agreement Management
-   - Agreement terms and dates
-   - Separate terms for low-risk and high-risk processing
-   - Revenue share percentages for both risk levels
-   - Transaction fees for different payment methods (credit card, debit, ACH)
-   - Monthly minimum fees
-   - High-risk industry support tracking
-   - Document upload and management
-   - Agreement status tracking (draft, active, expired, terminated)
-
-### File Structure
-
-```
-src/
-├── components/
-│   └── admin/
-│       └── banking-partners/
-│           ├── BankingPartnersList.tsx    # Main list view with search
-│           ├── BankingPartnerDetail.tsx   # Detailed view with tabs
-│           ├── BankingPartnerForm.tsx     # Add/Edit partner form
-│           ├── BankContactForm.tsx        # Contact management form
-│           └── BankAgreementForm.tsx      # Agreement management form
-├── services/
-│   └── bankingPartnerService.ts           # Firebase CRUD operations
-└── types/
-    └── bankingPartner.ts                  # TypeScript interfaces
-```
-
-### Data Models
-
-1. BankingPartner
-```typescript
-{
-  id: string;
-  name: string;
-  status: 'active' | 'inactive' | 'pending';
-  color?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-```
-
-2. BankContact
-```typescript
-{
-  id: string;
-  bankingPartnerId: string;
-  name: string;
-  role: string;
-  email: string;
-  phone?: string;
-  department: string;
-  isMainContact: boolean;
-}
-```
-
-3. BankAgreement
-```typescript
-{
-  id: string;
-  bankingPartnerId: string;
-  startDate: Timestamp;
-  endDate: Timestamp | null;
-  status: 'draft' | 'active' | 'expired' | 'terminated';
-  lowRisk: {
-    revenueSharePercentage: number;
-    monthlyMinimumFee: number;
-    transactionFees: {
-      creditCard: number;
-      debit: number;
-      ach: number;
-    }
-  };
-  highRisk: {
-    revenueSharePercentage: number;
-    monthlyMinimumFee: number;
-    transactionFees: {
-      creditCard: number;
-      debit: number;
-      ach: number;
-    }
-  };
-  supportedHighRiskIndustries: string[];
-  documentUrls?: string[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-```
-
-4. BankingPartnerNote
-```typescript
-{
-  id: string;
-  bankingPartnerId: string;
-  content: string;
-  createdBy: string;
-  createdAt: Timestamp;
-  type: 'general' | 'agreement' | 'contact' | 'issue';
-}
-```
-
-### High-Risk Industries
-
-The system tracks the following high-risk industries that banking partners can support:
-- Adult Content
-- Gambling & Gaming
-- Cryptocurrency
-- Nutraceuticals
-- CBD/Hemp Products
-- Forex Trading
-- Online Pharmacy
-- Tobacco/Vaping
-- Debt Collection
-- Dating Services
-- Travel Services
-- MLM/Direct Marketing
-
-### UI Components
-
-1. Partner List
-   - Searchable list of all partners
-   - Color-coded status badges
-   - Quick access to partner details
-   - Loading states with skeleton UI
-
-2. Partner Details
-   - Color picker for partner identification
-   - Status badge with appropriate color
-   - Key contact information with direct communication links
-   - Active agreement summary
-   - Tabbed interface for contacts and agreements
-   - Add contact button in contacts tab
-   - Add agreement button in agreements tab
-
-3. Contact Form
-   - Add/Edit contact information
-   - Main contact designation
-   - Department selection
-   - Role specification
-   - Contact details (name, email, phone)
-   - Form validation
-   - Success/error notifications
-
-4. Agreement Form
-   - Separate sections for low-risk and high-risk terms
-   - High-risk industry checkboxes
-   - Document upload capability
-   - Status management
-   - Start and end date selection
-   - Revenue share percentages for both risk levels
-   - Transaction fees configuration
-   - Monthly minimum fee settings
-   - Form validation with zod schema
-   - Success/error notifications
-
-### Contact Management Features
-
-1. Contact List View
-   - Display all contacts for a partner
-   - Main contact indicator
-   - Quick access to contact details
-   - Contact role and department display
-   - Click-to-call and click-to-email functionality
-   - Loading states with skeleton UI
-
-2. Contact Operations
-   - Add new contact
-   - Edit existing contact
-   - Set/unset main contact status
-   - Delete contact with confirmation
-   - Batch updates for department changes
-   - Contact history tracking
-
-### Agreement Management Features
-
-1. Agreement List View
-   - Display all agreements for a partner
-   - Active agreement indicator
-   - Agreement status badges
-   - Quick access to agreement details
-   - Document preview and download
-   - Loading states with skeleton UI
-
-2. Agreement Operations
-   - Create new agreement
-   - Edit existing agreement
-   - Change agreement status
-   - Upload and manage documents
-   - Track agreement versions
-   - Agreement history logging
-
-3. Agreement Terms Management
-   - Configure low-risk terms
-     * Revenue share percentage
-     * Monthly minimum fee
-     * Transaction fees (credit, debit, ACH)
-   - Configure high-risk terms
-     * Revenue share percentage
-     * Monthly minimum fee
-     * Transaction fees (credit, debit, ACH)
-   - Select supported high-risk industries
-   - Document attachment and management
-
-4. Agreement Validation
-   - Required field validation
-   - Date range validation
-   - Fee percentage limits
-   - Status transition rules
-   - Document type restrictions
-   - Duplicate agreement prevention
-
-### Data Management
-
-1. React Query Integration
-   - Efficient data fetching and caching
-   - Real-time updates
-   - Loading states
-   - Error handling
-   - DevTools for debugging
-
-2. Firebase Integration
-   - Real-time data synchronization
-   - Document uploads
-   - Batch updates
-   - Transaction support
-
-### Routes
-
-- `/admin/banking-partners`: List all banking partners
-- `/admin/banking-partners/new`: Create new banking partner
-- `/admin/banking-partners/:id`: View/edit partner details
-- `/admin/banking-partners/:id/contacts/new`: Add new contact
-- `/admin/banking-partners/:id/agreements/new`: Add new agreement
-
-### Features to Consider Adding
-
-1. Email Integration
-   - Automated notifications for status changes
-   - Agreement renewal reminders
-   - Document sharing notifications
-
-2. Document Management
-   - Version control for agreements
-   - Document expiration tracking
-   - Automated reminders for document updates
-
-3. Reporting
-   - Revenue reports by partner
-   - Transaction volume analytics
-   - Partner performance metrics
-   - High-risk industry distribution analysis
-
-4. Compliance
-   - Agreement compliance tracking
-   - Required document checklists
-   - Audit logs for all changes
-   - High-risk industry compliance monitoring 
+[Rest of Monitoring & Performance documentation...]

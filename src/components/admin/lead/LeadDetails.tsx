@@ -52,10 +52,21 @@ import { BankDetailsDisplay } from "./BankDetailsDisplay";
 import { BeneficialOwnersDisplay } from "./BeneficialOwnersDisplay";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../ui/tabs";
 import { DeleteLeadDialog } from "./DeleteLeadDialog";
+import { useQuery } from "@tanstack/react-query";
+import { collection, getDocs } from "firebase/firestore";
+import { COLUMN_CONFIGS } from "../../../types/pipeline";
 
 interface LeadDetailsProps {
   merchant: MerchantDTO;
 }
+
+interface ColumnConfig {
+  title: string;
+  position: number;
+  color: string;
+}
+
+type ColumnConfigs = Record<PipelineStatus, ColumnConfig>;
 
 const formatPhoneNumber = (value: string): string => {
   // Remove all non-digits
@@ -106,6 +117,46 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const [merchant, setMerchant] = useState(initialMerchant);
   const [editMode, setEditMode] = useState<{ [key: string]: boolean }>({});
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
+  // Add query for column configs
+  const { data: columnConfigs } = useQuery<ColumnConfigs>({
+    queryKey: ['pipeline-columns'],
+    queryFn: async () => {
+      const columnConfigsRef = collection(db, 'pipeline-columns')
+      const snapshot = await getDocs(columnConfigsRef)
+      const configs = {} as ColumnConfigs
+      
+      // Initialize with default configs
+      Object.entries(COLUMN_CONFIGS).forEach(([status, config]) => {
+        configs[status as PipelineStatus] = {
+          title: config.title,
+          position: 0,
+          color: config.color
+        }
+      })
+      
+      // Override with custom configs from Firestore
+      snapshot.forEach((doc) => {
+        const data = doc.data()
+        const status = doc.id as PipelineStatus
+        if (status in configs) {
+          configs[status] = {
+            ...configs[status],
+            ...data
+          }
+        }
+      })
+      
+      return configs
+    }
+  });
+
+  // Get the color for the current status
+  const statusColor = merchant.pipelineStatus && columnConfigs
+    ? (merchant.pipelineStatus in (columnConfigs || {})
+      ? columnConfigs[merchant.pipelineStatus as PipelineStatus]?.color
+      : COLUMN_CONFIGS[merchant.pipelineStatus as PipelineStatus]?.color) || '#6B7280'
+    : '#6B7280';
 
   const getOwnershipColor = (percentage: number) => {
     if (percentage === 100) return "bg-green-100 text-green-800 border-green-300";
@@ -326,27 +377,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     return colors[status] || "bg-gray-500";
   };
 
-  const handleStatusChange = async (status: MerchantStatus): Promise<void> => {
-    try {
-      const collectionPath = "leads";
-      await updateDoc(doc(db, collectionPath, merchant.id), {
-        pipelineStatus: status,
-        updatedAt: Timestamp.fromDate(new Date()),
-      });
-      toast({
-        title: "Success",
-        description: "Status updated successfully.",
-      });
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update status. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleBeneficialOwnerChange = (index: number, field: string, value: string) => {
     // Update formData state
     setFormData((prev) => ({
@@ -462,21 +492,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     }
   };
 
-  const statusProgress: Record<PipelineStatus, number> = {
-    lead: 17,
-    phone: 33,
-    offer: 50,
-    underwriting: 67,
-    documents: 83,
-    approved: 100,
-  };
-
-  const progress =
-    merchant.pipelineStatus &&
-    Object.keys(statusProgress).includes(merchant.pipelineStatus)
-      ? statusProgress[merchant.pipelineStatus as PipelineStatus]
-      : 0;
-
   const formatCurrency = (value: number): string => {
     return value.toLocaleString("en-US", {
       style: "currency",
@@ -545,9 +560,9 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
             <div className="flex flex-row items-center justify-between">
               <Badge
                 className={cn(
-                  getStatusColor(merchant.pipelineStatus || "lead"),
                   "text-white text-xl py-2 px-4"
                 )}
+                style={{ backgroundColor: statusColor }}
               >
                 {merchant.formData?.businessName || merchant.businessName}
               </Badge>
@@ -563,7 +578,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                 <div
                   className="h-full rounded-full bg-blue-500"
                   style={{
-                    width: `${progress}%`,
+                    width: `${calculateProgress(merchant.pipelineStatus || "lead")}%`,
                     transition: "width 0.5s ease-in-out",
                   }}
                 />
@@ -897,39 +912,6 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       }));
                     }}
                   />
-                </AccordionContent>
-              </AccordionItem>
-
-              {/* Status Section */}
-              <AccordionItem value="status">
-                <AccordionTrigger>Status and Stage</AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="font-medium">Current Status</Label>
-                      <Select
-                        defaultValue={merchant.pipelineStatus}
-                        onValueChange={handleStatusChange}
-                      >
-                        <SelectTrigger className="w-full mt-2">
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="lead">Lead</SelectItem>
-                          <SelectItem value="phone">Phone</SelectItem>
-                          <SelectItem value="offer">Offer</SelectItem>
-                          <SelectItem value="underwriting">Underwriting</SelectItem>
-                          <SelectItem value="documents">Documents</SelectItem>
-                          <SelectItem value="approved">Approved</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {merchant.updatedAt && (
-                      <div className="text-sm text-gray-500">
-                        Last updated: {timestampToString(merchant.updatedAt)}
-                      </div>
-                    )}
-                  </div>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>

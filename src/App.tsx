@@ -9,7 +9,7 @@ import MerchantApplicationPage from './pages/MerchantApplicationPage'
 import MainLayout from "./components/layouts/MainLayout"
 import { AdminLayout } from "./components/admin/AdminLayout"
 import Dashboard from "./components/admin/Dashboard"
-import Applications from "./components/admin/Applications"
+import { Applications } from "./components/admin/Applications"
 import Pipeline from "./components/admin/Pipeline"
 import MerchantList from "./components/admin/MerchantList"
 import WebsiteManagement from "./components/admin/WebsiteManagement"
@@ -27,6 +27,7 @@ import { BankingPartnerForm } from "./components/admin/banking-partners/BankingP
 import { BankContactForm } from "./components/admin/banking-partners/BankContactForm"
 import { BankAgreementForm } from "./components/admin/banking-partners/BankAgreementForm"
 import { EditAgreement } from "./components/admin/banking-partners/EditAgreement"
+import InterchangePage from "./components/admin/settings/InterchangePage"
 
 // Create a client
 const queryClient = new QueryClient({
@@ -66,37 +67,40 @@ function App() {
 
             {/* Admin Routes */}
             <Route
-              path="/admin"
+              path="/admin/*"
               element={
                 <ProtectedRoute>
                   <AdminLayout>
-                    <Outlet />
+                    <Routes>
+                      <Route index element={<Dashboard />} />
+                      <Route path="applications" element={<Applications />} />
+                      <Route path="pipeline" element={<Pipeline />} />
+                      <Route path="pipeline/:id" element={<LeadDetailView />} />
+                      <Route path="merchants" element={<MerchantList />} />
+                      <Route path="website" element={<WebsiteManagement />} />
+                      <Route path="super" element={<SuperAdmin />} />
+                      
+                      {/* Settings Routes */}
+                      <Route path="settings">
+                        <Route path="email-templates" element={<EmailTemplates />} />
+                        <Route path="team" element={<TeamManagement />} />
+                        <Route path="interchange" element={<InterchangePage />} />
+                      </Route>
+                      
+                      {/* Banking Partners Routes */}
+                      <Route path="banking-partners">
+                        <Route index element={<BankingPartnersList />} />
+                        <Route path="new" element={<BankingPartnerForm />} />
+                        <Route path=":id" element={<BankingPartnerDetail />} />
+                        <Route path=":id/contacts/new" element={<BankContactFormWrapper />} />
+                        <Route path=":id/agreements/new" element={<BankAgreementFormWrapper />} />
+                        <Route path=":id/agreements/:agreementId/edit" element={<EditAgreement />} />
+                      </Route>
+                    </Routes>
                   </AdminLayout>
                 </ProtectedRoute>
               }
-            >
-              <Route index element={<Dashboard />} />
-              <Route path="applications" element={<Applications />} />
-              <Route path="pipeline" element={<Pipeline />} />
-              <Route path="pipeline/:id" element={<LeadDetailView />} />
-              <Route path="merchants" element={<MerchantList />} />
-              <Route path="website" element={<WebsiteManagement />} />
-              <Route path="super" element={<SuperAdmin />} />
-              <Route path="settings">
-                <Route path="email-templates" element={<EmailTemplates />} />
-                <Route path="team" element={<TeamManagement />} />
-              </Route>
-              
-              {/* Banking Partners Routes */}
-              <Route path="banking-partners">
-                <Route index element={<BankingPartnersList />} />
-                <Route path="new" element={<BankingPartnerForm />} />
-                <Route path=":id" element={<BankingPartnerDetail />} />
-                <Route path=":id/contacts/new" element={<BankContactFormWrapper />} />
-                <Route path=":id/agreements/new" element={<BankAgreementFormWrapper />} />
-                <Route path=":id/agreements/:agreementId/edit" element={<EditAgreement />} />
-              </Route>
-            </Route>
+            />
           </Routes>
           <Toaster />
         </Router>

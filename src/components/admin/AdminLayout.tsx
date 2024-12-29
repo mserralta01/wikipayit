@@ -151,6 +151,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           title: 'Team',
           icon: <Users className="w-5 h-5" />,
           href: '/admin/settings/team',
+        },
+        {
+          title: 'Interchange Rates',
+          href: '/admin/settings/interchange',
+          icon: <DollarSign className="w-5 h-5" />,
         }
       ]
     },
@@ -249,6 +254,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         return 'Email Templates'
       case pathname === '/admin/settings/team':
         return 'Team Management'
+      case pathname === '/admin/settings/interchange':
+        return 'Interchange Rates'
       default:
         return 'Dashboard'
     }

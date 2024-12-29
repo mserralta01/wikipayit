@@ -6,6 +6,7 @@ import { BankContactForm } from '@/components/admin/banking-partners/BankContact
 import { BankAgreementForm } from '@/components/admin/banking-partners/BankAgreementForm';
 import { EditAgreement } from '@/components/admin/banking-partners/EditAgreement';
 import { useParams } from 'react-router-dom';
+import InterchangePage from "@/components/admin/settings/InterchangePage";
 
 const BankContactFormWrapper = () => {
   const { id } = useParams<{ id: string }>();
@@ -47,5 +48,14 @@ export const adminRoutes: RouteObject[] = [
         element: <EditAgreement />,
       },
     ],
+  },
+  {
+    path: "settings",
+    children: [
+      {
+        path: "interchange",
+        element: <InterchangePage />,
+      },
+    ]
   },
 ]; 

@@ -1,4 +1,12 @@
 # AI Development Rules for WikiPayIt
+You must document all your changes on the WIKI with the purpose to make it easier for AI to understand the code and keep track of the changesa nd to program new features
+You must stick to the rules below and you must only fix what the users ask you
+You must write the least amount of codes as possible and you must only write the codes that are needed to fix the users request
+You must always write the code in the most efficient way possible
+If there more than one way to do something, you must always choose the most efficient way or if nto possible ask the user.
+
+
+
 
 ## Wiki Maintenance and Documentation
 

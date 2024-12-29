@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
-import { Mail, Building2, MoreHorizontal } from 'lucide-react'
+import { Mail, Building2, MoreHorizontal, Palette } from 'lucide-react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { writeBatch, doc, collection, getDocs, setDoc } from 'firebase/firestore'
 import { useNavigate } from 'react-router-dom'
@@ -34,6 +34,7 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 interface PipelineFormData {
   businessName?: string;
@@ -64,6 +65,14 @@ interface Column {
   color: string
   position?: number
 }
+
+interface ColumnConfig {
+  title: string;
+  position: number;
+  color: string;
+}
+
+type ColumnConfigs = Record<string, ColumnConfig>;
 
 const sections = {
   basicInfo: {
@@ -221,13 +230,17 @@ export function Pipeline() {
         merchantService.getMerchants()
       ])
 
-      const initialColumns: Column[] = PIPELINE_STATUSES.map((status) => ({
-        id: status,
-        title: columnConfigs[status]?.title || COLUMN_CONFIGS[status].title,
-        color: columnConfigs[status]?.color || COLUMN_CONFIGS[status].color,
-        items: [],
-        position: columnConfigs[status]?.position || 0
-      }))
+      // First, create columns with titles from columnConfigs
+      const initialColumns: Column[] = PIPELINE_STATUSES.map((status) => {
+        const config = columnConfigs[status] || COLUMN_CONFIGS[status]
+        return {
+          id: status,
+          title: config.title,
+          color: config.color,
+          items: [],
+          position: config.position || 0
+        }
+      })
 
       // Convert leads to pipeline items, ensuring dates are strings
       const pipelineLeads = leads.map((lead: Lead): PipelineLead => ({
@@ -285,9 +298,19 @@ export function Pipeline() {
 
   useEffect(() => {
     if (columns.length > 0) {
-      setColumns(columns)
+      // Ensure we're using the correct titles from columnConfigs
+      const updatedColumns = columns.map(column => {
+        const config = columnConfigs[column.id] || COLUMN_CONFIGS[column.id]
+        return {
+          ...column,
+          title: config.title,
+          color: config.color,
+          position: config.position || 0
+        }
+      })
+      setColumns(updatedColumns)
     }
-  }, [columns])
+  }, [columns, columnConfigs])
 
   const handleDragEnd = async (result: DropResult) => {
     const { source, destination, type } = result
@@ -438,28 +461,31 @@ export function Pipeline() {
       // Create the column config update
       const columnConfig = {
         title: newColumnTitle,
-        position: columnToRename.position,
-        color:
-          COLUMN_CONFIGS[columnToRename.id as PipelineStatus]?.color ||
-          columnToRename.color,
+        position: columnToRename.position || 0,
+        color: columnToRename.color || COLUMN_CONFIGS[columnToRename.id as PipelineStatus]?.color || '#6B7280'
       };
 
-      // Update the column configuration with merge to prevent overwriting other fields
-      await setDoc(columnRef, columnConfig, { merge: true });
+      // First close the dialog to prevent focus issues
+      setIsRenameDialogOpen(false);
+      setColumnToRename(null);
+      setNewColumnTitle('');
+
+      // Update Firestore
+      await setDoc(columnRef, columnConfig);
 
       // Update local state
-      const updatedColumns = localColumns.map((col) =>
-        col.id === columnToRename.id ? { ...col, title: newColumnTitle } : col
+      setColumns(prevColumns =>
+        prevColumns.map(col =>
+          col.id === columnToRename.id
+            ? { ...col, ...columnConfig }
+            : col
+        )
       );
-      setColumns(updatedColumns);
 
       // Update the column configs cache
       queryClient.setQueryData(['pipeline-columns'], (old: Record<string, any> = {}) => ({
         ...old,
-        [columnToRename.id]: {
-          ...old[columnToRename.id],
-          ...columnConfig,
-        },
+        [columnToRename.id]: columnConfig
       }));
 
       toast({
@@ -467,15 +493,10 @@ export function Pipeline() {
         description: 'Column renamed successfully',
       });
 
-      // Close the dialog
-      setIsRenameDialogOpen(false);
-      setColumnToRename(null);
-      setNewColumnTitle('');
-
-      // Invalidate and refetch both queries
+      // Invalidate queries after all updates are done
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['pipeline-columns'] }),
-        queryClient.invalidateQueries({ queryKey: ['pipeline-items'] }),
+        queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
       ]);
     } catch (error) {
       console.error('Error renaming column:', error);
@@ -601,15 +622,20 @@ export function Pipeline() {
                       <div
                         {...provided.dragHandleProps}
                         className="p-3 flex items-center justify-between border-b"
+                        style={{ 
+                          backgroundColor: column.color,
+                          borderTopLeftRadius: '0.5rem',
+                          borderTopRightRadius: '0.5rem'
+                        }}
                       >
-                        <h3 className="font-semibold">{column.title}</h3>
+                        <h3 className="font-semibold text-white uppercase">{column.title}</h3>
                         <div className="flex items-center gap-2">
-                          <Badge variant="secondary">
+                          <Badge variant="secondary" className="bg-white/20 text-white">
                             {column.items.length}
                           </Badge>
                           <DropdownMenu>
                             <DropdownMenuTrigger>
-                              <MoreHorizontal className="h-5 w-5 text-gray-500 hover:text-gray-700" />
+                              <MoreHorizontal className="h-5 w-5 text-white hover:text-white/80" />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
                               <DropdownMenuItem
@@ -620,6 +646,60 @@ export function Pipeline() {
                                 }}
                               >
                                 Rename Column
+                              </DropdownMenuItem>
+                              <DropdownMenuItem>
+                                <Popover>
+                                  <PopoverTrigger className="w-full flex items-center">
+                                    <Palette className="mr-2 h-4 w-4" />
+                                    <span>Change Color</span>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-64">
+                                    <div className="grid grid-cols-5 gap-2">
+                                      {[
+                                        '#2196f3', '#9c27b0', '#f44336', '#4caf50', '#ff9800',
+                                        '#795548', '#607d8b', '#3f51b5', '#009688', '#ffc107',
+                                        '#673ab7', '#e91e63', '#8bc34a', '#00bcd4', '#ff5722'
+                                      ].map((color) => (
+                                        <button
+                                          key={color}
+                                          className="w-8 h-8 rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2"
+                                          style={{ backgroundColor: color }}
+                                          onClick={async () => {
+                                            try {
+                                              const columnRef = doc(db, 'pipeline-columns', column.id)
+                                              await setDoc(columnRef, { color }, { merge: true })
+                                              
+                                              // Update local state
+                                              setColumns(prevColumns => 
+                                                prevColumns.map(col => 
+                                                  col.id === column.id 
+                                                    ? { ...col, color } 
+                                                    : col
+                                                )
+                                              )
+                                              
+                                              // Update cache
+                                              queryClient.setQueryData(['pipeline-columns'], (old: Record<string, any> = {}) => ({
+                                                ...old,
+                                                [column.id]: {
+                                                  ...old[column.id],
+                                                  color
+                                                }
+                                              }))
+                                            } catch (error) {
+                                              console.error('Error updating column color:', error)
+                                              toast({
+                                                title: 'Error',
+                                                description: 'Failed to update column color',
+                                                variant: 'destructive'
+                                              })
+                                            }
+                                          }}
+                                        />
+                                      ))}
+                                    </div>
+                                  </PopoverContent>
+                                </Popover>
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={handleAddColumn}>
                                 Add Column
@@ -690,8 +770,17 @@ export function Pipeline() {
         )}
       </Droppable>
 
-      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
-        <DialogContent>
+      <Dialog 
+        open={isRenameDialogOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsRenameDialogOpen(false);
+            setColumnToRename(null);
+            setNewColumnTitle('');
+          }
+        }}
+      >
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Rename Column</DialogTitle>
             <DialogDescription>
@@ -705,15 +794,21 @@ export function Pipeline() {
               placeholder="Enter new column title"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  handleRenameColumn()
+                  e.preventDefault();
+                  handleRenameColumn();
                 }
               }}
+              autoFocus
             />
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsRenameDialogOpen(false)}
+              onClick={() => {
+                setIsRenameDialogOpen(false);
+                setColumnToRename(null);
+                setNewColumnTitle('');
+              }}
             >
               Cancel
             </Button>
@@ -728,7 +823,37 @@ export function Pipeline() {
 }
 
 const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
-  const config = COLUMN_CONFIGS[item.pipelineStatus]
+  const { data: columnConfigs = {} } = useQuery<ColumnConfigs>({
+    queryKey: ['pipeline-columns'],
+    queryFn: async () => {
+      const columnConfigsRef = collection(db, 'pipeline-columns')
+      const snapshot = await getDocs(columnConfigsRef)
+      const configs: ColumnConfigs = {}
+      
+      // Initialize with default configs
+      PIPELINE_STATUSES.forEach((status, index) => {
+        configs[status] = {
+          title: COLUMN_CONFIGS[status].title,
+          position: index,
+          color: COLUMN_CONFIGS[status].color
+        }
+      })
+      
+      // Override with custom configs from Firestore
+      snapshot.forEach((doc) => {
+        const data = doc.data() as ColumnConfig
+        if (doc.id in configs) {
+          configs[doc.id] = {
+            ...configs[doc.id],
+            ...data
+          }
+        }
+      })
+      
+      return configs
+    }
+  })
+  const config = columnConfigs[item.pipelineStatus] || COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
   const displayName = item.formData?.dba || item.companyName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
@@ -830,7 +955,37 @@ interface MerchantCardProps {
 }
 
 const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
-  const config = COLUMN_CONFIGS[item.pipelineStatus]
+  const { data: columnConfigs = {} } = useQuery<ColumnConfigs>({
+    queryKey: ['pipeline-columns'],
+    queryFn: async () => {
+      const columnConfigsRef = collection(db, 'pipeline-columns')
+      const snapshot = await getDocs(columnConfigsRef)
+      const configs: ColumnConfigs = {}
+      
+      // Initialize with default configs
+      PIPELINE_STATUSES.forEach((status, index) => {
+        configs[status] = {
+          title: COLUMN_CONFIGS[status].title,
+          position: index,
+          color: COLUMN_CONFIGS[status].color
+        }
+      })
+      
+      // Override with custom configs from Firestore
+      snapshot.forEach((doc) => {
+        const data = doc.data() as ColumnConfig
+        if (doc.id in configs) {
+          configs[doc.id] = {
+            ...configs[doc.id],
+            ...data
+          }
+        }
+      })
+      
+      return configs
+    }
+  })
+  const config = columnConfigs[item.pipelineStatus] || COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
   const displayName = item.formData?.dba || item.businessName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
@@ -838,7 +993,7 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
     ? `${beneficialOwner.firstName} ${beneficialOwner.lastName}`.trim()
     : ''
   const phoneNumber = beneficialOwner?.phone || item.phone
-  const agingInfo = getAgingInfo(item.updatedAt)
+  const agingInfo = getAgingInfo(item.updatedAt || new Date().toISOString())
 
   return (
     <div className="space-y-3">
