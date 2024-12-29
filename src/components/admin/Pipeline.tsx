@@ -24,6 +24,7 @@ import { cn } from '../../lib/utils'
 import { useToast } from '../../hooks/use-toast'
 import { AuthDebug } from './debug/AuthDebug'
 import { FormData } from "@/types/merchant";
+import { calculateProgress } from '../../services/pipelineTransforms'
 
 interface PipelineFormData {
   businessName?: string;
@@ -88,52 +89,16 @@ function hasPipelineFormData(item: any): item is { formData: PipelineFormData } 
 }
 
 function getProgressColor(progress: number): string {
-  if (progress <= 5) return 'bg-green-900'
-  if (progress <= 15) return 'bg-green-800'
-  if (progress <= 25) return 'bg-green-700'
-  if (progress <= 35) return 'bg-green-600'
-  if (progress <= 45) return 'bg-green-500'
-  if (progress <= 55) return 'bg-green-400'
-  if (progress <= 65) return 'bg-green-300'
-  if (progress <= 75) return 'bg-green-200'
-  if (progress <= 85) return 'bg-green-100'
-  if (progress <= 95) return 'bg-gray-200'
-  return 'bg-gray-100'
-}
-
-function calculateProgress(item: PipelineMerchant | PipelineLead): { value: number; color: string } {
-  let completedSections = 0
-  let totalWeight = 0
-
-  Object.values(sections).forEach(section => {
-    totalWeight += section.weight
-
-    if ('fields' in section && section.fields) {
-      const hasAllFields = section.fields.every(field => {
-        if (field === 'formData') {
-          return hasPipelineFormData(item)
-        }
-        if (field === 'email') {
-          return Boolean(item.email)
-        }
-        return false
-      })
-
-      if (hasAllFields) {
-        completedSections += section.weight
-      }
-    } else if ('customCheck' in section) {
-      if (hasPipelineFormData(item) && section.customCheck(item.formData)) {
-        completedSections += section.weight
-      }
-    }
-  })
-
-  const value = Math.round((completedSections / totalWeight) * 100)
-  return {
-    value,
-    color: getProgressColor(value)
-  }
+  if (progress <= 10) return 'bg-gray-100 [&>div]:bg-red-500'
+  if (progress <= 20) return 'bg-gray-100 [&>div]:bg-orange-600'
+  if (progress <= 30) return 'bg-gray-100 [&>div]:bg-orange-500'
+  if (progress <= 40) return 'bg-gray-100 [&>div]:bg-orange-400'
+  if (progress <= 50) return 'bg-gray-100 [&>div]:bg-yellow-500'
+  if (progress <= 60) return 'bg-gray-100 [&>div]:bg-lime-500'
+  if (progress <= 70) return 'bg-gray-100 [&>div]:bg-green-400'
+  if (progress <= 80) return 'bg-gray-100 [&>div]:bg-green-500'
+  if (progress <= 90) return 'bg-gray-100 [&>div]:bg-green-600'
+  return 'bg-gray-100 [&>div]:bg-green-700'
 }
 
 function getAgingInfo(updatedAt: string) {
@@ -444,6 +409,7 @@ export function Pipeline() {
 const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
   const config = COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
+  console.log('Lead Progress:', progress, item)
   const displayName = item.formData?.dba || item.companyName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
   const fullName = beneficialOwner
@@ -512,7 +478,13 @@ const LeadCard: React.FC<{ item: PipelineLead }> = ({ item }) => {
           <span className="text-sm text-gray-600">{phoneNumber}</span>
         </div>
       )}
-      <Progress value={progress.value} className={cn("h-2", progress.color)} />
+      <Progress 
+        value={progress} 
+        className={cn(
+          "h-2",
+          getProgressColor(progress)
+        )} 
+      />
       <div className="flex items-center justify-end">
         <span
           className={cn(
@@ -535,7 +507,7 @@ interface MerchantCardProps {
 const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
   const config = COLUMN_CONFIGS[item.pipelineStatus]
   const progress = calculateProgress(item)
-
+  console.log('Merchant Progress:', progress, item)
   const displayName = item.formData?.dba || item.businessName || item.email
   const beneficialOwner = item.formData?.beneficialOwners?.owners?.[0] || null
   const fullName = beneficialOwner
@@ -606,7 +578,13 @@ const MerchantCard: React.FC<MerchantCardProps> = ({ item }) => {
           <span className="text-sm text-gray-600">{phoneNumber}</span>
         </div>
       )}
-      <Progress value={progress.value} className={cn("h-2", progress.color)} />
+      <Progress 
+        value={progress} 
+        className={cn(
+          "h-2",
+          getProgressColor(progress)
+        )} 
+      />
 
       <div className="flex items-center justify-end">
         <span
