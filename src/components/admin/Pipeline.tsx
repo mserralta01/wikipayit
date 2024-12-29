@@ -230,13 +230,17 @@ export function Pipeline() {
         merchantService.getMerchants()
       ])
 
-      const initialColumns: Column[] = PIPELINE_STATUSES.map((status) => ({
-        id: status,
-        title: columnConfigs[status]?.title || COLUMN_CONFIGS[status].title,
-        color: columnConfigs[status]?.color || COLUMN_CONFIGS[status].color,
-        items: [],
-        position: columnConfigs[status]?.position || 0
-      }))
+      // First, create columns with titles from columnConfigs
+      const initialColumns: Column[] = PIPELINE_STATUSES.map((status) => {
+        const config = columnConfigs[status] || COLUMN_CONFIGS[status]
+        return {
+          id: status,
+          title: config.title,
+          color: config.color,
+          items: [],
+          position: config.position || 0
+        }
+      })
 
       // Convert leads to pipeline items, ensuring dates are strings
       const pipelineLeads = leads.map((lead: Lead): PipelineLead => ({
@@ -294,9 +298,19 @@ export function Pipeline() {
 
   useEffect(() => {
     if (columns.length > 0) {
-      setColumns(columns)
+      // Ensure we're using the correct titles from columnConfigs
+      const updatedColumns = columns.map(column => {
+        const config = columnConfigs[column.id] || COLUMN_CONFIGS[column.id]
+        return {
+          ...column,
+          title: config.title,
+          color: config.color,
+          position: config.position || 0
+        }
+      })
+      setColumns(updatedColumns)
     }
-  }, [columns])
+  }, [columns, columnConfigs])
 
   const handleDragEnd = async (result: DropResult) => {
     const { source, destination, type } = result
@@ -447,28 +461,31 @@ export function Pipeline() {
       // Create the column config update
       const columnConfig = {
         title: newColumnTitle,
-        position: columnToRename.position,
-        color:
-          COLUMN_CONFIGS[columnToRename.id as PipelineStatus]?.color ||
-          columnToRename.color,
+        position: columnToRename.position || 0,
+        color: columnToRename.color || COLUMN_CONFIGS[columnToRename.id as PipelineStatus]?.color || '#6B7280'
       };
 
-      // Update the column configuration with merge to prevent overwriting other fields
-      await setDoc(columnRef, columnConfig, { merge: true });
+      // First close the dialog to prevent focus issues
+      setIsRenameDialogOpen(false);
+      setColumnToRename(null);
+      setNewColumnTitle('');
+
+      // Update Firestore
+      await setDoc(columnRef, columnConfig);
 
       // Update local state
-      const updatedColumns = localColumns.map((col) =>
-        col.id === columnToRename.id ? { ...col, title: newColumnTitle } : col
+      setColumns(prevColumns =>
+        prevColumns.map(col =>
+          col.id === columnToRename.id
+            ? { ...col, ...columnConfig }
+            : col
+        )
       );
-      setColumns(updatedColumns);
 
       // Update the column configs cache
       queryClient.setQueryData(['pipeline-columns'], (old: Record<string, any> = {}) => ({
         ...old,
-        [columnToRename.id]: {
-          ...old[columnToRename.id],
-          ...columnConfig,
-        },
+        [columnToRename.id]: columnConfig
       }));
 
       toast({
@@ -476,15 +493,10 @@ export function Pipeline() {
         description: 'Column renamed successfully',
       });
 
-      // Close the dialog
-      setIsRenameDialogOpen(false);
-      setColumnToRename(null);
-      setNewColumnTitle('');
-
-      // Invalidate and refetch both queries
+      // Invalidate queries after all updates are done
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['pipeline-columns'] }),
-        queryClient.invalidateQueries({ queryKey: ['pipeline-items'] }),
+        queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
       ]);
     } catch (error) {
       console.error('Error renaming column:', error);
@@ -656,7 +668,24 @@ export function Pipeline() {
                                             try {
                                               const columnRef = doc(db, 'pipeline-columns', column.id)
                                               await setDoc(columnRef, { color }, { merge: true })
-                                              queryClient.invalidateQueries({ queryKey: ['pipeline-columns'] })
+                                              
+                                              // Update local state
+                                              setColumns(prevColumns => 
+                                                prevColumns.map(col => 
+                                                  col.id === column.id 
+                                                    ? { ...col, color } 
+                                                    : col
+                                                )
+                                              )
+                                              
+                                              // Update cache
+                                              queryClient.setQueryData(['pipeline-columns'], (old: Record<string, any> = {}) => ({
+                                                ...old,
+                                                [column.id]: {
+                                                  ...old[column.id],
+                                                  color
+                                                }
+                                              }))
                                             } catch (error) {
                                               console.error('Error updating column color:', error)
                                               toast({
@@ -741,8 +770,17 @@ export function Pipeline() {
         )}
       </Droppable>
 
-      <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
-        <DialogContent>
+      <Dialog 
+        open={isRenameDialogOpen} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsRenameDialogOpen(false);
+            setColumnToRename(null);
+            setNewColumnTitle('');
+          }
+        }}
+      >
+        <DialogContent onInteractOutside={(e) => e.preventDefault()}>
           <DialogHeader>
             <DialogTitle>Rename Column</DialogTitle>
             <DialogDescription>
@@ -756,15 +794,21 @@ export function Pipeline() {
               placeholder="Enter new column title"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  handleRenameColumn()
+                  e.preventDefault();
+                  handleRenameColumn();
                 }
               }}
+              autoFocus
             />
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsRenameDialogOpen(false)}
+              onClick={() => {
+                setIsRenameDialogOpen(false);
+                setColumnToRename(null);
+                setNewColumnTitle('');
+              }}
             >
               Cancel
             </Button>
