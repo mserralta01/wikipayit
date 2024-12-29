@@ -19,7 +19,8 @@ import {
   DollarSign,
   TrendingUp,
   Mail,
-  Plus
+  Building,
+  Plus,
 } from 'lucide-react'
 import { auth } from '../../lib/firebase'
 import { signOut } from 'firebase/auth'
@@ -110,6 +111,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           href: '/admin/pipeline',
         }
       ]
+    },
+    {
+      title: 'Banking Partners',
+      icon: <Building className="w-5 h-5" />,
+      href: '/admin/banking-partners',
     },
     {
       title: 'Reports',
@@ -229,6 +235,10 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         return 'Merchant Management'
       case pathname.includes('/admin/applications'):
         return 'Application Pipeline'
+      case pathname.includes('/admin/banking-partners/new'):
+        return 'Add Banking Partner'
+      case pathname.includes('/admin/banking-partners'):
+        return 'Banking Partners'
       case pathname.includes('/admin/reports/volume'):
         return 'Processing Volume'
       case pathname.includes('/admin/reports/sales'):
