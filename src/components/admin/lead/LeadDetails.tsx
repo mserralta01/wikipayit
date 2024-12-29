@@ -856,6 +856,7 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                     onOwnerChange={handleBeneficialOwnerChange}
                     editMode={editMode}
                     onFieldClick={toggleEdit}
+                    hideHeader={true}
                     onBlur={(field) => {
                       const [_, indexStr, fieldName] = field.split('.');
                       const index = parseInt(indexStr, 10);
