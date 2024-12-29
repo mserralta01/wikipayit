@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 
@@ -177,19 +177,40 @@ export function Pipeline() {
   const [columnToRename, setColumnToRename] = useState<Column | null>(null)
   const [newColumnTitle, setNewColumnTitle] = useState('')
 
+  const handleItemClick = (item: PipelineItem) => {
+    navigate(`/admin/pipeline/${item.id}`)
+  }
+
   const { data: columnConfigs = {} } = useQuery({
     queryKey: ['pipeline-columns'],
     queryFn: async () => {
       const columnConfigsRef = collection(db, 'pipeline-columns')
       const snapshot = await getDocs(columnConfigsRef)
-      const configs: Record<string, { title: string }> = {}
+      const configs: Record<string, { title: string; position: number; color: string }> = {}
       
+      // Initialize with default configs
+      PIPELINE_STATUSES.forEach((status, index) => {
+        configs[status] = {
+          title: COLUMN_CONFIGS[status].title,
+          position: index,
+          color: COLUMN_CONFIGS[status].color
+        }
+      })
+      
+      // Override with custom configs from Firestore
       snapshot.forEach((doc) => {
-        configs[doc.id] = doc.data() as { title: string }
+        const data = doc.data()
+        if (doc.id in configs) {
+          configs[doc.id] = {
+            ...configs[doc.id],
+            ...data
+          }
+        }
       })
       
       return configs
-    }
+    },
+    staleTime: 1000 * 60 * 5 // Cache for 5 minutes
   })
 
   const { data: columns = [], isLoading } = useQuery<Column[]>({
@@ -200,12 +221,12 @@ export function Pipeline() {
         merchantService.getMerchants()
       ])
 
-      const initialColumns: Column[] = PIPELINE_STATUSES.map((status, index) => ({
-        ...COLUMN_CONFIGS[status],
+      const initialColumns: Column[] = PIPELINE_STATUSES.map((status) => ({
         id: status,
         title: columnConfigs[status]?.title || COLUMN_CONFIGS[status].title,
+        color: columnConfigs[status]?.color || COLUMN_CONFIGS[status].color,
         items: [],
-        position: index
+        position: columnConfigs[status]?.position || 0
       }))
 
       // Convert leads to pipeline items, ensuring dates are strings
@@ -263,7 +284,9 @@ export function Pipeline() {
   })
 
   useEffect(() => {
-    setColumns(columns)
+    if (columns.length > 0) {
+      setColumns(columns)
+    }
   }, [columns])
 
   const handleDragEnd = async (result: DropResult) => {
@@ -407,43 +430,65 @@ export function Pipeline() {
   }
 
   const handleRenameColumn = async () => {
-    if (!columnToRename || !newColumnTitle.trim()) return
+    if (!columnToRename || !newColumnTitle.trim()) return;
 
     try {
-      const columnRef = doc(db, 'pipeline-columns', columnToRename.id)
-      
-      // Create or update the column config
-      await setDoc(columnRef, { 
+      const columnRef = doc(db, 'pipeline-columns', columnToRename.id);
+
+      // Create the column config update
+      const columnConfig = {
         title: newColumnTitle,
-        position: columnToRename.position 
-      }, { merge: true })
-      
-      const updatedColumns = localColumns.map(col => 
+        position: columnToRename.position,
+        color:
+          COLUMN_CONFIGS[columnToRename.id as PipelineStatus]?.color ||
+          columnToRename.color,
+      };
+
+      // Update the column configuration with merge to prevent overwriting other fields
+      await setDoc(columnRef, columnConfig, { merge: true });
+
+      // Update local state
+      const updatedColumns = localColumns.map((col) =>
         col.id === columnToRename.id ? { ...col, title: newColumnTitle } : col
-      )
-      setColumns(updatedColumns)
-      
-      // Invalidate both queries to refresh the data
-      await queryClient.invalidateQueries({ queryKey: ['pipeline-columns'] })
-      await queryClient.invalidateQueries({ queryKey: ['pipeline-items'] })
-      
+      );
+      setColumns(updatedColumns);
+
+      // Update the column configs cache
+      queryClient.setQueryData(['pipeline-columns'], (old: Record<string, any> = {}) => ({
+        ...old,
+        [columnToRename.id]: {
+          ...old[columnToRename.id],
+          ...columnConfig,
+        },
+      }));
+
       toast({
         title: 'Success',
-        description: 'Column renamed successfully'
-      })
+        description: 'Column renamed successfully',
+      });
+
+      // Close the dialog
+      setIsRenameDialogOpen(false);
+      setColumnToRename(null);
+      setNewColumnTitle('');
+
+      // Invalidate and refetch both queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['pipeline-columns'] }),
+        queryClient.invalidateQueries({ queryKey: ['pipeline-items'] }),
+      ]);
     } catch (error) {
-      console.error('Error renaming column:', error)
+      console.error('Error renaming column:', error);
       toast({
         title: 'Error',
         description: 'Failed to rename column',
-        variant: 'destructive'
-      })
+        variant: 'destructive',
+      });
+      setIsRenameDialogOpen(false);
+      setColumnToRename(null);
+      setNewColumnTitle('');
     }
-
-    setIsRenameDialogOpen(false)
-    setColumnToRename(null)
-    setNewColumnTitle('')
-  }
+  };
 
   const handleAddColumn = async () => {
     const newColumnId = `custom-${Date.now()}`
@@ -451,20 +496,38 @@ export function Pipeline() {
       id: newColumnId as PipelineStatus,
       title: 'New Column',
       items: [],
-      color: 'bg-gray-200',
+      color: '#6B7280', // Using a default gray color
       position: localColumns.length
     }
 
     try {
+      // Update local state first
+      const updatedColumns = [...localColumns, newColumn]
+      setColumns(updatedColumns)
+
+      // Update Firestore
       const columnRef = doc(db, 'pipeline-columns', newColumnId)
-      await writeBatch(db).set(columnRef, newColumn).commit()
+      await setDoc(columnRef, {
+        title: newColumn.title,
+        position: newColumn.position,
+        color: newColumn.color
+      })
       
-      setColumns([...localColumns, newColumn])
+      // Update caches
+      queryClient.setQueryData(['pipeline-columns'], (old: Record<string, { title: string }> = {}) => ({
+        ...old,
+        [newColumnId]: { title: newColumn.title }
+      }))
+
+      queryClient.setQueryData(['pipeline-items'], (oldColumns: Column[] = []) => [...oldColumns, newColumn])
       
       toast({
         title: 'Success',
         description: 'New column added'
       })
+
+      // Force a page refresh
+      window.location.reload()
     } catch (error) {
       console.error('Error adding column:', error)
       toast({
@@ -496,6 +559,9 @@ export function Pipeline() {
         title: 'Success',
         description: 'Column deleted successfully'
       })
+
+      // Force a page refresh
+      window.location.reload()
     } catch (error) {
       console.error('Error deleting column:', error)
       toast({
@@ -583,12 +649,21 @@ export function Pipeline() {
                                 draggableId={item.id}
                                 index={index}
                               >
-                                {(provided) => (
+                                {(provided, snapshot) => (
                                   <div
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     {...provided.dragHandleProps}
-                                    className="mb-3 last:mb-0"
+                                    onClick={(e) => {
+                                      // Prevent click during drag
+                                      if (!snapshot.isDragging) {
+                                        handleItemClick(item)
+                                      }
+                                    }}
+                                    className={cn(
+                                      "mb-3 last:mb-0 cursor-pointer",
+                                      snapshot.isDragging && "opacity-50"
+                                    )}
                                   >
                                     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow duration-200">
                                       {isPipelineLead(item) ? (
@@ -619,12 +694,20 @@ export function Pipeline() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename Column</DialogTitle>
+            <DialogDescription>
+              Enter a new name for the column.
+            </DialogDescription>
           </DialogHeader>
           <div className="py-4">
             <Input
               value={newColumnTitle}
               onChange={(e) => setNewColumnTitle(e.target.value)}
               placeholder="Enter new column title"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleRenameColumn()
+                }
+              }}
             />
           </div>
           <DialogFooter>
