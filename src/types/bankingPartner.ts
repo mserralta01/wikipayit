@@ -5,43 +5,64 @@ export interface BankingPartner {
   name: string;
   status: 'active' | 'inactive' | 'pending';
   color?: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  description?: string;
+  website?: string;
+  contacts: BankContact[];
+  agreements: BankAgreement[];
+  createdAt: any;
+  updatedAt: any;
 }
 
 export interface BankContact {
   id: string;
   bankingPartnerId: string;
   name: string;
-  role: string;
   email: string;
   phone?: string;
+  role: string;
   department: string;
   isMainContact: boolean;
+  isMain: boolean;
+  createdAt: any;
+  updatedAt: any;
 }
 
-interface RiskTerms {
+export interface ProcessingFees {
+  visaMasterDiscover: number;
+  amex: number;
+}
+
+export interface TransactionFees {
+  visaMasterDiscover: number;
+  amex: number;
+}
+
+export interface RiskTerms {
   revenueSharePercentage: number;
+  processingFees: ProcessingFees;
+  transactionFees: TransactionFees;
+  monthlyFee: number;
   monthlyMinimumFee: number;
-  transactionFees: {
-    creditCard: number;
-    debit: number;
-    ach: number;
-  };
+  chargebackFee: number;
+  retrievalFee: number;
+  avsFee: number;
+  binFee: number;
+  sponsorFee: number;
+  pciFee: number;
 }
 
 export interface BankAgreement {
   id: string;
   bankingPartnerId: string;
-  startDate: Timestamp;
-  endDate: Timestamp | null;
+  startDate: any;
+  endDate: any | null;
   status: 'draft' | 'active' | 'expired' | 'terminated';
   lowRisk: RiskTerms;
   highRisk: RiskTerms;
   supportedHighRiskIndustries: string[];
   documentUrls?: string[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: any;
+  updatedAt: any;
 }
 
 export interface BankingPartnerNote {

@@ -58,7 +58,11 @@ export function BankingPartnerForm({ initialData, onSuccess }: BankingPartnerFor
           description: 'Banking partner updated successfully',
         });
       } else {
-        const id = await bankingPartnerService.createBankingPartner(values);
+        const id = await bankingPartnerService.createBankingPartner({
+          ...values,
+          contacts: [],
+          agreements: [],
+        });
         toast({
           title: 'Success',
           description: 'Banking partner created successfully',
@@ -70,8 +74,10 @@ export function BankingPartnerForm({ initialData, onSuccess }: BankingPartnerFor
         onSuccess({
           id: initialData?.id || '',
           ...values,
-          createdAt: initialData?.createdAt || Timestamp.fromDate(new Date()),
-          updatedAt: Timestamp.fromDate(new Date()),
+          contacts: [],
+          agreements: [],
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
       }
     } catch (error) {

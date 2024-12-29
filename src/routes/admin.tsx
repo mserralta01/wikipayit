@@ -4,6 +4,7 @@ import { BankingPartnerDetail } from '@/components/admin/banking-partners/Bankin
 import { BankingPartnerForm } from '@/components/admin/banking-partners/BankingPartnerForm';
 import { BankContactForm } from '@/components/admin/banking-partners/BankContactForm';
 import { BankAgreementForm } from '@/components/admin/banking-partners/BankAgreementForm';
+import { EditAgreement } from '@/components/admin/banking-partners/EditAgreement';
 import { useParams } from 'react-router-dom';
 
 const BankContactFormWrapper = () => {
@@ -40,6 +41,10 @@ export const adminRoutes: RouteObject[] = [
       {
         path: ':id/agreements/new',
         element: <BankAgreementFormWrapper />,
+      },
+      {
+        path: ':id/agreements/:agreementId/edit',
+        element: <EditAgreement />,
       },
     ],
   },

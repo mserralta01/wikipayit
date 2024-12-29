@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,16 +13,26 @@ import {
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { bankingPartnerService } from '@/services/bankingPartnerService';
 import { BankingPartner } from '@/types/bankingPartner';
 import { formatDate } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { toast } from '@/hooks/use-toast';
 
 const getStatusColor = (status: string): "default" | "secondary" | "destructive" | "success" => {
   switch (status) {
@@ -41,6 +51,7 @@ export function BankingPartnersList() {
   const [partners, setPartners] = useState<BankingPartner[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [deletePartnerId, setDeletePartnerId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,9 +64,44 @@ export function BankingPartnersList() {
       setPartners(data);
     } catch (error) {
       console.error('Error loading banking partners:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load banking partners',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeletePartner = async (id: string) => {
+    try {
+      await bankingPartnerService.deleteBankingPartner(id);
+      setPartners(partners.filter(partner => partner.id !== id));
+      toast({
+        title: 'Success',
+        description: 'Banking partner deleted successfully',
+      });
+      setDeletePartnerId(null);
+    } catch (error) {
+      console.error('Error deleting banking partner:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete banking partner',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRowClick = (partnerId: string, e: React.MouseEvent) => {
+    // Prevent navigation when clicking the delete button
+    if ((e.target as HTMLElement).closest('.delete-button')) {
+      e.preventDefault();
+      e.stopPropagation();
+      setDeletePartnerId(partnerId);
+      return;
+    }
+    navigate(`/admin/banking-partners/${partnerId}`);
   };
 
   const filteredPartners = partners.filter(partner =>
@@ -114,10 +160,11 @@ export function BankingPartnersList() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[40%]">Partner Name</TableHead>
+                    <TableHead className="w-[35%]">Partner Name</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Last Updated</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -125,7 +172,7 @@ export function BankingPartnersList() {
                     <TableRow
                       key={partner.id}
                       className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/admin/banking-partners/${partner.id}`)}
+                      onClick={(e) => handleRowClick(partner.id, e)}
                     >
                       <TableCell className="font-medium">{partner.name}</TableCell>
                       <TableCell>
@@ -139,11 +186,20 @@ export function BankingPartnersList() {
                       <TableCell className="text-muted-foreground">
                         {formatDate(partner.updatedAt.toDate())}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="delete-button"
+                        >
+                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                   {filteredPartners.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-24 text-center">
+                      <TableCell colSpan={5} className="h-24 text-center">
                         {searchQuery ? (
                           <div className="text-muted-foreground">
                             No partners found matching "{searchQuery}"
@@ -162,6 +218,27 @@ export function BankingPartnersList() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deletePartnerId} onOpenChange={() => setDeletePartnerId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the banking partner
+              and all associated data including contacts and agreements.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletePartnerId && handleDeletePartner(deletePartnerId)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 } 

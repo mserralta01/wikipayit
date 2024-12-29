@@ -1,12 +1,11 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { serverTimestamp, Timestamp } from 'firebase/firestore';
+import { serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -20,13 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { bankingPartnerService } from '@/services/bankingPartnerService';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
-import type { BankAgreement } from '@/types/bankingPartner';
+import { BankAgreement, ProcessingFees, RiskTerms, TransactionFees } from '@/types/bankingPartner';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const HIGH_RISK_INDUSTRIES = [
   { id: 'adult', label: 'Adult Content' },
@@ -43,158 +43,260 @@ const HIGH_RISK_INDUSTRIES = [
   { id: 'mlm', label: 'MLM/Direct Marketing' },
 ] as const;
 
+const processingFeesSchema = z.object({
+  visaMasterDiscover: z.number().min(0).max(15),
+  amex: z.number().min(0).max(15),
+});
+
+const transactionFeesSchema = z.object({
+  visaMasterDiscover: z.number().min(0).max(1),
+  amex: z.number().min(0).max(1),
+});
+
+const riskTermsSchema = z.object({
+  revenueSharePercentage: z.number().min(0).max(100),
+  processingFees: processingFeesSchema,
+  transactionFees: transactionFeesSchema,
+  monthlyFee: z.number().min(0),
+  chargebackFee: z.number().min(0),
+  retrievalFee: z.number().min(0),
+  avsFee: z.number().min(0),
+  binFee: z.number().min(0),
+  sponsorFee: z.number().min(0),
+  pciFee: z.number().min(0),
+});
+
 const formSchema = z.object({
   startDate: z.string(),
   endDate: z.string().optional(),
   status: z.enum(['draft', 'active', 'expired', 'terminated']),
-  lowRisk: z.object({
-    revenueSharePercentage: z.number().min(0).max(100),
-    monthlyMinimumFee: z.number().min(0),
-    transactionFees: z.object({
-      creditCard: z.number().min(0),
-      debit: z.number().min(0),
-      ach: z.number().min(0),
-    }),
-  }),
-  highRisk: z.object({
-    revenueSharePercentage: z.number().min(0).max(100),
-    monthlyMinimumFee: z.number().min(0),
-    transactionFees: z.object({
-      creditCard: z.number().min(0),
-      debit: z.number().min(0),
-      ach: z.number().min(0),
-    }),
-  }),
-  supportedHighRiskIndustries: z.array(z.string()),
-  documentUrls: z.array(z.string()).optional(),
+  lowRisk: riskTermsSchema,
+  highRisk: riskTermsSchema,
+  supportedHighRiskIndustries: z.array(z.string()).default([]),
+  documentUrls: z.array(z.string()).default([]),
 });
+
+type FormValues = z.infer<typeof formSchema>;
 
 interface BankAgreementFormProps {
   bankingPartnerId: string;
-  initialData?: any;
-  onSuccess?: (agreement: any) => void;
+  initialData?: Partial<BankAgreement>;
+  onSuccess?: (agreement: BankAgreement) => void;
 }
 
 export function BankAgreementForm({ bankingPartnerId, initialData, onSuccess }: BankAgreementFormProps) {
   const navigate = useNavigate();
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      startDate: initialData?.startDate || new Date().toISOString().split('T')[0],
-      endDate: initialData?.endDate || '',
+      startDate: initialData?.startDate?.toDate?.()?.toISOString?.()?.split('T')[0] || new Date().toISOString().split('T')[0],
+      endDate: initialData?.endDate?.toDate?.()?.toISOString?.()?.split('T')[0] || '',
       status: initialData?.status || 'draft',
       lowRisk: {
         revenueSharePercentage: initialData?.lowRisk?.revenueSharePercentage || 0,
-        monthlyMinimumFee: initialData?.lowRisk?.monthlyMinimumFee || 0,
-        transactionFees: {
-          creditCard: initialData?.lowRisk?.transactionFees?.creditCard || 0,
-          debit: initialData?.lowRisk?.transactionFees?.debit || 0,
-          ach: initialData?.lowRisk?.transactionFees?.ach || 0,
+        processingFees: {
+          visaMasterDiscover: initialData?.lowRisk?.processingFees?.visaMasterDiscover || 0,
+          amex: initialData?.lowRisk?.processingFees?.amex || 0,
         },
+        transactionFees: {
+          visaMasterDiscover: initialData?.lowRisk?.transactionFees?.visaMasterDiscover || 0,
+          amex: initialData?.lowRisk?.transactionFees?.amex || 0,
+        },
+        monthlyFee: initialData?.lowRisk?.monthlyFee || 0,
+        chargebackFee: initialData?.lowRisk?.chargebackFee || 0,
+        retrievalFee: initialData?.lowRisk?.retrievalFee || 0,
+        avsFee: initialData?.lowRisk?.avsFee || 0,
+        binFee: initialData?.lowRisk?.binFee || 0,
+        sponsorFee: initialData?.lowRisk?.sponsorFee || 0,
+        pciFee: initialData?.lowRisk?.pciFee || 0,
       },
       highRisk: {
         revenueSharePercentage: initialData?.highRisk?.revenueSharePercentage || 0,
-        monthlyMinimumFee: initialData?.highRisk?.monthlyMinimumFee || 0,
-        transactionFees: {
-          creditCard: initialData?.highRisk?.transactionFees?.creditCard || 0,
-          debit: initialData?.highRisk?.transactionFees?.debit || 0,
-          ach: initialData?.highRisk?.transactionFees?.ach || 0,
+        processingFees: {
+          visaMasterDiscover: initialData?.highRisk?.processingFees?.visaMasterDiscover || 0,
+          amex: initialData?.highRisk?.processingFees?.amex || 0,
         },
+        transactionFees: {
+          visaMasterDiscover: initialData?.highRisk?.transactionFees?.visaMasterDiscover || 0,
+          amex: initialData?.highRisk?.transactionFees?.amex || 0,
+        },
+        monthlyFee: initialData?.highRisk?.monthlyFee || 0,
+        chargebackFee: initialData?.highRisk?.chargebackFee || 0,
+        retrievalFee: initialData?.highRisk?.retrievalFee || 0,
+        avsFee: initialData?.highRisk?.avsFee || 0,
+        binFee: initialData?.highRisk?.binFee || 0,
+        sponsorFee: initialData?.highRisk?.sponsorFee || 0,
+        pciFee: initialData?.highRisk?.pciFee || 0,
       },
       supportedHighRiskIndustries: initialData?.supportedHighRiskIndustries || [],
       documentUrls: initialData?.documentUrls || [],
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  async function onSubmit(data: FormValues) {
     try {
-      const agreementData = {
-        ...values,
+      const agreement: Omit<BankAgreement, 'id'> = {
         bankingPartnerId,
-        startDate: Timestamp.fromDate(new Date(values.startDate)),
-        endDate: values.endDate ? Timestamp.fromDate(new Date(values.endDate)) : null,
-        updatedAt: Timestamp.now(),
-        createdAt: initialData ? initialData.createdAt : Timestamp.now(),
-      } as BankAgreement;
+        startDate: serverTimestamp(),
+        endDate: data.endDate ? serverTimestamp() : null,
+        status: data.status,
+        lowRisk: {
+          ...data.lowRisk,
+          monthlyMinimumFee: data.lowRisk.monthlyFee || 0,
+        },
+        highRisk: {
+          ...data.highRisk,
+          monthlyMinimumFee: data.highRisk.monthlyFee || 0,
+        },
+        supportedHighRiskIndustries: data.supportedHighRiskIndustries,
+        documentUrls: data.documentUrls,
+        updatedAt: serverTimestamp(),
+        createdAt: initialData?.createdAt || serverTimestamp(),
+      };
 
-      if (initialData) {
-        const { id, ...updateData } = agreementData;
-        await bankingPartnerService.updateAgreement(initialData.id, updateData);
+      if (initialData?.id) {
+        await bankingPartnerService.updateAgreement(initialData.id, agreement);
         toast({
-          title: 'Success',
-          description: 'Agreement updated successfully',
+          title: 'Agreement updated',
+          description: 'The agreement has been updated successfully.',
         });
       } else {
-        const { id, ...newData } = agreementData;
-        await bankingPartnerService.addAgreement(newData);
+        await bankingPartnerService.addAgreement(agreement);
         toast({
-          title: 'Success',
-          description: 'Agreement added successfully',
+          title: 'Agreement created',
+          description: 'The agreement has been created successfully.',
         });
       }
 
       if (onSuccess) {
-        onSuccess(agreementData);
+        onSuccess({ id: initialData?.id || '', ...agreement } as BankAgreement);
+      } else {
+        navigate(`/admin/banking-partners/${bankingPartnerId}`);
       }
-
-      navigate(`/admin/banking-partners/${bankingPartnerId}`);
     } catch (error) {
       console.error('Error saving agreement:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save agreement',
+        description: 'There was an error saving the agreement. Please try again.',
         variant: 'destructive',
       });
     }
-  };
+  }
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !initialData) return;
-
-    try {
-      const downloadUrl = await bankingPartnerService.uploadAgreementDocument(
-        bankingPartnerId,
-        initialData.id,
-        file
-      );
-
-      const updatedUrls = [...(initialData.documentUrls || []), downloadUrl];
-      await bankingPartnerService.updateAgreement(initialData.id, {
-        documentUrls: updatedUrls,
-      });
-
-      toast({
-        title: 'Success',
-        description: 'Document uploaded successfully',
-      });
-    } catch (error) {
-      console.error('Error uploading document:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to upload document',
-        variant: 'destructive',
-      });
+  const renderFeeField = (
+    name: keyof FormValues | `${keyof FormValues}.${string}`,
+    label: string,
+    options?: {
+      step?: string;
+      min?: number;
+      max?: number;
     }
-  };
+  ) => (
+    <FormField
+      control={form.control}
+      name={name as any}
+      render={({ field: { onChange, value, ...field } }) => (
+        <FormItem className="grid grid-cols-2 items-center gap-2">
+          <FormLabel className="text-sm">{label}</FormLabel>
+          <FormControl>
+            <Input
+              type="number"
+              step={options?.step || "0.01"}
+              min={options?.min || 0}
+              max={options?.max}
+              value={typeof value === 'number' ? value : 0}
+              onChange={(e) => onChange(parseFloat(e.target.value))}
+              className="h-8"
+              {...field}
+            />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+
+  const renderRiskSection = (type: 'lowRisk' | 'highRisk', title: string) => (
+    <Card className="w-full">
+      <CardHeader className="py-4">
+        <CardTitle className="text-lg font-semibold">{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+          {/* Left Column */}
+          <div className="space-y-4">
+            {renderFeeField(
+              `${type}.revenueSharePercentage`,
+              'Revenue Share %',
+              { max: 100 }
+            )}
+
+            <Separator className="my-2" />
+            <h4 className="text-sm font-medium mb-2">Processing Fees (%)</h4>
+            <div className="space-y-2">
+              {renderFeeField(
+                `${type}.processingFees.visaMasterDiscover`,
+                'V/M/D Processing Fee',
+                { step: '0.001', max: 15 }
+              )}
+              {renderFeeField(
+                `${type}.processingFees.amex`,
+                'AMEX Processing Fee',
+                { step: '0.001', max: 15 }
+              )}
+            </div>
+
+            <Separator className="my-2" />
+            <h4 className="text-sm font-medium mb-2">Transaction Fees ($)</h4>
+            <div className="space-y-2">
+              {renderFeeField(
+                `${type}.transactionFees.visaMasterDiscover`,
+                'V/M/D Transaction Fee',
+                { max: 1 }
+              )}
+              {renderFeeField(
+                `${type}.transactionFees.amex`,
+                'AMEX Transaction Fee',
+                { max: 1 }
+              )}
+            </div>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium mb-2">Additional Fees</h4>
+            <div className="space-y-2">
+              {renderFeeField(`${type}.monthlyFee`, 'Monthly Fee')}
+              {renderFeeField(`${type}.chargebackFee`, 'Chargeback Fee')}
+              {renderFeeField(`${type}.retrievalFee`, 'Retrieval Fee')}
+              {renderFeeField(`${type}.avsFee`, 'AVS Fee')}
+              {renderFeeField(`${type}.binFee`, 'BIN Fee')}
+              {renderFeeField(`${type}.sponsorFee`, 'Sponsor Fee')}
+              {renderFeeField(`${type}.pciFee`, 'PCI Fee')}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card>
-          <CardHeader>
-            <CardTitle>Agreement Details</CardTitle>
+          <CardHeader className="py-4">
+            <CardTitle className="text-lg font-semibold">Agreement Details</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-6">
+          <CardContent>
             <div className="grid grid-cols-3 gap-4">
               <FormField
                 control={form.control}
                 name="startDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Date</FormLabel>
+                    <FormLabel className="text-sm">Start Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="date" {...field} className="h-8" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -206,9 +308,9 @@ export function BankAgreementForm({ bankingPartnerId, initialData, onSuccess }: 
                 name="endDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>End Date (Optional)</FormLabel>
+                    <FormLabel className="text-sm">End Date</FormLabel>
                     <FormControl>
-                      <Input type="date" {...field} />
+                      <Input type="date" {...field} className="h-8" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -220,10 +322,10 @@ export function BankAgreementForm({ bankingPartnerId, initialData, onSuccess }: 
                 name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Status</FormLabel>
+                    <FormLabel className="text-sm">Status</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="h-8">
                           <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                       </FormControl>
@@ -243,321 +345,60 @@ export function BankAgreementForm({ bankingPartnerId, initialData, onSuccess }: 
         </Card>
 
         <div className="grid grid-cols-2 gap-6">
-          {/* Low Risk Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Low Risk Terms</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="lowRisk.revenueSharePercentage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Revenue Share %</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="lowRisk.monthlyMinimumFee"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Monthly Minimum</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Separator className="my-4" />
-              <h4 className="text-sm font-medium">Transaction Fees (%)</h4>
-              <div className="grid grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="lowRisk.transactionFees.creditCard"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Credit Card</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="lowRisk.transactionFees.debit"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Debit</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="lowRisk.transactionFees.ach"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ACH</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* High Risk Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>High Risk Terms</CardTitle>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="highRisk.revenueSharePercentage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Revenue Share %</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="highRisk.monthlyMinimumFee"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Monthly Minimum</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Separator className="my-4" />
-              <h4 className="text-sm font-medium">Transaction Fees (%)</h4>
-              <div className="grid grid-cols-3 gap-4">
-                <FormField
-                  control={form.control}
-                  name="highRisk.transactionFees.creditCard"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Credit Card</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="highRisk.transactionFees.debit"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Debit</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="highRisk.transactionFees.ach"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>ACH</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          step="0.001"
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <Separator className="my-4" />
-              <FormField
-                control={form.control}
-                name="supportedHighRiskIndustries"
-                render={() => (
-                  <FormItem>
-                    <div className="mb-4">
-                      <FormLabel>Supported High-Risk Industries</FormLabel>
-                      <FormDescription>
-                        Select the high-risk industries this partner can process
-                      </FormDescription>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      {HIGH_RISK_INDUSTRIES.map((industry) => (
-                        <FormField
-                          key={industry.id}
-                          control={form.control}
-                          name="supportedHighRiskIndustries"
-                          render={({ field }) => {
-                            return (
-                              <FormItem
-                                key={industry.id}
-                                className="flex flex-row items-start space-x-3 space-y-0"
-                              >
-                                <FormControl>
-                                  <Checkbox
-                                    checked={field.value?.includes(industry.id)}
-                                    onCheckedChange={(checked: boolean) => {
-                                      return checked
-                                        ? field.onChange([...field.value, industry.id])
-                                        : field.onChange(
-                                            field.value?.filter(
-                                              (value) => value !== industry.id
-                                            )
-                                          )
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormLabel className="font-normal">
-                                  {industry.label}
-                                </FormLabel>
-                              </FormItem>
-                            )
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+          {renderRiskSection('lowRisk', 'Low Risk Terms')}
+          {renderRiskSection('highRisk', 'High Risk Terms')}
         </div>
 
-        {initialData && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Documents</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Input
-                type="file"
-                onChange={handleFileUpload}
-                accept=".pdf,.doc,.docx"
-              />
-              {initialData.documentUrls && initialData.documentUrls.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium mb-2">Uploaded Documents</h4>
-                  <ul className="list-disc pl-5">
-                    {initialData.documentUrls.map((url: string, index: number) => (
-                      <li key={index}>
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          Document {index + 1}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
+        <Card>
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="industries">
+              <AccordionTrigger className="px-6 py-4 hover:no-underline">
+                <CardTitle className="text-lg font-semibold">Supported High-Risk Industries</CardTitle>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-4">
+                <div className="grid grid-cols-3 gap-4">
+                  {HIGH_RISK_INDUSTRIES.map((industry) => (
+                    <FormField
+                      key={industry.id}
+                      control={form.control}
+                      name="supportedHighRiskIndustries"
+                      render={({ field }) => {
+                        return (
+                          <FormItem
+                            key={industry.id}
+                            className="flex flex-row items-start space-x-3 space-y-0"
+                          >
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value?.includes(industry.id)}
+                                onCheckedChange={(checked) => {
+                                  return checked
+                                    ? field.onChange([...field.value, industry.id])
+                                    : field.onChange(
+                                        field.value?.filter(
+                                          (value) => value !== industry.id
+                                        )
+                                      );
+                                }}
+                              />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal">
+                              {industry.label}
+                            </FormLabel>
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </Card>
 
-        <div className="flex justify-end space-x-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => navigate(`/admin/banking-partners/${bankingPartnerId}`)}
-          >
-            Cancel
-          </Button>
-          <Button type="submit">
-            {initialData ? 'Update Agreement' : 'Add Agreement'}
+        <div className="flex justify-end">
+          <Button type="submit" className="w-[200px]">
+            {initialData?.id ? 'Update Agreement' : 'Create Agreement'}
           </Button>
         </div>
       </form>
