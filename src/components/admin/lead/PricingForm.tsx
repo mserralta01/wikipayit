@@ -1,4 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { interchangeService } from '@/services/interchangeService';
+import type { InterchangeRates } from '@/types/interchange';
 import {
   Select,
   SelectContent,
@@ -10,6 +13,11 @@ import { Label } from '../../ui/label';
 import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
 
+interface ProcessingFees {
+  amex: number;
+  visaMasterDiscover: number;
+}
+
 interface BankCosts {
   highRisk: {
     avsFee: number;
@@ -18,17 +26,11 @@ interface BankCosts {
     monthlyFee: number;
     monthlyMinimumFee: number;
     pciFee: number;
-    processingFees: {
-      amex: number;
-      visaMasterDiscover: number;
-    };
+    processingFees: ProcessingFees;
     retrievalFee: number;
     revenueSharePercentage: number;
     sponsorFee: number;
-    transactionFees: {
-      amex: number;
-      visaMasterDiscover: number;
-    };
+    transactionFees: ProcessingFees;
   };
   lowRisk: {
     avsFee: number;
@@ -37,17 +39,11 @@ interface BankCosts {
     monthlyFee: number;
     monthlyMinimumFee: number;
     pciFee: number;
-    processingFees: {
-      amex: number;
-      visaMasterDiscover: number;
-    };
+    processingFees: ProcessingFees;
     retrievalFee: number;
     revenueSharePercentage: number;
     sponsorFee: number;
-    transactionFees: {
-      amex: number;
-      visaMasterDiscover: number;
-    };
+    transactionFees: ProcessingFees;
   };
 }
 
@@ -55,7 +51,17 @@ interface MerchantPricing {
   pricingType: 'interchangePlus' | 'surcharge' | 'tiered' | 'flatRate';
   riskType: 'highRisk' | 'lowRisk';
   pricing: {
-    [key: string]: number;
+    avsFee?: number;
+    binFee?: number;
+    chargebackFee?: number;
+    monthlyFee?: number;
+    monthlyMinimumFee?: number;
+    pciFee?: number;
+    processingFees: ProcessingFees;
+    retrievalFee?: number;
+    revenueSharePercentage?: number;
+    sponsorFee?: number;
+    transactionFees: ProcessingFees;
   };
 }
 
@@ -66,119 +72,62 @@ interface PricingFormProps {
 }
 
 export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps) => {
-  const [pricingType, setPricingType] = useState('');
-  const [riskType, setRiskType] = useState<'highRisk' | 'lowRisk'>('highRisk');
-  interface FeeStructure {
-    avsFee: number;
-    binFee: number;
-    chargebackFee: number;
-    monthlyFee: number;
-    monthlyMinimumFee: number;
-    pciFee: number;
+  const [pricingType, setPricingType] = useState<MerchantPricing['pricingType']>(
+    initialPricing?.pricingType || 'interchangePlus'
+  );
+  const [riskType, setRiskType] = useState<'highRisk' | 'lowRisk'>(
+    initialPricing?.riskType || 'highRisk'
+  );
+  const [pricing, setPricing] = useState<MerchantPricing['pricing']>({
     processingFees: {
-      amex: number;
-      visaMasterDiscover: number;
-    };
-    retrievalFee: number;
-    revenueSharePercentage: number;
-    sponsorFee: number;
+      visaMasterDiscover: initialPricing?.pricing.processingFees?.visaMasterDiscover || 0,
+      amex: initialPricing?.pricing.processingFees?.amex || 0
+    },
     transactionFees: {
-      amex: number;
-      visaMasterDiscover: number;
-    };
-  }
-
-  type NestedFees = {
-    [key: string]: number;
-  };
-
-  interface PricingStructure {
-    avsFee?: number;
-    binFee?: number;
-    chargebackFee?: number;
-    monthlyFee?: number;
-    monthlyMinimumFee?: number;
-    pciFee?: number;
-    processingFees?: NestedFees;
-    retrievalFee?: number;
-    revenueSharePercentage?: number;
-    sponsorFee?: number;
-    transactionFees?: NestedFees;
-  }
-  
-  // Type predicate for nested fee objects
-  function isNestedFeeObject(obj: unknown): obj is NestedFees {
-    if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) {
-      return false;
+      visaMasterDiscover: initialPricing?.pricing.transactionFees?.visaMasterDiscover || 0,
+      amex: initialPricing?.pricing.transactionFees?.amex || 0
     }
-    return Object.values(obj).every(value => typeof value === 'number');
-  }
+  });
+  const [errors, setErrors] = useState<{form?: string}>({});
 
-  // Type guard for number values
-  function isNumber(value: unknown): value is number {
-    return typeof value === 'number';
-  }
-
-  const [pricing, setPricing] = useState<PricingStructure>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  // Fetch interchange rates
+  const { data: interchangeRates, isLoading } = useQuery({
+    queryKey: ['interchange-rates'],
+    queryFn: async () => {
+      const rates = await interchangeService.getInterchangeRates();
+      if (!rates) throw new Error('Failed to fetch interchange rates');
+      return rates;
+    }
+  });
 
   const currentCosts = costs[riskType];
 
-  useEffect(() => {
-    // Initialize pricing with default values
-    const initialPricing: PricingStructure = {
-      avsFee: currentCosts.avsFee,
-      binFee: currentCosts.binFee,
-      chargebackFee: currentCosts.chargebackFee,
-      monthlyFee: currentCosts.monthlyFee,
-      monthlyMinimumFee: currentCosts.monthlyMinimumFee,
-      pciFee: currentCosts.pciFee,
-      processingFees: currentCosts.processingFees,
-      retrievalFee: currentCosts.retrievalFee,
-      revenueSharePercentage: currentCosts.revenueSharePercentage,
-      sponsorFee: currentCosts.sponsorFee,
-      transactionFees: currentCosts.transactionFees
-    };
-    setPricing(initialPricing);
-  }, [riskType]);
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-    
+  const handleSave = async () => {
     if (!pricingType) {
-      newErrors.pricingType = 'Pricing type is required';
+      setErrors({ form: 'Please select a pricing type' });
+      return;
     }
-    
-    Object.entries(pricing).forEach(([key, value]) => {
-      if (value && typeof value === 'object') {
-        Object.entries(value).forEach(([subKey, subValue]) => {
-          if (typeof subValue === 'number' && (isNaN(subValue) || subValue < 0)) {
-            newErrors[`${key}-${subKey}`] = 'Must be a positive number';
-          }
-        });
-      } else if (typeof value === 'number') {
-        if (isNaN(value) || value < 0) {
-          newErrors[key] = 'Must be a positive number';
+
+    const newPricing: MerchantPricing = {
+      pricingType,
+      riskType,
+      pricing: {
+        ...pricing,
+        processingFees: {
+          visaMasterDiscover: pricing.processingFees.visaMasterDiscover,
+          amex: pricing.processingFees.amex
+        },
+        transactionFees: {
+          visaMasterDiscover: pricing.transactionFees.visaMasterDiscover,
+          amex: pricing.transactionFees.amex
         }
       }
-    });
+    };
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSave = () => {
-    if (!validateForm()) return;
-    
     try {
-      onSave({
-        pricingType,
-        riskType,
-        pricing
-      });
+      await onSave(newPricing);
     } catch (error) {
-      console.error('Failed to save pricing:', error);
-      setErrors({ form: 'Failed to save pricing. Please try again.' });
+      setErrors({ form: 'Failed to save pricing' });
     }
   };
 
@@ -186,12 +135,29 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
     onSave(null);
   };
 
+  // Get base cost with null check
+  const getBaseCost = (type: 'visaMasterDiscover' | 'amex'): number => {
+    if (!interchangeRates) return 0;
+    
+    if (type === 'visaMasterDiscover') {
+      return interchangeRates.visaMastercardDiscover?.percentage || 0;
+    }
+    return interchangeRates.americanExpress?.percentage || 0;
+  };
+
+  if (isLoading) {
+    return <div>Loading interchange rates...</div>;
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>Pricing Type</Label>
-          <Select onValueChange={setPricingType} value={pricingType}>
+          <Select 
+            onValueChange={(value: MerchantPricing['pricingType']) => setPricingType(value)} 
+            value={pricingType}
+          >
             <SelectTrigger>
               <SelectValue placeholder="Select pricing type" />
             </SelectTrigger>
@@ -202,9 +168,6 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
               <SelectItem value="flatRate">Flat Rate</SelectItem>
             </SelectContent>
           </Select>
-          {errors.pricingType && (
-            <span className="text-sm text-red-500">{errors.pricingType}</span>
-          )}
         </div>
 
         <div>
@@ -226,30 +189,10 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
         <div className="space-y-4">
           <h3 className="font-medium">Processing Fees</h3>
           <div className="grid grid-cols-3 gap-4 items-center">
-            <Label>Amex</Label>
-            <Input
-              type="number"
-              value={pricing.processingFees?.amex || ''}
-              onChange={(e) => {
-                const newValue = parseFloat(e.target.value);
-                if (!isNaN(newValue)) {
-                  setPricing(prev => ({
-                    ...prev,
-                    processingFees: {
-                      ...prev.processingFees,
-                      amex: newValue
-                    }
-                  }));
-                }
-              }}
-            />
-            <span className="text-sm text-gray-500">Cost: {currentCosts.processingFees.amex}</span>
-          </div>
-          <div className="grid grid-cols-3 gap-4 items-center">
             <Label>Visa/Master/Discover</Label>
             <Input
               type="number"
-              value={pricing.processingFees?.visaMasterDiscover || ''}
+              value={pricing.processingFees.visaMasterDiscover}
               onChange={(e) => {
                 const newValue = parseFloat(e.target.value);
                 if (!isNaN(newValue)) {
@@ -263,7 +206,31 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
                 }
               }}
             />
-            <span className="text-sm text-gray-500">Cost: {currentCosts.processingFees.visaMasterDiscover}</span>
+            <span className="text-sm text-gray-500">
+              Base Cost: {getBaseCost('visaMasterDiscover')}%
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-4 items-center">
+            <Label>Amex</Label>
+            <Input
+              type="number"
+              value={pricing.processingFees.amex}
+              onChange={(e) => {
+                const newValue = parseFloat(e.target.value);
+                if (!isNaN(newValue)) {
+                  setPricing(prev => ({
+                    ...prev,
+                    processingFees: {
+                      ...prev.processingFees,
+                      amex: newValue
+                    }
+                  }));
+                }
+              }}
+            />
+            <span className="text-sm text-gray-500">
+              Base Cost: {getBaseCost('amex')}%
+            </span>
           </div>
         </div>
 
@@ -271,30 +238,10 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
         <div className="space-y-4">
           <h3 className="font-medium">Transaction Fees</h3>
           <div className="grid grid-cols-3 gap-4 items-center">
-            <Label>Amex</Label>
-            <Input
-              type="number"
-              value={pricing.transactionFees?.amex || ''}
-              onChange={(e) => {
-                const newValue = parseFloat(e.target.value);
-                if (!isNaN(newValue)) {
-                  setPricing(prev => ({
-                    ...prev,
-                    transactionFees: {
-                      ...prev.transactionFees,
-                      amex: newValue
-                    }
-                  }));
-                }
-              }}
-            />
-            <span className="text-sm text-gray-500">Cost: {currentCosts.transactionFees.amex}</span>
-          </div>
-          <div className="grid grid-cols-3 gap-4 items-center">
             <Label>Visa/Master/Discover</Label>
             <Input
               type="number"
-              value={pricing.transactionFees?.visaMasterDiscover || ''}
+              value={pricing.transactionFees.visaMasterDiscover}
               onChange={(e) => {
                 const newValue = parseFloat(e.target.value);
                 if (!isNaN(newValue)) {
@@ -308,7 +255,31 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
                 }
               }}
             />
-            <span className="text-sm text-gray-500">Cost: {currentCosts.transactionFees.visaMasterDiscover}</span>
+            <span className="text-sm text-gray-500">
+              Base Cost: {getBaseCost('visaMasterDiscover')}%
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-4 items-center">
+            <Label>Amex</Label>
+            <Input
+              type="number"
+              value={pricing.transactionFees.amex}
+              onChange={(e) => {
+                const newValue = parseFloat(e.target.value);
+                if (!isNaN(newValue)) {
+                  setPricing(prev => ({
+                    ...prev,
+                    transactionFees: {
+                      ...prev.transactionFees,
+                      amex: newValue
+                    }
+                  }));
+                }
+              }}
+            />
+            <span className="text-sm text-gray-500">
+              Base Cost: {getBaseCost('amex')}%
+            </span>
           </div>
         </div>
 
@@ -330,7 +301,7 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
               <Label>{label}</Label>
               <Input
                 type="number"
-                value={typeof pricing[key as keyof PricingStructure] === 'number' ? pricing[key as keyof PricingStructure] as number : ''}
+                value={pricing[key as keyof Omit<MerchantPricing['pricing'], 'processingFees' | 'transactionFees'>] || ''}
                 onChange={(e) => {
                   const newValue = parseFloat(e.target.value);
                   if (!isNaN(newValue)) {
@@ -341,7 +312,9 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
                   }
                 }}
               />
-              <span className="text-sm text-gray-500">Cost: {String(currentCosts[key as keyof typeof currentCosts])}</span>
+              <span className="text-sm text-gray-500">
+                Base Cost: {String(currentCosts[key as keyof typeof currentCosts])}
+              </span>
             </div>
           ))}
         </div>
