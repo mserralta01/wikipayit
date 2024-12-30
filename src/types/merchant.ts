@@ -151,6 +151,7 @@ export interface Lead {
   pipelineStatus?: MerchantStatus;
   businessName?: string;
   position?: number;
+  assignedBanks: string[];
   dba?: string;
   phone?: string;
   businessDescription?: string;

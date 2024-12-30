@@ -247,12 +247,12 @@ export function BankingPartnerDetail() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label>Start Date</Label>
-                      <p className="text-sm">{formatDate(activeAgreement.startDate.toDate())}</p>
+                      <p className="text-sm">{activeAgreement.startDate.toDate().toLocaleDateString()}</p>
                     </div>
                     <div>
                       <Label>End Date</Label>
                       <p className="text-sm">
-                        {activeAgreement.endDate ? formatDate(activeAgreement.endDate.toDate()) : 'No end date'}
+                        {activeAgreement.endDate ? activeAgreement.endDate.toDate().toLocaleDateString() : 'No end date'}
                       </p>
                     </div>
                     <div>
@@ -274,7 +274,7 @@ export function BankingPartnerDetail() {
               <div className="space-y-2">
                 <Label>Created</Label>
                 <p className="text-sm text-muted-foreground">
-                  {formatDate(partner.createdAt.toDate())}
+                  {partner.createdAt.toDate().toLocaleDateString()}
                 </p>
               </div>
             </CardContent>
@@ -391,8 +391,8 @@ export function BankingPartnerDetail() {
                           Agreement {agreement.id.slice(-8)}
                         </h3>
                         <p className="text-sm text-muted-foreground">
-                          Valid from {formatDate(agreement.startDate.toDate())}
-                          {agreement.endDate && ` to ${formatDate(agreement.endDate.toDate())}`}
+                          Valid from {agreement.startDate.toDate().toLocaleDateString()}
+                          {agreement.endDate && ` to ${agreement.endDate.toDate().toLocaleDateString()}`}
                         </p>
                       </div>
                       <div className="flex items-center space-x-2">
@@ -488,4 +488,4 @@ export function BankingPartnerDetail() {
       </AlertDialog>
     </div>
   );
-} 
+}
