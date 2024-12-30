@@ -56,6 +56,7 @@ export interface PipelineFormData {
   routingNumber?: string;
   accountNumber?: string;
   confirmAccountNumber?: string;
+  bankingPartnerId?: string;
 }
 
 // Add BasePipelineItem interface

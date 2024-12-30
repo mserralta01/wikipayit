@@ -56,6 +56,7 @@ import { DeleteLeadDialog } from "./DeleteLeadDialog";
 import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs } from "firebase/firestore";
 import { COLUMN_CONFIGS } from "../../../types/pipeline";
+import { bankingPartnerService } from "../../../services/bankingPartnerService";
 
 interface LeadDetailsProps {
   merchant: MerchantDTO;
@@ -1175,59 +1176,48 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               {merchant.assignedBanks?.length > 0 && (
                 <TabsContent value="banks" className="mt-0 border-none p-0">
                   <div className="space-y-4">
-                      {merchant.assignedBanks.map((bankId) => {
+                    {merchant.assignedBanks.map((bankId) => {
                       const bank = bankingPartners.find(p => p.id === bankId);
                       if (!bank) return null;
                       return (
-                        <Card key={bank.id} className="border-l-4" style={{ borderColor: bank.color }}>
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <div 
-                                  className="w-3 h-3 rounded-full"
-                                  style={{ backgroundColor: bank.color }}
-                                />
-                                <h3 className="font-medium">{bank.name}</h3>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                              onClick={async () => {
-                                const confirm = window.confirm(`Are you sure you want to remove ${bank.name}?`);
-                                if (!confirm || !merchant.id) return;
-                                
-                                try {
-                                  const leadRef = doc(db, 'leads', merchant.id);
-                                  await updateDoc(leadRef, {
-                                    assignedBanks: merchant.assignedBanks.filter(id => id !== bankId),
-                                    updatedAt: Timestamp.fromDate(new Date())
-                                  });
-                                  
-                                  // Update local state
-                                  setMerchant(prev => ({
-                                    ...prev,
-                                    assignedBanks: prev.assignedBanks?.filter(id => id !== bankId)
-                                  }));
-                                  
-                                  toast({
-                                    title: 'Success',
-                                    description: `${bank.name} removed successfully`,
-                                  });
-                                } catch (error) {
-                                  console.error('Error removing bank:', error);
-                                  toast({
-                                    title: 'Error',
-                                    description: 'Failed to remove bank',
-                                    variant: 'destructive'
-                                  });
-                                }
-                              }}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
+                        <BankDetailsDisplay
+                          key={bankId}
+                          formData={{
+                            bankName: bank.name,
+                            bankingPartnerId: bank.id,
+                            color: bank.color
+                          }}
+                          onDelete={async () => {
+                            const confirm = window.confirm(`Are you sure you want to remove ${bank.name}?`);
+                            if (!confirm || !merchant.id) return;
+                            
+                            try {
+                              const leadRef = doc(db, 'leads', merchant.id);
+                              await updateDoc(leadRef, {
+                                assignedBanks: merchant.assignedBanks?.filter(id => id !== bankId),
+                                updatedAt: Timestamp.fromDate(new Date())
+                              });
+                              
+                              // Update local state
+                              setMerchant(prev => ({
+                                ...prev,
+                                assignedBanks: prev.assignedBanks?.filter(id => id !== bankId)
+                              }));
+                              
+                              toast({
+                                title: 'Success',
+                                description: `${bank.name} removed successfully`,
+                              });
+                            } catch (error) {
+                              console.error('Error removing bank:', error);
+                              toast({
+                                title: 'Error',
+                                description: 'Failed to remove bank',
+                                variant: 'destructive'
+                              });
+                            }
+                          }}
+                        />
                       );
                     })}
                   </div>
