@@ -12,6 +12,7 @@ import {
 import { Label } from '../../ui/label';
 import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
+import { CircleDollarSign } from 'lucide-react';
 
 interface ProcessingFees {
   amex: number;
@@ -151,13 +152,37 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Header Section */}
+      {/* Header Section with Revenue Share Blocks */}
       <div className="flex items-center justify-between pb-4 border-b">
         <div className="space-y-1">
           <h2 className="text-2xl font-semibold tracking-tight">Pricing Configuration</h2>
           <p className="text-sm text-muted-foreground">
             Configure processing fees and additional charges for this merchant
           </p>
+        </div>
+        
+        <div className="flex gap-4">
+          {/* High Risk Revenue Share */}
+          <div className="bg-red-500/90 rounded-lg p-3 min-w-[140px]">
+            <div className="flex items-center gap-2 mb-1">
+              <CircleDollarSign className="h-4 w-4 text-white" />
+              <span className="text-xs font-medium text-white/90">High Risk</span>
+            </div>
+            <div className="text-white text-lg font-semibold">
+              {costs.highRisk.revenueSharePercentage}% Share
+            </div>
+          </div>
+
+          {/* Low Risk Revenue Share */}
+          <div className="bg-green-500/90 rounded-lg p-3 min-w-[140px]">
+            <div className="flex items-center gap-2 mb-1">
+              <CircleDollarSign className="h-4 w-4 text-white" />
+              <span className="text-xs font-medium text-white/90">Low Risk</span>
+            </div>
+            <div className="text-white text-lg font-semibold">
+              {costs.lowRisk.revenueSharePercentage}% Share
+            </div>
+          </div>
         </div>
       </div>
 
