@@ -1104,11 +1104,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                         value={partner.id}
                         className="flex items-center gap-2 py-3 px-4 cursor-pointer hover:bg-gray-100"
                       >
-                        <div 
-                          className="w-4 h-4 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: partner.color }}
-                        />
-                        <span className="text-sm font-medium">{partner.name}</span>
+                        <span 
+                          className="text-sm font-medium"
+                          style={{ color: partner.color }}
+                        >
+                          {partner.name}
+                        </span>
                       </SelectItem>
                     ))}
                     {bankingPartners.length === 0 && (
