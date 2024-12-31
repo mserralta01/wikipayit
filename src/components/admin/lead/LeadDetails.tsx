@@ -957,7 +957,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <BankDetailsDisplay formData={convertToPipelineFormData(merchant.formData)} />
+                  {convertToPipelineFormData(merchant.formData)?.bankName && convertToPipelineFormData(merchant.formData)?.bankingPartnerId && (
+                    <BankDetailsDisplay formData={{
+                      bankName: convertToPipelineFormData(merchant.formData)!.bankName!,
+                      bankingPartnerId: convertToPipelineFormData(merchant.formData)!.bankingPartnerId!
+                    }} />
+                  )}
                 </AccordionContent>
               </AccordionItem>
 

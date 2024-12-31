@@ -5,9 +5,10 @@ import { bankingPartnerService } from '@/services/bankingPartnerService';
 import { Button } from "@/components/ui/button";
 import { PricingForm } from './PricingForm';
 import { useToast } from "@/hooks/use-toast";
+import { MerchantPricing } from '@/types/merchant';
 
 interface BankDetailsDisplayProps {
-  formData: {
+  formData?: {
     bankName: string;
     bankingPartnerId: string;
     color?: string;
@@ -68,7 +69,33 @@ export function BankDetailsDisplay({ formData, onDelete }: BankDetailsDisplayPro
         const costs = await bankingPartnerService.getBankCosts(formData.bankingPartnerId);
         const pricing = await bankingPartnerService.getMerchantPricing(formData.bankingPartnerId);
         setBankCosts(costs);
-        setExistingPricing(pricing);
+        if (pricing) {
+          // Convert service pricing to component pricing if needed
+          const convertedPricing: MerchantPricing = {
+            pricingType: pricing.pricingType,
+            riskType: pricing.riskType,
+            pricing: {
+              processingFees: {
+                amex: pricing.pricing['amex'] || 0,
+                visaMasterDiscover: pricing.pricing['visaMasterDiscover'] || 0
+              },
+              transactionFees: {
+                amex: pricing.pricing['amexTransaction'] || 0,
+                visaMasterDiscover: pricing.pricing['visaMasterDiscoverTransaction'] || 0
+              },
+              avsFee: pricing.pricing['avsFee'] || 0,
+              binFee: pricing.pricing['binFee'] || 0,
+              chargebackFee: pricing.pricing['chargebackFee'] || 0,
+              monthlyFee: pricing.pricing['monthlyFee'] || 0,
+              monthlyMinimumFee: pricing.pricing['monthlyMinimumFee'] || 0,
+              pciFee: pricing.pricing['pciFee'] || 0,
+              retrievalFee: pricing.pricing['retrievalFee'] || 0,
+              revenueSharePercentage: pricing.pricing['revenueSharePercentage'] || 0,
+              sponsorFee: pricing.pricing['sponsorFee'] || 0
+            }
+          };
+          setExistingPricing(convertedPricing);
+        }
         setShowPricingForm(true);
       } catch (error) {
         console.error('Failed to fetch bank costs:', error);
@@ -80,6 +107,10 @@ export function BankDetailsDisplay({ formData, onDelete }: BankDetailsDisplayPro
       }
     }
   };
+
+  if (!formData?.bankName || !formData?.bankingPartnerId) {
+    return null;
+  }
 
   return (
     <>
@@ -138,11 +169,31 @@ export function BankDetailsDisplay({ formData, onDelete }: BankDetailsDisplayPro
           costs={bankCosts}
           initialPricing={existingPricing}
           onSave={async (pricing) => {
-            if (pricing) {
+            if (pricing && formData.bankingPartnerId) {
               try {
+                // Convert component pricing back to service pricing
+                const servicePricing = {
+                  pricingType: pricing.pricingType,
+                  riskType: pricing.riskType,
+                  pricing: {
+                    amex: pricing.pricing.processingFees.amex,
+                    visaMasterDiscover: pricing.pricing.processingFees.visaMasterDiscover,
+                    amexTransaction: pricing.pricing.transactionFees.amex,
+                    visaMasterDiscoverTransaction: pricing.pricing.transactionFees.visaMasterDiscover,
+                    avsFee: pricing.pricing.avsFee || 0,
+                    binFee: pricing.pricing.binFee || 0,
+                    chargebackFee: pricing.pricing.chargebackFee || 0,
+                    monthlyFee: pricing.pricing.monthlyFee || 0,
+                    monthlyMinimumFee: pricing.pricing.monthlyMinimumFee || 0,
+                    pciFee: pricing.pricing.pciFee || 0,
+                    retrievalFee: pricing.pricing.retrievalFee || 0,
+                    revenueSharePercentage: pricing.pricing.revenueSharePercentage || 0,
+                    sponsorFee: pricing.pricing.sponsorFee || 0
+                  }
+                };
                 await bankingPartnerService.saveMerchantPricing(
                   formData.bankingPartnerId,
-                  pricing
+                  servicePricing
                 );
                 toast({
                   title: 'Success',
