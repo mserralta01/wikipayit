@@ -11,6 +11,8 @@ import {
   User,
   Bell,
   ChevronRight,
+  Menu,
+  MenuSquare,
   Store,
   Users,
   FileText,
@@ -53,6 +55,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navigate = useNavigate()
   const [user, setUser] = useState(auth.currentUser)
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   // Extract merchant ID from URL if we're on a pipeline detail page
   const merchantId = location.pathname.match(/\/admin\/pipeline\/([^\/]+)/)?.[1]
@@ -180,13 +183,17 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             )}
           >
             {item.icon}
-            <span className="ml-3 flex-1 text-left">{item.title}</span>
-            <ChevronRight className={cn(
-              'w-4 h-4 transition-transform',
-              isOpen && 'transform rotate-90'
-            )} />
+            {!isSidebarCollapsed && (
+              <>
+                <span className="ml-3 flex-1 text-left">{item.title}</span>
+                <ChevronRight className={cn(
+                  'w-4 h-4 transition-transform',
+                  isOpen && 'transform rotate-90'
+                )} />
+              </>
+            )}
           </button>
-          {isOpen && (
+          {isOpen && !isSidebarCollapsed && (
             <div className="ml-4 mt-1 space-y-1">
               {item.submenu.map(subitem => (
                 <Link
@@ -217,7 +224,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         )}
       >
         {item.icon}
-        <span className="ml-3">{item.title}</span>
+        {!isSidebarCollapsed && <span className="ml-3">{item.title}</span>}
       </Link>
     )
   }
@@ -264,15 +271,37 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   return (
     <div className="flex h-screen bg-gray-100">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-lg fixed h-screen flex flex-col">
+      <div className={`${isSidebarCollapsed ? 'w-20' : 'w-64'} bg-white shadow-lg fixed h-screen flex flex-col transition-all duration-300`}>
         <div className="flex-1">
-          <div className="p-6">
-            <h1 className="text-2xl font-bold">
-              <span className="text-black">Wiki</span>
-              <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                PayIt
-              </span>
-            </h1>
+          <div className="p-4 flex items-center justify-between">
+            <div 
+              className="cursor-pointer"
+              onClick={() => navigate('/')}
+            >
+              <h1 className={`text-2xl font-bold ${isSidebarCollapsed ? 'hidden' : 'block'}`}>
+                <span className="text-black">Wiki</span>
+                <span className="bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  PayIt
+                </span>
+              </h1>
+              {isSidebarCollapsed && (
+                <div className="text-2xl font-bold">
+                  WP
+                </div>
+              )}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="h-8 w-8"
+            >
+              {isSidebarCollapsed ? (
+                <MenuSquare className="h-4 w-4" />
+              ) : (
+                <Menu className="h-4 w-4" />
+              )}
+            </Button>
           </div>
           
           {/* Navigation Menu */}
@@ -280,7 +309,18 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             <ul className="space-y-2">
               {menuItems.map(item => (
                 <li key={item.title}>
-                  {renderMenuItem(item)}
+                  {isSidebarCollapsed ? (
+                    <div className="group relative">
+                      {renderMenuItem(item)}
+                      <div className="absolute left-full top-0 ml-2 hidden group-hover:block">
+                        <div className="bg-black text-white text-sm rounded py-1 px-2 whitespace-nowrap">
+                          {item.title}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    renderMenuItem(item)
+                  )}
                 </li>
               ))}
             </ul>
@@ -301,10 +341,16 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 ml-64 relative">
+      <div className={cn(
+        "flex-1 relative transition-all duration-300",
+        isSidebarCollapsed ? "ml-20" : "ml-64"
+      )}>
         <div className="flex flex-col min-h-screen">
           {/* Top Navigation */}
-          <header className="h-16 bg-white shadow-sm flex items-center justify-between px-6 fixed top-0 right-0 left-64 z-10">
+          <header className={cn(
+            "h-16 bg-white shadow-sm flex items-center justify-between px-6 fixed top-0 right-0 z-10 transition-all duration-300",
+            isSidebarCollapsed ? "left-20" : "left-64"
+          )}>
             <div className="flex items-center">
               <h2 className="text-lg font-medium text-gray-800">
                 {getPageTitle(location.pathname)}
@@ -377,4 +423,4 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
     </div>
   )
-}   
+}

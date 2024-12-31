@@ -51,7 +51,10 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex-shrink-0">
+          <div 
+            className="flex-shrink-0 cursor-pointer"
+            onClick={() => navigate('/')}
+          >
             <Link to="/" className="text-2xl font-bold">
               <span className="text-black">Wiki</span>
               <span className="bg-gradient-to-r from-[#7C3AED] to-[#06B6D4] bg-clip-text text-transparent">
