@@ -39,14 +39,39 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isPDF = url.toLowerCase().endsWith('.pdf');
-  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
+  console.log('Document URL:', url);
+  
+  // Validate URL format
+  if (!url || typeof url !== 'string') {
+    console.error('Invalid document URL:', url);
+    return (
+      <div className="border rounded-lg p-4 bg-gray-50">
+        <div className="aspect-[3/4] flex flex-col items-center justify-center">
+          <File className="h-8 w-8 text-gray-400" />
+          <p className="mt-2 text-sm text-gray-500 text-center">
+            Invalid document URL
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Extract file extension from URL, handling query parameters
+  const fileExt = url.split('.').pop()?.split('?')[0]?.toLowerCase() || '';
+  
+  const isPDF = ['pdf'].includes(fileExt);
+  const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt);
+
+  console.log('Document type:', isPDF ? 'PDF' : isImage ? 'Image' : 'Other');
 
   const getFileName = (url: string) => {
     try {
       const decodedUrl = decodeURIComponent(url);
-      return decodedUrl.split('/').pop()?.split('?')[0] || 'Document';
-    } catch {
+      const fileName = decodedUrl.split('/').pop()?.split('?')[0] || 'Document';
+      console.log('File name:', fileName);
+      return fileName;
+    } catch (error) {
+      console.error('Error parsing file name:', error);
       return 'Document';
     }
   };
@@ -82,8 +107,8 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
                   >
                     <Page
                       pageNumber={pageNumber}
-                      width={300}
-                      height={400}
+                      width={600}
+                      height={800}
                       renderTextLayer={false}
                       renderAnnotationLayer={false}
                       className="shadow-md"
@@ -91,26 +116,26 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
                   </Document>
                 </div>
                 {numPages > 1 && (
-                  <div className="absolute bottom-16 left-0 right-0 flex justify-center gap-2 bg-white/90 p-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
-                      disabled={pageNumber <= 1}
-                    >
-                      Previous
-                    </Button>
-                    <span className="text-sm py-2">
-                      Page {pageNumber} of {numPages}
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
-                      disabled={pageNumber >= numPages}
-                    >
-                      Next
-                    </Button>
+                  <div className="absolute bottom-4 left-0 right-0 flex flex-col items-center gap-2 bg-white/90 p-4">
+                    <div className="text-sm mb-2">Page {pageNumber} of {numPages}</div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPageNumber(Math.max(1, pageNumber - 1))}
+                        disabled={pageNumber <= 1}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPageNumber(Math.min(numPages, pageNumber + 1))}
+                        disabled={pageNumber >= numPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
