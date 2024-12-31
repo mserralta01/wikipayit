@@ -146,6 +146,31 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
     return interchangeRates.americanExpress?.percentage || 0;
   };
 
+  // Add helper function to calculate adjusted profit
+  const calculateAdjustedProfit = (profit: number): number => {
+    const revenueShare = riskType === 'highRisk' 
+      ? costs.highRisk.revenueSharePercentage / 100
+      : costs.lowRisk.revenueSharePercentage / 100;
+    return profit * revenueShare;
+  };
+
+  // Modify the profit display sections throughout the component
+  // For Visa/Master/Discover processing fees:
+  const vmdProcessingProfit = pricingType === 'interchangePlus' 
+    ? pricing.processingFees.visaMasterDiscover
+    : (pricing.processingFees.visaMasterDiscover - getBaseCost('visaMasterDiscover'));
+  
+  const vmdTransactionProfit = pricing.transactionFees.visaMasterDiscover - 
+    (interchangeRates?.visaMastercardDiscover?.transactionFee || 0);
+
+  // For Amex processing fees:
+  const amexProcessingProfit = pricingType === 'interchangePlus'
+    ? pricing.processingFees.amex
+    : (pricing.processingFees.amex - getBaseCost('amex'));
+    
+  const amexTransactionProfit = pricing.transactionFees.amex - 
+    (interchangeRates?.americanExpress?.transactionFee || 0);
+
   if (isLoading) {
     return <div>Loading interchange rates...</div>;
   }
@@ -280,10 +305,10 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
                 <div className="text-xs space-y-1">
                   <p className="text-muted-foreground">Cost: {getBaseCost('visaMasterDiscover')}%</p>
                   <p>
-                    Profit: <span className={`${(pricing.processingFees.visaMasterDiscover - getBaseCost('visaMasterDiscover')) < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                    Profit: <span className={`${vmdProcessingProfit < 0 ? 'text-red-500' : 'text-green-500'}`}>
                       {pricingType === 'interchangePlus' ? 
-                        `${pricing.processingFees.visaMasterDiscover}%` :
-                        `${(pricing.processingFees.visaMasterDiscover - getBaseCost('visaMasterDiscover')).toFixed(2)}%`
+                        `${vmdProcessingProfit.toFixed(2)}% (${calculateAdjustedProfit(vmdProcessingProfit).toFixed(2)}%)` :
+                        `${vmdProcessingProfit.toFixed(2)}% (${calculateAdjustedProfit(vmdProcessingProfit).toFixed(2)}%)`
                       }
                     </span>
                   </p>
@@ -313,8 +338,8 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
                     Cost: ${interchangeRates?.visaMastercardDiscover?.transactionFee?.toFixed(2) || '0.00'}
                   </p>
                   <p>
-                    Profit: <span className={`${(pricing.transactionFees.visaMasterDiscover - (interchangeRates?.visaMastercardDiscover?.transactionFee || 0)) < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                      ${(pricing.transactionFees.visaMasterDiscover - (interchangeRates?.visaMastercardDiscover?.transactionFee || 0)).toFixed(2)}
+                    Profit: <span className={`${vmdTransactionProfit < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      ${vmdTransactionProfit.toFixed(2)} (${calculateAdjustedProfit(vmdTransactionProfit).toFixed(2)})
                     </span>
                   </p>
                 </div>
@@ -357,10 +382,10 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
                 <div className="text-xs space-y-1">
                   <p className="text-muted-foreground">Cost: {getBaseCost('amex')}%</p>
                   <p>
-                    Profit: <span className={`${(pricing.processingFees.amex - getBaseCost('amex')) < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                    Profit: <span className={`${amexProcessingProfit < 0 ? 'text-red-500' : 'text-green-500'}`}>
                       {pricingType === 'interchangePlus' ? 
-                        `${pricing.processingFees.amex}%` :
-                        `${(pricing.processingFees.amex - getBaseCost('amex')).toFixed(2)}%`
+                        `${amexProcessingProfit.toFixed(2)}% (${calculateAdjustedProfit(amexProcessingProfit).toFixed(2)}%)` :
+                        `${amexProcessingProfit.toFixed(2)}% (${calculateAdjustedProfit(amexProcessingProfit).toFixed(2)}%)`
                       }
                     </span>
                   </p>
@@ -401,8 +426,8 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
                     Cost: ${interchangeRates?.americanExpress?.transactionFee?.toFixed(2) || '0.00'}
                   </p>
                   <p>
-                    Profit: <span className={`${(pricing.transactionFees.amex - (interchangeRates?.americanExpress?.transactionFee || 0)) < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                      ${(pricing.transactionFees.amex - (interchangeRates?.americanExpress?.transactionFee || 0)).toFixed(2)}
+                    Profit: <span className={`${amexTransactionProfit < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      ${amexTransactionProfit.toFixed(2)} (${calculateAdjustedProfit(amexTransactionProfit).toFixed(2)})
                     </span>
                   </p>
                 </div>
@@ -434,6 +459,7 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
                 const feeValue = pricing[key as keyof Omit<MerchantPricing['pricing'], 'processingFees' | 'transactionFees'>];
                 const fee = typeof feeValue === 'number' ? feeValue : 0;
                 const profit = fee - cost;
+                const adjustedProfit = calculateAdjustedProfit(profit);
                 const isNegative = profit < 0;
                 
                 return (
@@ -468,7 +494,10 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
                         </p>
                         <p>
                           Profit: <span className={`${isNegative ? 'text-red-500 animate-pulse' : 'text-green-500'}`}>
-                            {isPercentage ? `${profit}%` : `$${profit.toFixed(2)}`}
+                            {isPercentage 
+                              ? `${profit.toFixed(2)}% (${adjustedProfit.toFixed(2)}%)`
+                              : `$${profit.toFixed(2)} ($${adjustedProfit.toFixed(2)})`
+                            }
                           </span>
                         </p>
                       </div>
