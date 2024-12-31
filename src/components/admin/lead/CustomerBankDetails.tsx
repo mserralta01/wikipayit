@@ -41,8 +41,8 @@ export function CustomerBankDetails({
 
   return (
     <Card className="w-full">
-      <CardContent className="p-4 space-y-3">
-        <div className="space-y-2">
+      <CardContent className="p-0">
+        <div className="bg-gray-50 px-4 py-3 border-b">
           {editing.bankName ? (
             <Input
               value={details.bankName}
