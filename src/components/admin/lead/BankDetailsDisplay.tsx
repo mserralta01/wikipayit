@@ -12,6 +12,8 @@ interface BankDetailsDisplayProps {
     bankName: string;
     bankingPartnerId: string;
     color?: string;
+    routingNumber?: string;
+    accountNumber?: string;
   };
   onDelete?: () => Promise<void>;
 }

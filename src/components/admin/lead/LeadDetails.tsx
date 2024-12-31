@@ -51,6 +51,7 @@ import { cn } from "../../../lib/utils";
 import { PipelineStatus, PipelineFormData } from "../../../types/pipeline";
 import { BankDetailsDisplay } from "./BankDetailsDisplay";
 import { BeneficialOwnersDisplay } from "./BeneficialOwnersDisplay";
+import { CustomerBankDetails } from "./CustomerBankDetails";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../ui/tabs";
 import { DeleteLeadDialog } from "./DeleteLeadDialog";
 import { useQuery } from "@tanstack/react-query";
@@ -104,6 +105,10 @@ const convertToPipelineFormData = (
     ...formData,
     monthlyVolume: formData.monthlyVolume?.toString(),
     averageTicket: formData.averageTicket?.toString(),
+    // Include bank details
+    bankName: formData.bankName,
+    routingNumber: formData.routingNumber,
+    accountNumber: formData.accountNumber,
     beneficialOwners: {
       owners:
         formData.beneficialOwners?.owners.map((owner) => ({
@@ -957,12 +962,47 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  {convertToPipelineFormData(merchant.formData)?.bankName && convertToPipelineFormData(merchant.formData)?.bankingPartnerId && (
-                    <BankDetailsDisplay formData={{
-                      bankName: convertToPipelineFormData(merchant.formData)!.bankName!,
-                      bankingPartnerId: convertToPipelineFormData(merchant.formData)!.bankingPartnerId!
-                    }} />
-                  )}
+                  <div className="space-y-4">
+                    {convertToPipelineFormData(merchant.formData) && (
+                      <CustomerBankDetails
+                        bankName={convertToPipelineFormData(merchant.formData)!.bankName}
+                        routingNumber={convertToPipelineFormData(merchant.formData)!.routingNumber}
+                        accountNumber={convertToPipelineFormData(merchant.formData)!.accountNumber}
+                        onSave={async (details: {
+                          bankName: string;
+                          routingNumber: string;
+                          accountNumber: string;
+                        }) => {
+                          try {
+                            const leadRef = doc(db, 'leads', merchant.id);
+                            await updateDoc(leadRef, {
+                              'formData.bankName': details.bankName,
+                              'formData.routingNumber': details.routingNumber,
+                              'formData.accountNumber': details.accountNumber,
+                              updatedAt: Timestamp.fromDate(new Date())
+                            });
+                            toast({
+                              title: 'Success',
+                              description: 'Bank details updated successfully',
+                            });
+                          } catch (error) {
+                            console.error('Error updating bank details:', error);
+                            toast({
+                              title: 'Error',
+                              description: 'Failed to update bank details',
+                              variant: 'destructive'
+                            });
+                          }
+                        }}
+                      />
+                    )}
+                    {merchant.assignedBanks?.length > 0 && (
+                      <BankDetailsDisplay formData={{
+                        bankName: '',
+                        bankingPartnerId: merchant.assignedBanks?.[0] || ''
+                      }} />
+                    )}
+                  </div>
                 </AccordionContent>
               </AccordionItem>
 
