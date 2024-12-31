@@ -151,6 +151,7 @@ export interface Lead {
   pipelineStatus?: MerchantStatus;
   businessName?: string;
   position?: number;
+  assignedBanks: string[];
   dba?: string;
   phone?: string;
   businessDescription?: string;
@@ -188,3 +189,26 @@ export type MerchantDTO = Lead;
 export type Activity = any
 
 export type MerchantWithFormData = Lead & Partial<FormData>;
+
+export interface ProcessingFees {
+  amex: number;
+  visaMasterDiscover: number;
+}
+
+export interface MerchantPricing {
+  pricingType: 'interchangePlus' | 'surcharge' | 'tiered' | 'flatRate';
+  riskType: 'highRisk' | 'lowRisk';
+  pricing: {
+    avsFee?: number;
+    binFee?: number;
+    chargebackFee?: number;
+    monthlyFee?: number;
+    monthlyMinimumFee?: number;
+    pciFee?: number;
+    processingFees: ProcessingFees;
+    retrievalFee?: number;
+    revenueSharePercentage?: number;
+    sponsorFee?: number;
+    transactionFees: ProcessingFees;
+  };
+}

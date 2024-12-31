@@ -102,12 +102,14 @@ export const transformToPipelineItem = (item: ServiceItem): PipelineItem => {
   if (item.kind === 'lead') {
     return {
       ...item,
+      type: 'lead',
       pipelineStatus: item.pipelineStatus || defaultStatus,
       position: typeof item.position === 'number' ? item.position : 0
     } as PipelineLead;
   }
   return {
     ...item,
+    type: 'merchant',
     pipelineStatus: item.pipelineStatus || defaultStatus,
     position: typeof item.position === 'number' ? item.position : 0
   } as PipelineMerchant;

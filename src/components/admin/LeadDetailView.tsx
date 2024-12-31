@@ -1,6 +1,7 @@
 import React from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, useMutation, QueryClient } from "@tanstack/react-query"
+import { useToast } from "../../hooks/useToast"
 import { Merchant as PipelineMerchant, Lead, timestampToString } from "@/types/merchant"
 import { merchantService } from "@/services/merchantService"
 import { LeadDetails } from "./lead/LeadDetails"
@@ -15,6 +16,8 @@ type PipelineItemData = PipelineMerchant | Lead
 export function LeadDetailView() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = new QueryClient()
+  const { toast } = useToast()
 
   const { data: item, isLoading, error } = useQuery<PipelineItemData, Error>({
     queryKey: ['pipeline-item', id],
@@ -33,6 +36,24 @@ export function LeadDetailView() {
       throw new Error('Item not found')
     },
     enabled: !!id,
+  })
+
+  const { mutate: updateItem } = useMutation({
+    mutationFn: async (updatedData: Partial<Lead>) => {
+      if (!id) throw new Error('No ID provided')
+      await merchantService.updateLead(id, updatedData)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pipeline-item', id] })
+    },
+    onError: (error) => {
+      toast({
+        title: 'Error',
+        description: 'Failed to update lead',
+        variant: 'destructive'
+      })
+      console.error('Error updating lead:', error)
+    }
   })
 
   const handleBack = () => {
@@ -99,6 +120,7 @@ export function LeadDetailView() {
       businessName: item.formData?.businessName || item.companyName || '',
       phone: item.formData?.phone || item.phone || '',
     },
+    assignedBanks: item.assignedBanks || [],
     bank_statements: normalizeDocuments.bank_statements,
     drivers_license: normalizeDocuments.drivers_license,
     voided_check: normalizeDocuments.voided_check,

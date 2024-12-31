@@ -24,7 +24,7 @@ import {
   FormData,
   BeneficialOwner,
 } from "../../../types/merchant";
-import { doc, updateDoc, Timestamp } from "firebase/firestore";
+import { doc, updateDoc, Timestamp, query, where } from "firebase/firestore";
 import { db } from "../../../lib/firebase";
 import { Input } from "../../ui/input";
 import { Button } from "../../ui/button";
@@ -44,17 +44,20 @@ import {
   Mail,
   FileIcon,
   Trash2,
+  Plus,
 } from "lucide-react";
 import { useToast } from "../../../hooks/use-toast";
 import { cn } from "../../../lib/utils";
 import { PipelineStatus, PipelineFormData } from "../../../types/pipeline";
 import { BankDetailsDisplay } from "./BankDetailsDisplay";
 import { BeneficialOwnersDisplay } from "./BeneficialOwnersDisplay";
+import { CustomerBankDetails } from "./CustomerBankDetails";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../ui/tabs";
 import { DeleteLeadDialog } from "./DeleteLeadDialog";
 import { useQuery } from "@tanstack/react-query";
 import { collection, getDocs } from "firebase/firestore";
 import { COLUMN_CONFIGS } from "../../../types/pipeline";
+import { bankingPartnerService } from "../../../services/bankingPartnerService";
 
 interface LeadDetailsProps {
   merchant: MerchantDTO;
@@ -102,6 +105,10 @@ const convertToPipelineFormData = (
     ...formData,
     monthlyVolume: formData.monthlyVolume?.toString(),
     averageTicket: formData.averageTicket?.toString(),
+    // Include bank details
+    bankName: formData.bankName,
+    routingNumber: formData.routingNumber,
+    accountNumber: formData.accountNumber,
     beneficialOwners: {
       owners:
         formData.beneficialOwners?.owners.map((owner) => ({
@@ -112,11 +119,132 @@ const convertToPipelineFormData = (
   };
 };
 
+interface BankingPartner {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   const { toast } = useToast();
   const [merchant, setMerchant] = useState(initialMerchant);
   const [editMode, setEditMode] = useState<{ [key: string]: boolean }>({});
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedBankId, setSelectedBankId] = useState<string | undefined>(undefined);
+  
+  // Query for banking partners
+  const { data: bankingPartners = [] } = useQuery<BankingPartner[]>({
+    queryKey: ['active-banking-partners'],
+    queryFn: async () => {
+      try {
+        const partnersRef = collection(db, 'bankingPartners');
+        const agreementsRef = collection(db, 'bankAgreements');
+        
+        // Get all active banking partners
+        const partnersSnapshot = await getDocs(query(
+          partnersRef,
+          where('status', '==', 'active')
+        ));
+        
+        // Get all active agreements
+        const agreementsSnapshot = await getDocs(query(
+          agreementsRef,
+          where('status', '==', 'active')
+        ));
+        
+        // Create a set of banking partner IDs with active agreements
+        const activePartnerIds = new Set(
+          agreementsSnapshot.docs.map(doc => doc.data().bankingPartnerId)
+        );
+        
+        // Filter and map partners to include only those with active agreements
+        const filteredPartners = partnersSnapshot.docs
+          .filter(doc => activePartnerIds.has(doc.id))
+          .map(doc => ({
+            id: doc.id,
+            name: doc.data().name,
+            color: doc.data().color || '#000000'
+          }));
+        
+        return filteredPartners;
+      } catch (error) {
+        console.error('Error fetching banking partners:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load banking partners',
+          variant: 'destructive'
+        });
+        return [];
+      }
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false
+  });
+
+  const handleBankSelect = (bankId: string) => {
+    setSelectedBankId(bankId);
+  };
+
+  const handleAddBank = async () => {
+    if (!selectedBankId || !merchant.id) return;
+
+    const selectedBank = bankingPartners.find(p => p.id === selectedBankId);
+    if (!selectedBank) {
+      toast({
+        title: 'Error',
+        description: 'Selected bank not found',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Check if bank is already assigned
+    if (merchant.assignedBanks?.includes(selectedBankId)) {
+      toast({
+        title: 'Error',
+        description: 'This bank is already assigned',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      const leadRef = doc(db, 'leads', merchant.id);
+      const updatedBanks = [...(merchant.assignedBanks || []), selectedBankId];
+      
+      await updateDoc(leadRef, {
+        assignedBanks: updatedBanks,
+        updatedAt: Timestamp.fromDate(new Date())
+      });
+
+      // Update local state
+      setMerchant(prev => ({
+        ...prev,
+        assignedBanks: updatedBanks
+      }));
+
+      // Reset selected bank
+      setSelectedBankId(undefined);
+
+      // Update form data state to reflect changes
+      setFormData(prev => ({
+        ...prev,
+        assignedBanks: updatedBanks
+      }));
+
+      toast({
+        title: 'Success',
+        description: `Added ${selectedBank.name} as processing bank`,
+      });
+    } catch (error) {
+      console.error('Error adding bank:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add processing bank',
+        variant: 'destructive'
+      });
+    }
+  };
 
   // Add query for column configs
   const { data: columnConfigs } = useQuery<ColumnConfigs>({
@@ -215,7 +343,10 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
 
   // Update merchant state when initialMerchant changes
   useEffect(() => {
-    setMerchant(initialMerchant);
+    setMerchant({
+      ...initialMerchant,
+      assignedBanks: initialMerchant.assignedBanks || []
+    });
     setFormData((prev) => ({
       ...prev,
       // Bank details at root level
@@ -558,12 +689,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
         <Card className="mb-4 w-full">
           <CardHeader className="space-y-4 pb-4">
             <div className="flex flex-row items-center justify-between">
-              <Badge
-                className={cn(
-                  "text-white text-xl py-2 px-4"
-                )}
-                style={{ backgroundColor: statusColor }}
-              >
+<Badge
+  className={cn(
+    "text-white text-xl w-full rounded-none p-0 flex items-center justify-center h-12"
+  )}
+  style={{ backgroundColor: statusColor }}
+>
                 {merchant.formData?.businessName || merchant.businessName}
               </Badge>
             </div>
@@ -831,7 +962,47 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <BankDetailsDisplay formData={convertToPipelineFormData(merchant.formData)} />
+                  <div className="space-y-4">
+                    {convertToPipelineFormData(merchant.formData) && (
+                      <CustomerBankDetails
+                        bankName={convertToPipelineFormData(merchant.formData)!.bankName}
+                        routingNumber={convertToPipelineFormData(merchant.formData)!.routingNumber}
+                        accountNumber={convertToPipelineFormData(merchant.formData)!.accountNumber}
+                        onSave={async (details: {
+                          bankName: string;
+                          routingNumber: string;
+                          accountNumber: string;
+                        }) => {
+                          try {
+                            const leadRef = doc(db, 'leads', merchant.id);
+                            await updateDoc(leadRef, {
+                              'formData.bankName': details.bankName,
+                              'formData.routingNumber': details.routingNumber,
+                              'formData.accountNumber': details.accountNumber,
+                              updatedAt: Timestamp.fromDate(new Date())
+                            });
+                            toast({
+                              title: 'Success',
+                              description: 'Bank details updated successfully',
+                            });
+                          } catch (error) {
+                            console.error('Error updating bank details:', error);
+                            toast({
+                              title: 'Error',
+                              description: 'Failed to update bank details',
+                              variant: 'destructive'
+                            });
+                          }
+                        }}
+                      />
+                    )}
+                    {merchant.assignedBanks?.length > 0 && (
+                      <BankDetailsDisplay formData={{
+                        bankName: '',
+                        bankingPartnerId: merchant.assignedBanks?.[0] || ''
+                      }} />
+                    )}
+                  </div>
                 </AccordionContent>
               </AccordionItem>
 
@@ -916,8 +1087,47 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               </AccordionItem>
             </Accordion>
             
-            {/* Add Delete Button here */}
-            <div className="mt-6 pt-6 border-t">
+            {/* Add Bank and Delete Buttons */}
+            <div className="mt-6 pt-6 border-t space-y-4">
+              <div className="flex gap-4">
+                <Select onValueChange={(value) => handleBankSelect(value)}>
+                  <SelectTrigger className="flex-1 h-10">
+                    <SelectValue placeholder="Select a bank" />
+                  </SelectTrigger>
+                  <SelectContent 
+                    position="popper" 
+                    className="w-[--radix-select-trigger-width] bg-white z-50 max-h-[300px] overflow-y-auto"
+                  >
+                    {bankingPartners.map((partner) => (
+                      <SelectItem 
+                        key={partner.id} 
+                        value={partner.id}
+                        className="flex items-center gap-2 py-3 px-4 cursor-pointer hover:bg-gray-100"
+                      >
+                        <div 
+                          className="w-4 h-4 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: partner.color }}
+                        />
+                        <span className="text-sm font-medium">{partner.name}</span>
+                      </SelectItem>
+                    ))}
+                    {bankingPartners.length === 0 && (
+                      <div className="py-3 px-4 text-sm text-gray-500">
+                        No active banking partners found
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
+                <Button
+                  onClick={handleAddBank}
+                  disabled={!selectedBankId}
+                  className="h-10"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Bank
+                </Button>
+              </div>
+              
               <Button
                 variant="destructive"
                 className="w-full"
@@ -981,6 +1191,17 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
                       <span>Documents</span>
                     </div>
                   </TabsTrigger>
+                  {merchant.assignedBanks?.length > 0 && (
+                    <TabsTrigger 
+                      value="banks" 
+                      className="data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none border-b-2 border-transparent px-2 rounded-none"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Landmark className="h-4 w-4" />
+                        <span>Banks</span>
+                      </div>
+                    </TabsTrigger>
+                  )}
                 </TabsList>
               </div>
             </div>
@@ -997,6 +1218,56 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
               <TabsContent value="documents" className="mt-0 border-none p-0">
                 <CommunicationsSection merchant={merchant} tab="documents" />
               </TabsContent>
+              {merchant.assignedBanks?.length > 0 && (
+                <TabsContent value="banks" className="mt-0 border-none p-0">
+                  <div className="space-y-4">
+                    {merchant.assignedBanks.map((bankId) => {
+                      const bank = bankingPartners.find(p => p.id === bankId);
+                      if (!bank) return null;
+                      return (
+                        <BankDetailsDisplay
+                          key={bankId}
+                          formData={{
+                            bankName: bank.name,
+                            bankingPartnerId: bank.id,
+                            color: bank.color
+                          }}
+                          onDelete={async () => {
+                            const confirm = window.confirm(`Are you sure you want to remove ${bank.name}?`);
+                            if (!confirm || !merchant.id) return;
+                            
+                            try {
+                              const leadRef = doc(db, 'leads', merchant.id);
+                              await updateDoc(leadRef, {
+                                assignedBanks: merchant.assignedBanks?.filter(id => id !== bankId),
+                                updatedAt: Timestamp.fromDate(new Date())
+                              });
+                              
+                              // Update local state
+                              setMerchant(prev => ({
+                                ...prev,
+                                assignedBanks: prev.assignedBanks?.filter(id => id !== bankId)
+                              }));
+                              
+                              toast({
+                                title: 'Success',
+                                description: `${bank.name} removed successfully`,
+                              });
+                            } catch (error) {
+                              console.error('Error removing bank:', error);
+                              toast({
+                                title: 'Error',
+                                description: 'Failed to remove bank',
+                                variant: 'destructive'
+                              });
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                </TabsContent>
+              )}
             </div>
           </Tabs>
         </Card>
@@ -1004,4 +1275,3 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
     </div>
   );
 }
-

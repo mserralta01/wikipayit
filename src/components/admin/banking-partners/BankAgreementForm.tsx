@@ -137,16 +137,16 @@ export function BankAgreementForm({ bankingPartnerId, initialData, onSuccess }: 
     try {
       const agreement: Omit<BankAgreement, 'id'> = {
         bankingPartnerId,
-        startDate: serverTimestamp(),
-        endDate: data.endDate ? serverTimestamp() : null,
+        startDate: new Date(data.startDate),
+        endDate: data.endDate ? new Date(data.endDate) : null,
         status: data.status,
         lowRisk: {
           ...data.lowRisk,
-          monthlyMinimumFee: data.lowRisk.monthlyFee || 0,
+          monthlyMinimumFee: data.lowRisk.monthlyFee,
         },
         highRisk: {
           ...data.highRisk,
-          monthlyMinimumFee: data.highRisk.monthlyFee || 0,
+          monthlyMinimumFee: data.highRisk.monthlyFee,
         },
         supportedHighRiskIndustries: data.supportedHighRiskIndustries,
         documentUrls: data.documentUrls,
@@ -404,4 +404,4 @@ export function BankAgreementForm({ bankingPartnerId, initialData, onSuccess }: 
       </form>
     </Form>
   );
-} 
+}

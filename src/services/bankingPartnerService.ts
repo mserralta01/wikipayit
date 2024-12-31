@@ -11,20 +11,29 @@ import {
   orderBy,
   Timestamp,
   serverTimestamp,
+  setDoc,
 } from 'firebase/firestore';
-import { db, storage } from '@/lib/firebase';
+import { db, storage } from '../lib/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { 
   BankingPartner, 
   BankContact, 
   BankAgreement,
   BankingPartnerNote 
-} from '@/types/bankingPartner';
+} from '../types/bankingPartner';
 
 const BANKING_PARTNERS_COLLECTION = 'bankingPartners';
 const CONTACTS_COLLECTION = 'bankContacts';
 const AGREEMENTS_COLLECTION = 'bankAgreements';
 const NOTES_COLLECTION = 'bankingPartnerNotes';
+
+interface MerchantPricing {
+  pricingType: 'interchangePlus' | 'surcharge' | 'tiered' | 'flatRate';
+  riskType: 'highRisk' | 'lowRisk';
+  pricing: {
+    [key: string]: number;
+  };
+}
 
 export const bankingPartnerService = {
   // Banking Partner CRUD
@@ -262,4 +271,94 @@ export const bankingPartnerService = {
       throw error;
     }
   },
-}; 
+
+  async getBankCosts(bankingPartnerId: string): Promise<{
+    highRisk: {
+      avsFee: number;
+      binFee: number;
+      chargebackFee: number;
+      monthlyFee: number;
+      monthlyMinimumFee: number;
+      pciFee: number;
+      processingFees: {
+        amex: number;
+        visaMasterDiscover: number;
+      };
+      retrievalFee: number;
+      revenueSharePercentage: number;
+      sponsorFee: number;
+      transactionFees: {
+        amex: number;
+        visaMasterDiscover: number;
+      };
+    };
+    lowRisk: {
+      avsFee: number;
+      binFee: number;
+      chargebackFee: number;
+      monthlyFee: number;
+      monthlyMinimumFee: number;
+      pciFee: number;
+      processingFees: {
+        amex: number;
+        visaMasterDiscover: number;
+      };
+      retrievalFee: number;
+      revenueSharePercentage: number;
+      sponsorFee: number;
+      transactionFees: {
+        amex: number;
+        visaMasterDiscover: number;
+      };
+    };
+  }> {
+    try {
+      const agreements = await this.getAgreementsByPartnerId(bankingPartnerId);
+      const activeAgreement = agreements.find(agreement => agreement.status === 'active');
+      
+      if (!activeAgreement) {
+        throw new Error('No active agreement found');
+      }
+
+      return {
+        highRisk: activeAgreement.highRisk,
+        lowRisk: activeAgreement.lowRisk
+      };
+    } catch (error) {
+      console.error('Error getting bank costs:', error);
+      throw error;
+    }
+  },
+
+  async getMerchantPricing(bankingPartnerId: string): Promise<MerchantPricing | null> {
+    try {
+      const pricingRef = doc(db, 'bankingPartners', bankingPartnerId, 'merchantPricing', 'current');
+      const pricingDoc = await getDoc(pricingRef);
+      
+      if (!pricingDoc.exists()) {
+        return null;
+      }
+      
+      return pricingDoc.data() as MerchantPricing;
+    } catch (error) {
+      console.error('Error getting merchant pricing:', error);
+      throw error;
+    }
+  },
+
+  async saveMerchantPricing(
+    bankingPartnerId: string, 
+    pricing: MerchantPricing
+  ): Promise<void> {
+    try {
+      const pricingRef = doc(db, 'bankingPartners', bankingPartnerId, 'merchantPricing', 'current');
+      await setDoc(pricingRef, {
+        ...pricing,
+        updatedAt: Timestamp.fromDate(new Date())
+      });
+    } catch (error) {
+      console.error('Error saving merchant pricing:', error);
+      throw error;
+    }
+  }
+};
