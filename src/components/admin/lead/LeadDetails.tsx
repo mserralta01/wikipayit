@@ -689,12 +689,12 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
         <Card className="mb-4 w-full">
           <CardHeader className="space-y-4 pb-4">
             <div className="flex flex-row items-center justify-between">
-              <Badge
-                className={cn(
-                  "text-white text-xl py-2 px-4"
-                )}
-                style={{ backgroundColor: statusColor }}
-              >
+<Badge
+  className={cn(
+    "text-white text-xl w-full rounded-none p-0 flex items-center justify-center h-12"
+  )}
+  style={{ backgroundColor: statusColor }}
+>
                 {merchant.formData?.businessName || merchant.businessName}
               </Badge>
             </div>
