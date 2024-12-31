@@ -78,6 +78,7 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
 
   const [numPages, setNumPages] = useState<number>(1);
   const [pageNumber, setPageNumber] = useState<number>(1);
+  const [scale, setScale] = useState<number>(1);
 
   function onDocumentLoadSuccess({ numPages }: { numPages: number }): void {
     setNumPages(numPages);
@@ -215,7 +216,7 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
                     >
                       <Page
                         pageNumber={pageNumber}
-                        width={800}
+                        width={800 * scale}
                         renderTextLayer={false}
                         renderAnnotationLayer={false}
                         className="shadow-lg"
@@ -224,6 +225,22 @@ function DocumentPreview({ url, type }: DocumentPreviewProps) {
                   </div>
                   {numPages > 1 && (
                     <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2 bg-white/90 p-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setScale(Math.max(0.5, scale - 0.1))}
+                        disabled={scale <= 0.5}
+                      >
+                        Zoom Out
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setScale(Math.min(2, scale + 0.1))}
+                        disabled={scale >= 2}
+                      >
+                        Zoom In
+                      </Button>
                       <Button
                         size="sm"
                         variant="outline"
