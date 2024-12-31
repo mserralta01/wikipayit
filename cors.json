@@ -1,8 +1,8 @@
 [
   {
-    "origin": ["http://localhost:5174"],
-    "method": ["GET"],
-    "responseHeader": ["Content-Type"],
+    "origin": ["https://www.wikipayit.com", "http://localhost:5174"],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "responseHeader": ["Content-Type", "Content-Disposition", "Authorization"],
     "maxAgeSeconds": 3600
   }
 ]

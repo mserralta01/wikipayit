@@ -1,5 +1,15 @@
 rules_version = '2';
 
+// CORS Configuration (must be set in Google Cloud Console):
+// [
+//   {
+//     "origin": ["https://www.wikipayit.com", "http://localhost:5174"],
+//     "method": ["GET", "HEAD"],
+//     "responseHeader": ["Content-Type", "Content-Disposition"],
+//     "maxAgeSeconds": 3600
+//   }
+// ]
+
 service firebase.storage {
   match /b/{bucket}/o {
     match /{allPaths=**} {

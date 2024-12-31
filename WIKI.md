@@ -146,3 +146,118 @@ npm run build
 - Check Firebase rules if experiencing permission issues
 - Verify environment variables are properly set
 - Use React Query Devtools for debugging API calls
+
+
+## CORS Configuration for Firebase Storage
+
+To enable PDF preview functionality, the following CORS configuration must be set in Google Cloud Console:
+
+1. Go to Google Cloud Console (https://console.cloud.google.com)
+2. Select your Firebase project
+3. Navigate to Cloud Storage > Browser
+4. Click the three-dot menu next to your bucket and select "Edit CORS configuration"
+5. Add the following JSON configuration:
+
+```json
+[
+  {
+    "origin": ["https://www.wikipayit.com", "http://localhost:5174"],
+    "method": ["GET", "HEAD"],
+    "responseHeader": ["Content-Type", "Content-Disposition"],
+    "maxAgeSeconds": 3600
+  }
+]
+```
+
+6. Click "Save"
+
+This configuration allows cross-origin requests from your production domain and localhost for PDF preview functionality.
+
+# CORS Configuration for Firebase Storage
+
+## Setting up CORS via Command Line
+
+### 1. Prerequisites
+First, install the Google Cloud SDK:
+```bash
+brew install google-cloud-sdk
+```
+
+### 2. Create CORS Configuration
+Create a `cors.json` file with the following content:
+```json
+[
+  {
+    "origin": ["https://www.wikipayit.com", "http://localhost:5174"],
+    "method": ["GET", "HEAD", "PUT", "POST", "DELETE"],
+    "responseHeader": ["Content-Type", "Content-Disposition", "Authorization"],
+    "maxAgeSeconds": 3600
+  }
+]
+```
+
+### 3. Authentication Steps
+```bash
+# Initialize and set project
+gcloud init
+
+# Login to Google Cloud
+gcloud auth login
+
+# Set project
+gcloud config set project wikipayit
+
+# Get application default credentials
+gcloud auth application-default login
+```
+
+### 4. Apply CORS Configuration
+```bash
+gsutil cors set cors.json gs://wikipayit.firebasestorage.app
+```
+
+### 5. Verify Configuration
+```bash
+gsutil cors get gs://wikipayit.firebasestorage.app
+```
+
+## Troubleshooting Authentication Issues
+
+### Common Commands
+```bash
+# Check current authentication
+gcloud auth list
+
+# Revoke and re-authenticate if needed
+gcloud auth revoke
+gcloud auth login
+
+# Verify bucket access
+gsutil ls
+```
+
+### Required IAM Roles
+Ensure your Google Cloud account has these roles:
+- Storage Admin (`roles/storage.admin`)
+- Storage Object Admin (`roles/storage.objectAdmin`)
+
+To verify roles:
+1. Go to Google Cloud Console
+2. Navigate to IAM & Admin > IAM
+3. Locate your email and verify roles
+
+## Alternative: Console Configuration
+
+If command-line setup fails, you can configure CORS through the Firebase Console:
+
+1. Go to Firebase Console
+2. Select your project
+3. Navigate to Storage
+4. Click on Rules
+5. Add the CORS configuration in the console interface
+
+Remember to maintain appropriate security rules in your storage.rules file while allowing necessary access for your application.
+
+
+
+
