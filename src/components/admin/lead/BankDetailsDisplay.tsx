@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, Pencil, Trash2 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { bankingPartnerService } from '@/services/bankingPartnerService';
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from '../../ui/card';
+import { bankingPartnerService } from '../../../services/bankingPartnerService';
+import { Button } from '../../ui/button';
 import { PricingForm } from './PricingForm';
-import { useToast } from "@/hooks/use-toast";
-import { MerchantPricing } from '@/types/merchant';
+import { useToast } from '../../../hooks/use-toast';
+import { MerchantPricing } from '../../../types/merchant';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
 
 interface BankDetailsDisplayProps {
   formData?: {
@@ -59,11 +60,69 @@ interface BankCosts {
   };
 }
 
+type ProcessingStatus = 
+  | 'Pre-Application'
+  | 'Need Application'
+  | 'Need Documents'
+  | 'Need Signature'
+  | 'Submitted'
+  | 'Approved'
+  | 'Processing';
+
+const statusColors: Record<ProcessingStatus, string> = {
+  'Pre-Application': '#FF9900', // Amazon Yellow
+  'Need Application': '#FFA500', // Light Orange
+  'Need Documents': '#FF8C00', // Darker Orange
+  'Need Signature': '#0000FF', // Blue
+  'Submitted': '#FF0000', // Red
+  'Approved': '#90EE90', // Light Green
+  'Processing': '#228B22' // Firm Green
+};
+
 export function BankDetailsDisplay({ formData, onDelete }: BankDetailsDisplayProps) {
   const [showPricingForm, setShowPricingForm] = useState(false);
   const [bankCosts, setBankCosts] = useState<BankCosts | null>(null);
   const [existingPricing, setExistingPricing] = useState<MerchantPricing | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<ProcessingStatus>('Pre-Application');
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (formData?.bankingPartnerId) {
+        try {
+          const status = await bankingPartnerService.getProcessingStatus(formData.bankingPartnerId);
+          if (status && Object.keys(statusColors).includes(status)) {
+            setProcessingStatus(status as ProcessingStatus);
+          } else {
+            setProcessingStatus('Pre-Application');
+          }
+        } catch (error) {
+          console.error('Failed to fetch processing status:', error);
+        }
+      }
+    };
+    fetchStatus();
+  }, [formData?.bankingPartnerId]);
+
+  const handleStatusChange = async (value: ProcessingStatus) => {
+    if (formData?.bankingPartnerId) {
+      try {
+        await bankingPartnerService.updateProcessingStatus(formData.bankingPartnerId, value as any);
+        setProcessingStatus(value);
+        toast({
+          title: 'Success',
+          description: 'Status updated successfully',
+        });
+      } catch (error) {
+        console.error('Failed to update status:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to update status',
+          variant: 'destructive'
+        });
+      }
+    }
+  };
 
   const handlePricingClick = async () => {
     if (formData?.bankingPartnerId) {
@@ -72,7 +131,6 @@ export function BankDetailsDisplay({ formData, onDelete }: BankDetailsDisplayPro
         const pricing = await bankingPartnerService.getMerchantPricing(formData.bankingPartnerId);
         setBankCosts(costs);
         if (pricing) {
-          // Convert service pricing to component pricing if needed
           const convertedPricing: MerchantPricing = {
             pricingType: pricing.pricingType,
             riskType: pricing.riskType,
@@ -131,8 +189,28 @@ export function BankDetailsDisplay({ formData, onDelete }: BankDetailsDisplayPro
               >
                 {formData.bankName}
               </span>
+              <div 
+                className="px-2 py-1 rounded text-white text-sm"
+                style={{ backgroundColor: statusColors[processingStatus] }}
+              >
+                {processingStatus}
+              </div>
             </div>
             <div className="flex items-center gap-2">
+              <Select value={processingStatus} onValueChange={handleStatusChange}>
+                <SelectTrigger className="w-[180px] bg-transparent border-none shadow-none">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pre-Application">Pre-Application</SelectItem>
+                  <SelectItem value="Need Application">Need Application</SelectItem>
+                  <SelectItem value="Need Documents">Need Documents</SelectItem>
+                  <SelectItem value="Need Signature">Need Signature</SelectItem>
+                  <SelectItem value="Submitted">Submitted</SelectItem>
+                  <SelectItem value="Approved">Approved</SelectItem>
+                  <SelectItem value="Processing">Processing</SelectItem>
+                </SelectContent>
+              </Select>
               <Button
                 variant="outline"
                 size="sm"
@@ -173,7 +251,6 @@ export function BankDetailsDisplay({ formData, onDelete }: BankDetailsDisplayPro
           onSave={async (pricing) => {
             if (pricing && formData.bankingPartnerId) {
               try {
-                // Convert component pricing back to service pricing
                 const servicePricing = {
                   pricingType: pricing.pricingType,
                   riskType: pricing.riskType,

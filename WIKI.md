@@ -80,6 +80,43 @@ npm run dev
 npm run build
 ```
 
+## Bank Processing Status System
+
+The platform includes a comprehensive bank processing status system to track the progress of bank applications and partnerships. This system provides:
+
+### Status Options
+- **Pre-Application**: Initial state before application begins
+- **Need Application**: Application form needs to be completed
+- **Need Documents**: Additional documents required
+- **Need Signature**: Awaiting signature on agreements
+- **Submitted**: Application submitted for review
+- **Approved**: Application approved and active
+- **Processing**: Application being processed
+
+### Visual Representation
+Each status is represented by a colored flag:
+- **Pre-Application**: Amazon Yellow (#FF9900)
+- **Need Application**: Light Orange (#FFA500)
+- **Need Documents**: Darker Orange (#FF8C00)
+- **Need Signature**: Flashing Blue (#0000FF)
+- **Submitted**: Flashing Red (#FF0000)
+- **Approved**: Light Green (#90EE90)
+- **Processing**: Firm Green (#228B22)
+
+Status flags appear in three locations:
+1. Next to each bank name in the lead detail view
+2. At the top of the lead detail page (using bank-specific colors)
+3. At the bottom of each lead card in the Kanban view
+
+### Database Storage
+The processing status is stored in the `bankingPartners` collection as a `processingStatus` field. The field accepts one of the predefined status values.
+
+### Implementation Details
+The status system is implemented in:
+- `src/components/admin/lead/BankDetailsDisplay.tsx`: Handles status display and updates
+- `src/services/bankingPartnerService.ts`: Provides methods for status CRUD operations
+- `src/types/bankingPartner.ts`: Defines the status type and interface
+
 ## Key Architectural Patterns
 
 ### Component Structure
@@ -257,7 +294,3 @@ If command-line setup fails, you can configure CORS through the Firebase Console
 5. Add the CORS configuration in the console interface
 
 Remember to maintain appropriate security rules in your storage.rules file while allowing necessary access for your application.
-
-
-
-

@@ -4,6 +4,7 @@ export interface BankingPartner {
   id: string;
   name: string;
   status: 'active' | 'inactive' | 'pending';
+  processingStatus?: 'Pre-Application' | 'Need Application' | 'Need Documents' | 'Need Signature' | 'Submitted' | 'Approved' | 'Processing';
   color?: string;
   description?: string;
   website?: string;
@@ -71,4 +72,4 @@ export interface BankingPartnerNote {
   content: string;
   createdAt: Timestamp;
   createdBy: string;
-} 
+}
