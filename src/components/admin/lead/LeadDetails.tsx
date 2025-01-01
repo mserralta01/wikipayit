@@ -186,62 +186,46 @@ export function LeadDetails({ merchant: initialMerchant }: LeadDetailsProps) {
   };
 
   const handleAddBank = async () => {
-    if (!selectedBankId || !merchant.id) return;
+    if (!selectedBankId || !merchant) return;
 
-    const selectedBank = bankingPartners.find(p => p.id === selectedBankId);
-    if (!selectedBank) {
+    // Ensure assignedBanks is always an array
+    const currentBanks = Array.isArray(merchant.assignedBanks) ? merchant.assignedBanks : [];
+    
+    // Check if bank is already assigned using the ID
+    if (currentBanks.includes(selectedBankId)) {
       toast({
-        title: 'Error',
-        description: 'Selected bank not found',
-        variant: 'destructive'
+        title: "Bank already assigned",
+        description: "This bank is already assigned to the merchant",
+        variant: "destructive",
       });
       return;
     }
 
-    // Check if bank is already assigned
-    if (merchant.assignedBanks?.includes(selectedBankId)) {
-      toast({
-        title: 'Error',
-        description: 'This bank is already assigned',
-        variant: 'destructive'
-      });
-      return;
-    }
-
+    // Add the new bank ID
+    const updatedBanks = [...currentBanks, selectedBankId];
+    
     try {
       const leadRef = doc(db, 'leads', merchant.id);
-      const updatedBanks = [...(merchant.assignedBanks || []), selectedBankId];
-      
       await updateDoc(leadRef, {
         assignedBanks: updatedBanks,
         updatedAt: Timestamp.fromDate(new Date())
       });
-
-      // Update local state
+      
       setMerchant(prev => ({
-        ...prev,
+        ...prev!,
         assignedBanks: updatedBanks
       }));
-
-      // Reset selected bank
-      setSelectedBankId(undefined);
-
-      // Update form data state to reflect changes
-      setFormData(prev => ({
-        ...prev,
-        assignedBanks: updatedBanks
-      }));
-
+      
       toast({
-        title: 'Success',
-        description: `Added ${selectedBank.name} as processing bank`,
+        title: "Bank added successfully",
+        description: "The bank has been assigned to the merchant"
       });
     } catch (error) {
       console.error('Error adding bank:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to add processing bank',
-        variant: 'destructive'
+        title: "Error adding bank",
+        description: "There was an error assigning the bank",
+        variant: "destructive",
       });
     }
   };
