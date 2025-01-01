@@ -12,6 +12,7 @@ import {
 import { Label } from '../../ui/label';
 import { Input } from '../../ui/input';
 import { Button } from '../../ui/button';
+import { CircleDollarSign } from 'lucide-react';
 
 interface ProcessingFees {
   amex: number;
@@ -145,20 +146,80 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
     return interchangeRates.americanExpress?.percentage || 0;
   };
 
+  // Add helper function to calculate adjusted profit
+  const calculateAdjustedProfit = (profit: number): number => {
+    const revenueShare = riskType === 'highRisk' 
+      ? costs.highRisk.revenueSharePercentage / 100
+      : costs.lowRisk.revenueSharePercentage / 100;
+    return profit * revenueShare;
+  };
+
+  // Modify the profit display sections throughout the component
+  // For Visa/Master/Discover processing fees:
+  const vmdProcessingProfit = pricingType === 'interchangePlus' 
+    ? pricing.processingFees.visaMasterDiscover
+    : (pricing.processingFees.visaMasterDiscover - getBaseCost('visaMasterDiscover'));
+  
+  const vmdTransactionProfit = pricing.transactionFees.visaMasterDiscover - 
+    (interchangeRates?.visaMastercardDiscover?.transactionFee || 0);
+
+  // For Amex processing fees:
+  const amexProcessingProfit = pricingType === 'interchangePlus'
+    ? pricing.processingFees.amex
+    : (pricing.processingFees.amex - getBaseCost('amex'));
+    
+  const amexTransactionProfit = pricing.transactionFees.amex - 
+    (interchangeRates?.americanExpress?.transactionFee || 0);
+
   if (isLoading) {
     return <div>Loading interchange rates...</div>;
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Pricing Type</Label>
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Header Section with Revenue Share Blocks */}
+      <div className="flex items-center justify-between pb-4 border-b">
+        <div className="space-y-1">
+          <h2 className="text-2xl font-semibold tracking-tight">Pricing Configuration</h2>
+          <p className="text-sm text-muted-foreground">
+            Configure processing fees and additional charges for this merchant
+          </p>
+        </div>
+        
+        <div className="flex gap-4">
+          {/* High Risk Revenue Share */}
+          <div className="bg-red-500/90 rounded-lg p-3 min-w-[140px]">
+            <div className="flex items-center gap-2 mb-1">
+              <CircleDollarSign className="h-4 w-4 text-white" />
+              <span className="text-xs font-medium text-white/90">High Risk</span>
+            </div>
+            <div className="text-white text-lg font-semibold">
+              {costs.highRisk.revenueSharePercentage}% Share
+            </div>
+          </div>
+
+          {/* Low Risk Revenue Share */}
+          <div className="bg-green-500/90 rounded-lg p-3 min-w-[140px]">
+            <div className="flex items-center gap-2 mb-1">
+              <CircleDollarSign className="h-4 w-4 text-white" />
+              <span className="text-xs font-medium text-white/90">Low Risk</span>
+            </div>
+            <div className="text-white text-lg font-semibold">
+              {costs.lowRisk.revenueSharePercentage}% Share
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pricing Type and Risk Type Selection */}
+      <div className="grid grid-cols-2 gap-6">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Pricing Type</Label>
           <Select 
             onValueChange={(value: MerchantPricing['pricingType']) => setPricingType(value)} 
             value={pricingType}
           >
-            <SelectTrigger>
+            <SelectTrigger className="h-9">
               <SelectValue placeholder="Select pricing type" />
             </SelectTrigger>
             <SelectContent>
@@ -170,10 +231,13 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
           </Select>
         </div>
 
-        <div>
-          <Label>Risk Type</Label>
-          <Select onValueChange={(value: 'highRisk' | 'lowRisk') => setRiskType(value)} value={riskType}>
-            <SelectTrigger>
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Risk Type</Label>
+          <Select 
+            onValueChange={(value: 'highRisk' | 'lowRisk') => setRiskType(value)} 
+            value={riskType}
+          >
+            <SelectTrigger className="h-9">
               <SelectValue placeholder="Select risk type" />
             </SelectTrigger>
             <SelectContent>
@@ -184,153 +248,280 @@ export const PricingForm = ({ costs, initialPricing, onSave }: PricingFormProps)
         </div>
       </div>
 
+      {/* Processing Fees Section */}
       <div className="space-y-4">
-        {/* Processing Fees */}
-        <div className="space-y-4">
-          <h3 className="font-medium">Processing Fees</h3>
-          <div className="grid grid-cols-3 gap-4 items-center">
-            <Label>Visa/Master/Discover</Label>
-            <Input
-              type="number"
-              value={pricing.processingFees.visaMasterDiscover}
-              onChange={(e) => {
-                const newValue = parseFloat(e.target.value);
-                if (!isNaN(newValue)) {
-                  setPricing(prev => ({
-                    ...prev,
-                    processingFees: {
-                      ...prev.processingFees,
-                      visaMasterDiscover: newValue
-                    }
-                  }));
-                }
-              }}
-            />
-            <span className="text-sm text-gray-500">
-              Base Cost: {getBaseCost('visaMasterDiscover')}%
-            </span>
+        <div className="rounded-lg border bg-card">
+          <div className="p-4 border-b">
+            <h3 className="font-semibold">Processing Fees</h3>
           </div>
-          <div className="grid grid-cols-3 gap-4 items-center">
-            <Label>Amex</Label>
-            <Input
-              type="number"
-              value={pricing.processingFees.amex}
-              onChange={(e) => {
-                const newValue = parseFloat(e.target.value);
-                if (!isNaN(newValue)) {
-                  setPricing(prev => ({
-                    ...prev,
-                    processingFees: {
-                      ...prev.processingFees,
-                      amex: newValue
-                    }
-                  }));
-                }
-              }}
-            />
-            <span className="text-sm text-gray-500">
-              Base Cost: {getBaseCost('amex')}%
-            </span>
-          </div>
-        </div>
-
-        {/* Transaction Fees */}
-        <div className="space-y-4">
-          <h3 className="font-medium">Transaction Fees</h3>
-          <div className="grid grid-cols-3 gap-4 items-center">
-            <Label>Visa/Master/Discover</Label>
-            <Input
-              type="number"
-              value={pricing.transactionFees.visaMasterDiscover}
-              onChange={(e) => {
-                const newValue = parseFloat(e.target.value);
-                if (!isNaN(newValue)) {
-                  setPricing(prev => ({
-                    ...prev,
-                    transactionFees: {
-                      ...prev.transactionFees,
-                      visaMasterDiscover: newValue
-                    }
-                  }));
-                }
-              }}
-            />
-            <span className="text-sm text-gray-500">
-              Base Cost: {getBaseCost('visaMasterDiscover')}%
-            </span>
-          </div>
-          <div className="grid grid-cols-3 gap-4 items-center">
-            <Label>Amex</Label>
-            <Input
-              type="number"
-              value={pricing.transactionFees.amex}
-              onChange={(e) => {
-                const newValue = parseFloat(e.target.value);
-                if (!isNaN(newValue)) {
-                  setPricing(prev => ({
-                    ...prev,
-                    transactionFees: {
-                      ...prev.transactionFees,
-                      amex: newValue
-                    }
-                  }));
-                }
-              }}
-            />
-            <span className="text-sm text-gray-500">
-              Base Cost: {getBaseCost('amex')}%
-            </span>
-          </div>
-        </div>
-
-        {/* Other Fees */}
-        <div className="space-y-4">
-          <h3 className="font-medium">Other Fees</h3>
-          {[
-            { key: 'avsFee', label: 'AVS Fee' },
-            { key: 'binFee', label: 'BIN Fee' },
-            { key: 'chargebackFee', label: 'Chargeback Fee' },
-            { key: 'monthlyFee', label: 'Monthly Fee' },
-            { key: 'monthlyMinimumFee', label: 'Monthly Minimum Fee' },
-            { key: 'pciFee', label: 'PCI Fee' },
-            { key: 'retrievalFee', label: 'Retrieval Fee' },
-            { key: 'revenueSharePercentage', label: 'Revenue Share Percentage' },
-            { key: 'sponsorFee', label: 'Sponsor Fee' }
-          ].map(({ key, label }) => (
-            <div key={key} className="grid grid-cols-3 gap-4 items-center">
-              <Label>{label}</Label>
-              <Input
-                type="number"
-                value={pricing[key as keyof Omit<MerchantPricing['pricing'], 'processingFees' | 'transactionFees'>] || ''}
-                onChange={(e) => {
-                  const newValue = parseFloat(e.target.value);
-                  if (!isNaN(newValue)) {
-                    setPricing(prev => ({
-                      ...prev,
-                      [key]: newValue
-                    }));
-                  }
-                }}
-              />
-              <span className="text-sm text-gray-500">
-                Base Cost: {String(currentCosts[key as keyof typeof currentCosts])}
-              </span>
+          
+          <div className="p-4 space-y-6">
+            {/* Headers */}
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-3">
+                <h4 className="text-sm font-medium text-muted-foreground">Card Type</h4>
+              </div>
+              <div className="col-span-4">
+                <h4 className="text-sm font-medium text-muted-foreground">Processing Fee (%)</h4>
+              </div>
+              <div className="col-span-5">
+                <h4 className="text-sm font-medium text-muted-foreground">Transaction Fee ($)</h4>
+              </div>
             </div>
-          ))}
+
+            {/* Visa/Master/Discover Row */}
+            <div className="grid grid-cols-12 gap-4 items-start">
+              <Label className="col-span-3 pt-2">Visa/Master/Discover</Label>
+              
+              <div className="col-span-4 space-y-2">
+                <Input
+                  type="number"
+                  value={pricing.processingFees.visaMasterDiscover}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setPricing(prev => ({
+                        ...prev,
+                        processingFees: {
+                          ...prev.processingFees,
+                          visaMasterDiscover: 0
+                        }
+                      }));
+                      return;
+                    }
+                    const newValue = parseFloat(value);
+                    if (!isNaN(newValue) && (pricingType !== 'surcharge' || newValue <= 3.0)) {
+                      setPricing(prev => ({
+                        ...prev,
+                        processingFees: {
+                          ...prev.processingFees,
+                          visaMasterDiscover: newValue
+                        }
+                      }));
+                    }
+                  }}
+                  className="h-9"
+                />
+                <div className="text-xs space-y-1">
+                  <p className="text-muted-foreground">Cost: {getBaseCost('visaMasterDiscover')}%</p>
+                  <p>
+                    Profit: <span className={`${vmdProcessingProfit < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      {pricingType === 'interchangePlus' ? 
+                        `${vmdProcessingProfit.toFixed(2)}% (${calculateAdjustedProfit(vmdProcessingProfit).toFixed(2)}%)` :
+                        `${vmdProcessingProfit.toFixed(2)}% (${calculateAdjustedProfit(vmdProcessingProfit).toFixed(2)}%)`
+                      }
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="col-span-5 space-y-2">
+                <Input
+                  type="number"
+                  value={pricing.transactionFees.visaMasterDiscover}
+                  onChange={(e) => {
+                    const newValue = parseFloat(e.target.value);
+                    if (!isNaN(newValue)) {
+                      setPricing(prev => ({
+                        ...prev,
+                        transactionFees: {
+                          ...prev.transactionFees,
+                          visaMasterDiscover: newValue
+                        }
+                      }));
+                    }
+                  }}
+                  className="h-9"
+                />
+                <div className="text-xs space-y-1">
+                  <p className="text-muted-foreground">
+                    Cost: ${interchangeRates?.visaMastercardDiscover?.transactionFee?.toFixed(2) || '0.00'}
+                  </p>
+                  <p>
+                    Profit: <span className={`${vmdTransactionProfit < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      ${vmdTransactionProfit.toFixed(2)} (${calculateAdjustedProfit(vmdTransactionProfit).toFixed(2)})
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* American Express Row */}
+            <div className="grid grid-cols-12 gap-4 items-start">
+              <Label className="col-span-3 pt-2">American Express</Label>
+              
+              <div className="col-span-4 space-y-2">
+                <Input
+                  type="number"
+                  value={pricing.processingFees.amex}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setPricing(prev => ({
+                        ...prev,
+                        processingFees: {
+                          ...prev.processingFees,
+                          amex: 0
+                        }
+                      }));
+                      return;
+                    }
+                    const newValue = parseFloat(value);
+                    if (!isNaN(newValue) && (pricingType !== 'surcharge' || newValue <= 3.0)) {
+                      setPricing(prev => ({
+                        ...prev,
+                        processingFees: {
+                          ...prev.processingFees,
+                          amex: newValue
+                        }
+                      }));
+                    }
+                  }}
+                  className="h-9"
+                />
+                <div className="text-xs space-y-1">
+                  <p className="text-muted-foreground">Cost: {getBaseCost('amex')}%</p>
+                  <p>
+                    Profit: <span className={`${amexProcessingProfit < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      {pricingType === 'interchangePlus' ? 
+                        `${amexProcessingProfit.toFixed(2)}% (${calculateAdjustedProfit(amexProcessingProfit).toFixed(2)}%)` :
+                        `${amexProcessingProfit.toFixed(2)}% (${calculateAdjustedProfit(amexProcessingProfit).toFixed(2)}%)`
+                      }
+                    </span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="col-span-5 space-y-2">
+                <Input
+                  type="number"
+                  value={pricing.transactionFees.amex}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setPricing(prev => ({
+                        ...prev,
+                        transactionFees: {
+                          ...prev.transactionFees,
+                          amex: 0
+                        }
+                      }));
+                      return;
+                    }
+                    const newValue = parseFloat(value);
+                    if (!isNaN(newValue)) {
+                      setPricing(prev => ({
+                        ...prev,
+                        transactionFees: {
+                          ...prev.transactionFees,
+                          amex: newValue
+                        }
+                      }));
+                    }
+                  }}
+                  className="h-9"
+                />
+                <div className="text-xs space-y-1">
+                  <p className="text-muted-foreground">
+                    Cost: ${interchangeRates?.americanExpress?.transactionFee?.toFixed(2) || '0.00'}
+                  </p>
+                  <p>
+                    Profit: <span className={`${amexTransactionProfit < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                      ${amexTransactionProfit.toFixed(2)} (${calculateAdjustedProfit(amexTransactionProfit).toFixed(2)})
+                    </span>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Other Fees Section */}
+        <div className="rounded-lg border bg-card">
+          <div className="p-4 border-b">
+            <h3 className="font-semibold">Other Fees</h3>
+          </div>
+          
+          <div className="p-4">
+            <div className="grid grid-cols-2 gap-6">
+              {[
+                { key: 'avsFee', label: 'AVS Fee', isPercentage: false },
+                { key: 'binFee', label: 'BIN Fee', isPercentage: true },
+                { key: 'chargebackFee', label: 'Chargeback Fee', isPercentage: false },
+                { key: 'monthlyFee', label: 'Monthly Fee', isPercentage: false },
+                { key: 'monthlyMinimumFee', label: 'Monthly Minimum Fee', isPercentage: false },
+                { key: 'pciFee', label: 'PCI Fee', isPercentage: false },
+                { key: 'retrievalFee', label: 'Retrieval Fee', isPercentage: false },
+                { key: 'sponsorFee', label: 'Sponsor Fee', isPercentage: true }
+              ].map(({ key, label, isPercentage }) => {
+                const costValue = currentCosts[key as keyof typeof currentCosts];
+                const cost = typeof costValue === 'number' ? costValue : 0;
+                const feeValue = pricing[key as keyof Omit<MerchantPricing['pricing'], 'processingFees' | 'transactionFees'>];
+                const fee = typeof feeValue === 'number' ? feeValue : 0;
+                const profit = fee - cost;
+                const adjustedProfit = calculateAdjustedProfit(profit);
+                const isNegative = profit < 0;
+                
+                return (
+                  <div key={key} className="space-y-2">
+                    <Label className="text-sm font-medium">{label}</Label>
+                    <div className="grid grid-cols-2 gap-4 items-start">
+                      <Input
+                        type="number"
+                        value={fee}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          if (value === '') {
+                            setPricing(prev => ({
+                              ...prev,
+                              [key]: 0
+                            }));
+                            return;
+                          }
+                          const newValue = parseFloat(value);
+                          if (!isNaN(newValue)) {
+                            setPricing(prev => ({
+                              ...prev,
+                              [key]: newValue
+                            }));
+                          }
+                        }}
+                        className="h-9"
+                      />
+                      <div className="text-xs space-y-1 pt-2">
+                        <p className="text-muted-foreground">
+                          Cost: {isPercentage ? `${cost}%` : `$${cost.toFixed(2)}`}
+                        </p>
+                        <p>
+                          Profit: <span className={`${isNegative ? 'text-red-500 animate-pulse' : 'text-green-500'}`}>
+                            {isPercentage 
+                              ? `${profit.toFixed(2)}% (${adjustedProfit.toFixed(2)}%)`
+                              : `$${profit.toFixed(2)} ($${adjustedProfit.toFixed(2)})`
+                            }
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      {/* Action Buttons */}
+      <div className="flex gap-4 justify-end">
         <Button 
           variant="outline" 
           onClick={handleCancel}
-          className="w-full"
+          className="w-32"
         >
           Cancel
         </Button>
         <Button 
           onClick={handleSave} 
-          className="w-full"
+          className="w-32"
         >
           Save Pricing
         </Button>

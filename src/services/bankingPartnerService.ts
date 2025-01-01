@@ -360,5 +360,32 @@ export const bankingPartnerService = {
       console.error('Error saving merchant pricing:', error);
       throw error;
     }
+  },
+
+  async getProcessingStatus(bankingPartnerId: string): Promise<string | null> {
+    try {
+      const docRef = doc(db, BANKING_PARTNERS_COLLECTION, bankingPartnerId);
+      const docSnap = await getDoc(docRef);
+      return docSnap.exists() ? docSnap.data().processingStatus || 'Pre-Application' : null;
+    } catch (error) {
+      console.error('Error getting processing status:', error);
+      throw error;
+    }
+  },
+
+  async updateProcessingStatus(
+    bankingPartnerId: string,
+    status: 'Pre-Application' | 'Need Application' | 'Need Documents' | 'Need Signature' | 'Submitted' | 'Approved' | 'Processing'
+  ): Promise<void> {
+    try {
+      const docRef = doc(db, BANKING_PARTNERS_COLLECTION, bankingPartnerId);
+      await updateDoc(docRef, {
+        processingStatus: status,
+        updatedAt: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating processing status:', error);
+      throw error;
+    }
   }
 };
