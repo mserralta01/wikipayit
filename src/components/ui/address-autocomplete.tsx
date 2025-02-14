@@ -27,26 +27,22 @@ export interface ParsedAddress {
   fullAddress: string
 }
 
-interface AddressAutocompleteProps extends React.InputHTMLAttributes<HTMLInputElement> {
+type AddressAutocompleteProps = Omit<React.InputHTMLAttributes<HTMLInputElement>, 'defaultValue'> & {
   onAddressSelect: (address: ParsedAddress) => void
   label?: string
-  required?: boolean
   defaultValue?: string
   error?: boolean
-  placeholder?: string
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
-  name?: string
 }
 
 export const AddressAutocomplete = forwardRef<HTMLInputElement, AddressAutocompleteProps>(({
   onAddressSelect,
   label = 'Address',
-  required = false,
   defaultValue = '',
   error = false,
   placeholder = "Start typing an address...",
   onChange,
-  name,
+  className,
+  required,
   ...props
 }, ref) => {
   const [query, setQuery] = useState(defaultValue)
@@ -171,8 +167,11 @@ export const AddressAutocomplete = forwardRef<HTMLInputElement, AddressAutocompl
     }
 
     try {
-      // Extract street number and name from the main text
-      addressParts.street = feature.text
+      // Extract address components from the place_name
+      const addressComponents = feature.place_name.split(',').map(s => s.trim())
+      
+      // The first component is usually the street address
+      addressParts.street = addressComponents[0]
 
       // Parse the context array for city, state, and zip
       feature.context?.forEach(ctx => {
@@ -185,12 +184,19 @@ export const AddressAutocomplete = forwardRef<HTMLInputElement, AddressAutocompl
         }
       })
 
-      // If street is missing house number, try to extract it from place_name
-      if (!addressParts.street.match(/^\d/)) {
-        const houseNumber = feature.place_name.match(/^\d+/)
-        if (houseNumber) {
-          addressParts.street = `${houseNumber[0]} ${addressParts.street}`
-        }
+      // If we couldn't find the city in context, try to get it from address components
+      if (!addressParts.city && addressComponents.length > 2) {
+        addressParts.city = addressComponents[1]
+      }
+
+      // Clean up the street address
+      if (addressParts.street) {
+        // Remove any city, state, or ZIP that might be in the street address
+        addressParts.street = addressParts.street
+          .replace(new RegExp(`${addressParts.city}.*$`), '')
+          .replace(new RegExp(`${addressParts.state}.*$`), '')
+          .replace(new RegExp(`${addressParts.zipCode}.*$`), '')
+          .trim()
       }
 
       // Log the parsed address for debugging
@@ -199,11 +205,21 @@ export const AddressAutocomplete = forwardRef<HTMLInputElement, AddressAutocompl
       // Validate the parsed address
       if (!addressParts.street || !addressParts.city || !addressParts.state || !addressParts.zipCode) {
         console.warn('Incomplete address parsed:', addressParts)
+        toast({
+          title: 'Warning',
+          description: 'Some address components could not be parsed. Please verify the address.',
+          variant: 'destructive',
+        })
       }
 
       return addressParts
     } catch (error) {
       console.error('Error parsing address:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to parse address. Please try entering it manually.',
+        variant: 'destructive',
+      })
       return addressParts
     }
   }
@@ -233,7 +249,7 @@ export const AddressAutocomplete = forwardRef<HTMLInputElement, AddressAutocompl
     // Create a synthetic change event
     const syntheticEvent = {
       target: {
-        name,
+        name: props.name,
         value: parsedAddress.street
       }
     } as React.ChangeEvent<HTMLInputElement>
@@ -243,16 +259,18 @@ export const AddressAutocomplete = forwardRef<HTMLInputElement, AddressAutocompl
       onChange(syntheticEvent)
     }
     
+    // Log the selected address
+    console.log('Selected address:', parsedAddress)
+    
     onAddressSelect(parsedAddress)
   }
 
   return (
     <div className="relative">
-      <Label htmlFor="address">{label}{required && <span className="text-red-500">*</span>}</Label>
+      <Label htmlFor={props.id || "address"}>{label}{required && <span className="text-red-500">*</span>}</Label>
       <Input
-        {...props}
+        id={props.id || "address"}
         ref={ref}
-        id="address"
         type="text"
         value={query}
         onChange={handleInputChange}
@@ -263,8 +281,9 @@ export const AddressAutocomplete = forwardRef<HTMLInputElement, AddressAutocompl
         className={cn(
           error && "border-red-500",
           isLoading && "pr-10",
-          props.className
+          className
         )}
+        {...props}
       />
       
       {isLoading && (

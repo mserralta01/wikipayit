@@ -639,22 +639,41 @@ export const BusinessInformationStep = forwardRef<
                   <span className="text-destructive ml-1">*</span>
                 </Label>
                 <AddressAutocomplete
+                  id="companyAddress.street"
                   defaultValue={watch("companyAddress.street")}
                   onAddressSelect={(address) => {
                     // Set each address field individually and trigger validation
                     setValue("companyAddress.street", address.street, { shouldValidate: true })
                     setValue("companyAddress.city", address.city, { shouldValidate: true })
-                    setValue("companyAddress.state", address.state, { shouldValidate: true })
+                    setValue("companyAddress.state", address.state.toUpperCase(), { shouldValidate: true })
                     setValue("companyAddress.zipCode", address.zipCode, { shouldValidate: true })
                     
                     // Log the update to verify it's working
-                    console.log("Address selected:", address)
-                    console.log("Form values after update:", watch())
+                    console.log("Address selected and saved:", {
+                      street: address.street,
+                      city: address.city,
+                      state: address.state.toUpperCase(),
+                      zipCode: address.zipCode
+                    })
+
+                    // Trigger validation for all address fields
+                    trigger([
+                      "companyAddress.street",
+                      "companyAddress.city",
+                      "companyAddress.state",
+                      "companyAddress.zipCode"
+                    ])
                   }}
                   error={!!errors.companyAddress?.street}
                   placeholder="Enter business address"
-                  {...register("companyAddress.street")}
-                  required={true}
+                  required
+                  {...register("companyAddress.street", { 
+                    required: "Street address is required",
+                    minLength: {
+                      value: 5,
+                      message: "Please enter a valid street address"
+                    }
+                  })}
                 />
                 {errors.companyAddress?.street && (
                   <p className="text-sm text-destructive">
@@ -665,13 +684,19 @@ export const BusinessInformationStep = forwardRef<
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="city" className="flex items-center">
+                  <Label htmlFor="companyAddress.city" className="flex items-center">
                     City
                     <span className="text-destructive ml-1">*</span>
                   </Label>
                   <Input
-                    id="city"
-                    {...register("companyAddress.city")}
+                    id="companyAddress.city"
+                    {...register("companyAddress.city", {
+                      required: "City is required",
+                      minLength: {
+                        value: 2,
+                        message: "Please enter a valid city name"
+                      }
+                    })}
                     placeholder="City"
                     className={`transition-all duration-200 ${
                       errors.companyAddress?.city 
@@ -687,20 +712,31 @@ export const BusinessInformationStep = forwardRef<
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="state" className="flex items-center">
+                  <Label htmlFor="companyAddress.state" className="flex items-center">
                     State
                     <span className="text-destructive ml-1">*</span>
                   </Label>
-                  <Input
-                    id="state"
-                    {...register("companyAddress.state")}
-                    placeholder="State"
-                    className={`transition-all duration-200 ${
-                      errors.companyAddress?.state 
-                        ? "border-destructive focus:border-destructive" 
-                        : "hover:border-primary/50 focus:border-primary"
-                    }`}
-                  />
+                  <Select
+                    onValueChange={(value) => setValue("companyAddress.state", value, { shouldValidate: true })}
+                    value={watch("companyAddress.state")}
+                  >
+                    <SelectTrigger
+                      className={`transition-all duration-200 ${
+                        errors.companyAddress?.state 
+                          ? "border-destructive focus:border-destructive" 
+                          : "hover:border-primary/50 focus:border-primary"
+                      }`}
+                    >
+                      <SelectValue placeholder="Select state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {states.map((state) => (
+                        <SelectItem key={state.value} value={state.value}>
+                          {state.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {errors.companyAddress?.state && (
                     <p className="text-sm text-destructive">
                       {errors.companyAddress.state.message}
@@ -709,13 +745,19 @@ export const BusinessInformationStep = forwardRef<
                 </div>
 
                 <div className="grid gap-2">
-                  <Label htmlFor="zipCode" className="flex items-center">
+                  <Label htmlFor="companyAddress.zipCode" className="flex items-center">
                     ZIP Code
                     <span className="text-destructive ml-1">*</span>
                   </Label>
                   <Input
-                    id="zipCode"
-                    {...register("companyAddress.zipCode")}
+                    id="companyAddress.zipCode"
+                    {...register("companyAddress.zipCode", {
+                      required: "ZIP code is required",
+                      pattern: {
+                        value: /^\d{5}(-\d{4})?$/,
+                        message: "Please enter a valid ZIP code (XXXXX or XXXXX-XXXX)"
+                      }
+                    })}
                     placeholder="12345"
                     className={`transition-all duration-200 ${
                       errors.companyAddress?.zipCode 
