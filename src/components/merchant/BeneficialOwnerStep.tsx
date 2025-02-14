@@ -530,24 +530,44 @@ export const BeneficialOwnerStep = forwardRef<
               </Label>
               <AddressAutocomplete
                 defaultValue={watch(`owners.${index}.address`)}
-                onAddressSelect={(address) => {
-                  setValue(`owners.${index}.address`, address.street, { shouldValidate: true })
-                  setValue(`owners.${index}.city`, address.city, { shouldValidate: true })
-                  const stateValue = address.state.toUpperCase()
-                  const validState = US_STATES.find(s => s.value === stateValue)
+                onAddressSelect={async (address) => {
+                  // Set all address fields with proper form updates
+                  setValue(`owners.${index}.address`, address.street, { 
+                    shouldValidate: true,
+                    shouldDirty: true,
+                    shouldTouch: true
+                  });
+                  setValue(`owners.${index}.city`, address.city, { 
+                    shouldValidate: true,
+                    shouldDirty: true,
+                    shouldTouch: true
+                  });
+                  const stateValue = address.state.toUpperCase();
+                  const validState = US_STATES.find(s => s.value === stateValue);
                   if (validState) {
-                    setValue(`owners.${index}.state`, validState.value, { shouldValidate: true })
+                    setValue(`owners.${index}.state`, validState.value, { 
+                      shouldValidate: true,
+                      shouldDirty: true,
+                      shouldTouch: true
+                    });
                   }
-                  setValue(`owners.${index}.zipCode`, address.zipCode, { shouldValidate: true })
+                  setValue(`owners.${index}.zipCode`, address.zipCode, { 
+                    shouldValidate: true,
+                    shouldDirty: true,
+                    shouldTouch: true
+                  });
                   
-                  console.log("Address selected:", {
-                    ...address,
-                    state: stateValue,
-                    validState
-                  })
+                  // Wait for all validations to complete
+                  await trigger([
+                    `owners.${index}.address`,
+                    `owners.${index}.city`,
+                    `owners.${index}.state`,
+                    `owners.${index}.zipCode`
+                  ]);
                 }}
                 error={!!errors.owners?.[index]?.address}
                 placeholder="Enter address"
+                {...register(`owners.${index}.address`)}
               />
               {errors.owners?.[index]?.address && (
                 <p className="text-sm text-destructive">
@@ -869,24 +889,44 @@ export const BeneficialOwnerStep = forwardRef<
                       </Label>
                       <AddressAutocomplete
                         defaultValue={watch(`owners.${fields.length - 1}.address`)}
-                        onAddressSelect={(address) => {
-                          setValue(`owners.${fields.length - 1}.address`, address.street, { shouldValidate: true })
-                          setValue(`owners.${fields.length - 1}.city`, address.city, { shouldValidate: true })
-                          const stateValue = address.state.toUpperCase()
-                          const validState = US_STATES.find(s => s.value === stateValue)
+                        onAddressSelect={async (address) => {
+                          // Set all address fields with proper form updates
+                          setValue(`owners.${fields.length - 1}.address`, address.street, { 
+                            shouldValidate: true,
+                            shouldDirty: true,
+                            shouldTouch: true
+                          });
+                          setValue(`owners.${fields.length - 1}.city`, address.city, { 
+                            shouldValidate: true,
+                            shouldDirty: true,
+                            shouldTouch: true
+                          });
+                          const stateValue = address.state.toUpperCase();
+                          const validState = US_STATES.find(s => s.value === stateValue);
                           if (validState) {
-                            setValue(`owners.${fields.length - 1}.state`, validState.value, { shouldValidate: true })
+                            setValue(`owners.${fields.length - 1}.state`, validState.value, { 
+                              shouldValidate: true,
+                              shouldDirty: true,
+                              shouldTouch: true
+                            });
                           }
-                          setValue(`owners.${fields.length - 1}.zipCode`, address.zipCode, { shouldValidate: true })
+                          setValue(`owners.${fields.length - 1}.zipCode`, address.zipCode, { 
+                            shouldValidate: true,
+                            shouldDirty: true,
+                            shouldTouch: true
+                          });
                           
-                          console.log("Address selected for new owner:", {
-                            ...address,
-                            state: stateValue,
-                            validState
-                          })
+                          // Wait for all validations to complete
+                          await trigger([
+                            `owners.${fields.length - 1}.address`,
+                            `owners.${fields.length - 1}.city`,
+                            `owners.${fields.length - 1}.state`,
+                            `owners.${fields.length - 1}.zipCode`
+                          ]);
                         }}
                         error={!!errors.owners?.[fields.length - 1]?.address}
                         placeholder="Enter address"
+                        {...register(`owners.${fields.length - 1}.address`)}
                       />
                       {errors.owners?.[fields.length - 1]?.address && (
                         <p className="text-sm text-destructive">
