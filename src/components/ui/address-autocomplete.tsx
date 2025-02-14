@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, forwardRef } from 'react'
 import { Input } from './input'
 import { Label } from './label'
 import { apiSettingsService } from '@/services/apiSettingsService'
@@ -27,23 +27,28 @@ export interface ParsedAddress {
   fullAddress: string
 }
 
-interface AddressAutocompleteProps {
+interface AddressAutocompleteProps extends React.InputHTMLAttributes<HTMLInputElement> {
   onAddressSelect: (address: ParsedAddress) => void
   label?: string
   required?: boolean
   defaultValue?: string
   error?: boolean
   placeholder?: string
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
+  name?: string
 }
 
-export function AddressAutocomplete({
+export const AddressAutocomplete = forwardRef<HTMLInputElement, AddressAutocompleteProps>(({
   onAddressSelect,
   label = 'Address',
   required = false,
   defaultValue = '',
   error = false,
   placeholder = "Start typing an address...",
-}: AddressAutocompleteProps) {
+  onChange,
+  name,
+  ...props
+}, ref) => {
   const [query, setQuery] = useState(defaultValue)
   const [suggestions, setSuggestions] = useState<MapboxFeature[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -206,6 +211,12 @@ export function AddressAutocomplete({
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value
     setQuery(value)
+    
+    // Call the parent onChange handler if provided
+    if (onChange) {
+      onChange(e)
+    }
+
     if (value.length >= 3 && isEnabled) {
       searchAddress(value)
     } else {
@@ -216,8 +227,22 @@ export function AddressAutocomplete({
 
   const handleSuggestionClick = (suggestion: MapboxFeature) => {
     const parsedAddress = parseAddress(suggestion)
-    setQuery(parsedAddress.fullAddress)
+    setQuery(parsedAddress.street) // Only set the street in the input
     setShowSuggestions(false)
+    
+    // Create a synthetic change event
+    const syntheticEvent = {
+      target: {
+        name,
+        value: parsedAddress.street
+      }
+    } as React.ChangeEvent<HTMLInputElement>
+    
+    // Call the parent onChange handler if provided
+    if (onChange) {
+      onChange(syntheticEvent)
+    }
+    
     onAddressSelect(parsedAddress)
   }
 
@@ -225,6 +250,8 @@ export function AddressAutocomplete({
     <div className="relative">
       <Label htmlFor="address">{label}{required && <span className="text-red-500">*</span>}</Label>
       <Input
+        {...props}
+        ref={ref}
         id="address"
         type="text"
         value={query}
@@ -235,7 +262,8 @@ export function AddressAutocomplete({
         required={required}
         className={cn(
           error && "border-red-500",
-          isLoading && "pr-10"
+          isLoading && "pr-10",
+          props.className
         )}
       />
       
@@ -260,4 +288,6 @@ export function AddressAutocomplete({
       )}
     </div>
   )
-} 
+})
+
+AddressAutocomplete.displayName = "AddressAutocomplete" 

@@ -653,6 +653,8 @@ export const BusinessInformationStep = forwardRef<
                   }}
                   error={!!errors.companyAddress?.street}
                   placeholder="Enter business address"
+                  {...register("companyAddress.street")}
+                  required={true}
                 />
                 {errors.companyAddress?.street && (
                   <p className="text-sm text-destructive">
