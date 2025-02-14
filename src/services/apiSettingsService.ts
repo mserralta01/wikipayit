@@ -55,16 +55,21 @@ export const apiSettingsService = {
       const docRef = doc(db, SETTINGS_DOC_PATH)
       const docSnap = await getDoc(docRef)
       
-      console.log('Fetched settings from Firestore:', docSnap.exists() ? 'Document exists' : 'No document')
+      console.log('Fetched settings from Firestore:', docSnap.exists() ? docSnap.data() : 'No document')
       
-      // Try to create the document first, then read it
       if (docSnap.exists()) {
-        console.log('Settings document exists, returning data');
-        return docSnap.data() as APISettings;
+        const data = docSnap.data() as APISettings;
+        console.log('Retrieved API settings:', data);
+        return data;
       }
       
-      // If document doesn't exist, create it with SendGrid configuration
+      // If document doesn't exist, create it with initial settings
       const initialSettings: APISettings = {
+        mapbox: {
+          enabled: false,
+          apiKey: '',
+          geocodingEndpoint: 'https://api.mapbox.com/geocoding/v5/mapbox.places'
+        },
         sendgrid: {
           enabled: true,
           fromEmail: 'matt@wikipayit.com'
@@ -73,7 +78,7 @@ export const apiSettingsService = {
       
       try {
         await setDoc(docRef, initialSettings);
-        console.log('Created settings document with SendGrid configuration');
+        console.log('Created settings document with initial configuration');
         return initialSettings;
       } catch (error) {
         console.error('Error creating settings document:', error);
@@ -120,6 +125,10 @@ export const apiSettingsService = {
   async getMapboxKey(): Promise<string | undefined> {
     try {
       const settings = await this.getSettings()
+      if (!settings.mapbox?.enabled) {
+        console.log('Mapbox is disabled in settings');
+        return undefined;
+      }
       return settings.mapbox?.apiKey
     } catch (error) {
       console.error('Error getting Mapbox key:', error)

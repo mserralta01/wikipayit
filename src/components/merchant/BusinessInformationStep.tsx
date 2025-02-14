@@ -676,7 +676,6 @@ export const BusinessInformationStep = forwardRef<
                         ? "border-destructive focus:border-destructive" 
                         : "hover:border-primary/50 focus:border-primary"
                     }`}
-                    readOnly
                   />
                   {errors.companyAddress?.city && (
                     <p className="text-sm text-destructive">
@@ -692,14 +691,13 @@ export const BusinessInformationStep = forwardRef<
                   </Label>
                   <Input
                     id="state"
-                    value={watch("companyAddress.state")}
+                    {...register("companyAddress.state")}
                     placeholder="State"
                     className={`transition-all duration-200 ${
                       errors.companyAddress?.state 
                         ? "border-destructive focus:border-destructive" 
                         : "hover:border-primary/50 focus:border-primary"
                     }`}
-                    readOnly
                   />
                   {errors.companyAddress?.state && (
                     <p className="text-sm text-destructive">
@@ -722,7 +720,6 @@ export const BusinessInformationStep = forwardRef<
                         ? "border-destructive focus:border-destructive" 
                         : "hover:border-primary/50 focus:border-primary"
                     }`}
-                    readOnly
                   />
                   {errors.companyAddress?.zipCode && (
                     <p className="text-sm text-destructive">

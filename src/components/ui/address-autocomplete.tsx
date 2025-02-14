@@ -48,6 +48,7 @@ export function AddressAutocomplete({
   const [suggestions, setSuggestions] = useState<MapboxFeature[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isEnabled, setIsEnabled] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const [mapboxConfig, setMapboxConfig] = useState<{
     apiKey?: string,
     geocodingEndpoint?: string
@@ -58,7 +59,11 @@ export function AddressAutocomplete({
     const loadMapboxConfig = async () => {
       try {
         const settings = await apiSettingsService.getSettings()
-        console.log('Loaded Mapbox settings:', settings.mapbox)
+        console.log('Loaded Mapbox settings:', {
+          enabled: settings.mapbox?.enabled,
+          hasApiKey: !!settings.mapbox?.apiKey,
+          endpoint: settings.mapbox?.geocodingEndpoint
+        })
         
         if (!settings.mapbox?.enabled) {
           console.log('Mapbox is disabled in settings')
@@ -68,9 +73,10 @@ export function AddressAutocomplete({
 
         if (!settings.mapbox?.apiKey) {
           console.log('No Mapbox API key configured')
+          setIsEnabled(false)
           toast({
             title: 'Warning',
-            description: 'Mapbox API key is not configured. Address autocomplete will not work.',
+            description: 'Address autocomplete is not available. Please contact support.',
             variant: 'destructive',
           })
           return
@@ -79,13 +85,14 @@ export function AddressAutocomplete({
         setIsEnabled(true)
         setMapboxConfig({
           apiKey: settings.mapbox.apiKey,
-          geocodingEndpoint: settings.mapbox.geocodingEndpoint
+          geocodingEndpoint: settings.mapbox.geocodingEndpoint || 'https://api.mapbox.com/geocoding/v5/mapbox.places'
         })
       } catch (error) {
         console.error('Error loading Mapbox configuration:', error)
+        setIsEnabled(false)
         toast({
           title: 'Error',
-          description: 'Failed to load Mapbox configuration',
+          description: 'Failed to load address autocomplete configuration',
           variant: 'destructive',
         })
       }
@@ -100,11 +107,22 @@ export function AddressAutocomplete({
       return
     }
 
+    setIsLoading(true)
     try {
       console.log('Searching address with query:', searchQuery)
+      const params = new URLSearchParams({
+        access_token: mapboxConfig.apiKey,
+        country: 'US',
+        types: 'address',
+        autocomplete: 'true',
+        fuzzyMatch: 'true',
+        limit: '5',
+        language: 'en'
+      })
+
       const endpoint = mapboxConfig.geocodingEndpoint || 'https://api.mapbox.com/geocoding/v5/mapbox.places'
       const response = await fetch(
-        `${endpoint}/${encodeURIComponent(searchQuery)}.json?access_token=${mapboxConfig.apiKey}&country=US&types=address`
+        `${endpoint}/${encodeURIComponent(searchQuery)}.json?${params.toString()}`
       )
 
       if (!response.ok) {
@@ -114,15 +132,27 @@ export function AddressAutocomplete({
 
       const data = await response.json()
       console.log('Mapbox API response:', data)
+      
+      if (!data.features || data.features.length === 0) {
+        console.log('No address suggestions found')
+        setSuggestions([])
+        setShowSuggestions(false)
+        return
+      }
+
       setSuggestions(data.features)
       setShowSuggestions(true)
     } catch (error) {
       console.error('Error fetching address suggestions:', error)
       toast({
         title: 'Error',
-        description: 'Failed to fetch address suggestions',
+        description: 'Failed to fetch address suggestions. Please try again or enter address manually.',
         variant: 'destructive',
       })
+      setSuggestions([])
+      setShowSuggestions(false)
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -135,21 +165,42 @@ export function AddressAutocomplete({
       fullAddress: feature.place_name
     }
 
-    // Extract street from the main text
-    addressParts.street = feature.text
+    try {
+      // Extract street number and name from the main text
+      addressParts.street = feature.text
 
-    // Parse the context array for city, state, and zip
-    feature.context?.forEach(ctx => {
-      if (ctx.id.startsWith('place')) {
-        addressParts.city = ctx.text
-      } else if (ctx.id.startsWith('region')) {
-        addressParts.state = ctx.short_code?.replace('US-', '') || ''
-      } else if (ctx.id.startsWith('postcode')) {
-        addressParts.zipCode = ctx.text
+      // Parse the context array for city, state, and zip
+      feature.context?.forEach(ctx => {
+        if (ctx.id.startsWith('place')) {
+          addressParts.city = ctx.text
+        } else if (ctx.id.startsWith('region')) {
+          addressParts.state = ctx.short_code?.replace('US-', '') || ''
+        } else if (ctx.id.startsWith('postcode')) {
+          addressParts.zipCode = ctx.text
+        }
+      })
+
+      // If street is missing house number, try to extract it from place_name
+      if (!addressParts.street.match(/^\d/)) {
+        const houseNumber = feature.place_name.match(/^\d+/)
+        if (houseNumber) {
+          addressParts.street = `${houseNumber[0]} ${addressParts.street}`
+        }
       }
-    })
 
-    return addressParts
+      // Log the parsed address for debugging
+      console.log('Parsed address:', addressParts)
+
+      // Validate the parsed address
+      if (!addressParts.street || !addressParts.city || !addressParts.state || !addressParts.zipCode) {
+        console.warn('Incomplete address parsed:', addressParts)
+      }
+
+      return addressParts
+    } catch (error) {
+      console.error('Error parsing address:', error)
+      return addressParts
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,8 +233,17 @@ export function AddressAutocomplete({
         onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
         placeholder={isEnabled ? placeholder : "Enter address manually"}
         required={required}
-        className={cn(error && "border-red-500")}
+        className={cn(
+          error && "border-red-500",
+          isLoading && "pr-10"
+        )}
       />
+      
+      {isLoading && (
+        <div className="absolute right-3 top-1/2 -translate-y-1/2">
+          <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
+        </div>
+      )}
       
       {showSuggestions && suggestions.length > 0 && (
         <ul className="absolute z-10 w-full bg-white border border-gray-200 rounded-md mt-1 shadow-lg max-h-60 overflow-auto">
