@@ -1,6 +1,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import {
@@ -72,8 +72,8 @@ const formSchema = z.object({
   status: z.enum(['draft', 'active', 'expired', 'terminated']),
   lowRisk: riskTermsSchema,
   highRisk: riskTermsSchema,
-  supportedHighRiskIndustries: z.array(z.string()).default([]),
-  documentUrls: z.array(z.string()).default([]),
+  supportedHighRiskIndustries: z.array(z.string()),
+  documentUrls: z.array(z.string()),
 });
 
 type FormValues = z.infer<typeof formSchema>;

@@ -29,14 +29,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
-      console.log('Auth state changed:', { user, email: user?.email })
       setUser(user)
       setLoading(false)
       const isAdminUser = user?.email === 'mserralta@gmail.com' ||
                          user?.email === 'Mpilotg6@gmail.com' ||
                          user?.email === 'serralta@outlook.com'
       setIsAdmin(isAdminUser)
-      console.log('Admin status set:', isAdminUser)
     })
 
     return unsubscribe
@@ -46,7 +44,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const provider = new GoogleAuthProvider()
     try {
       const result = await signInWithPopup(auth, provider)
-      console.log('Google sign in result:', result.user?.email)
       return result.user
     } catch (error) {
       console.error('Google sign in error:', error)
@@ -71,9 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithEmail = async (email: string, password: string) => {
     try {
-      console.log('Attempting login with email:', email)
       const result = await signInWithEmailAndPassword(auth, email, password)
-      console.log('Login successful:', result.user)
       return result.user
     } catch (error: any) {
       console.error('Email login error:', error.code, error.message)

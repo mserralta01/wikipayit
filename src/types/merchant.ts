@@ -1,5 +1,5 @@
 import { Timestamp } from "firebase/firestore"
-import { z } from "zod"
+import { z } from "zod/v3"
 
 // Application status type
 export type ApplicationStatus = "approved" | "pending" | "rejected"
@@ -95,6 +95,8 @@ export interface ProcessingHistory {
 }
 
 export interface FormData {
+  firstName?: string;
+  lastName?: string;
   businessName: string;
   dba: string;
   phone: string;

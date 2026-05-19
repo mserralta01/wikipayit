@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { useAuth } from '@/contexts/AuthContext';
 import { interchangeService } from '@/services/interchangeService';
 import { Button } from '@/components/ui/button';

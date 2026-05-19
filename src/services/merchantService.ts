@@ -10,25 +10,27 @@ import {
   where,
   orderBy,
   Timestamp,
-  serverTimestamp,
   writeBatch,
   DocumentReference,
 } from "firebase/firestore"
-import { Merchant, BeneficialOwner, Lead } from "../types/merchant"
+import { Merchant, Lead } from "../types/merchant"
 import { Activity } from '../types/activity'
-import { ProcessingFormData } from "../components/merchant/ProcessingHistoryStep"
 import { PipelineStatus } from "../types/pipeline"
 
 // Application specific type
 export interface ApplicationData {
   id: string
-  status: 'Lead' | 'Phone Calls' | 'Offer Sent' | 'Underwriting' | 'Documents' | 'Approved'
+  status: 'Lead' | 'Submitted' | 'Phone Calls' | 'Offer Sent' | 'Underwriting' | 'Documents' | 'Approved'
   email: string
+  uid?: string
+  leadId?: string
   firstName?: string
   lastName?: string
   businessName?: string
+  formData?: Partial<Lead['formData']>
   createdAt: Date
   updatedAt: Date
+  submittedAt?: Date
 }
 
 // Helper to safely convert Firestore Timestamp or string to ISO string
@@ -58,11 +60,12 @@ const getRecentActivity = async (): Promise<Activity[]> => {
 };
 
 export const merchantService = {
-  async createLead(email: string, additionalData: { firstName?: string; lastName?: string } = {}) {
+  async createLead(email: string, additionalData: { firstName?: string; lastName?: string; uid?: string } = {}) {
     try {
       const leadsRef = collection(db, "leads")
       const leadData = {
         email,
+        uid: additionalData.uid || '',
         formData: {
           email,
           firstName: additionalData.firstName || '',
@@ -77,6 +80,9 @@ export const merchantService = {
       
       const existingLead = await this.getLeadByEmail(email)
       if (existingLead) {
+        if (additionalData.uid && existingLead.uid !== additionalData.uid) {
+          await this.updateLead(existingLead.id, { uid: additionalData.uid })
+        }
         return existingLead.id
       }
       
@@ -169,6 +175,47 @@ export const merchantService = {
     } catch (error) {
       console.error("Error creating merchant:", error);
       throw error;
+    }
+  },
+
+  async submitApplication(
+    leadId: string,
+    formData: Partial<NonNullable<Lead['formData']>>,
+    uid?: string
+  ): Promise<void> {
+    try {
+      const applicationRef = doc(db, "applications", leadId)
+      const leadRef = doc(db, "leads", leadId)
+      const now = Timestamp.now()
+      const applicationData = {
+        leadId,
+        uid: uid || '',
+        email: formData.email || '',
+        firstName: formData.firstName || '',
+        lastName: formData.lastName || '',
+        businessName: formData.businessName || '',
+        status: 'Submitted',
+        pipelineStatus: 'lead',
+        formData,
+        submittedAt: now,
+        updatedAt: now,
+        createdAt: now,
+      }
+
+      const batch = writeBatch(db)
+      batch.set(applicationRef, applicationData, { merge: true })
+      batch.update(leadRef, {
+        formData,
+        currentStep: 6,
+        status: 'completed',
+        pipelineStatus: 'lead',
+        submittedAt: now,
+        updatedAt: now,
+      })
+      await batch.commit()
+    } catch (error) {
+      console.error("Error submitting application:", error)
+      throw error
     }
   },
 

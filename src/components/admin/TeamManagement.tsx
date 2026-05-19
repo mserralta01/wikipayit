@@ -36,7 +36,7 @@ import { useToast } from "../../hooks/useToast";
 import { TeamMember, TeamMemberRole } from '../../types/team';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import {
     Table,
     TableBody,
