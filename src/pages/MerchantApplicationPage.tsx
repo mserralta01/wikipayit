@@ -37,6 +37,7 @@ export default function MerchantApplicationPage() {
             const newLeadId = await merchantService.createLead(user.email, {
               firstName: user.displayName?.split(' ')[0] || '',
               lastName: user.displayName?.split(' ').slice(1).join(' ') || '',
+              uid: user.uid,
             })
             setLeadId(newLeadId)
             // Initialize form data with user info
@@ -58,18 +59,37 @@ export default function MerchantApplicationPage() {
   const handleStepComplete = async (stepData: any, step: number) => {
     const updatedData = { ...formData, ...stepData }
     setFormData(updatedData)
+    let activeLeadId = leadId
     
-    // Update lead in database, always keeping pipelineStatus as 'lead'
-    if (leadId) {
+    if (!activeLeadId && updatedData.email) {
+      activeLeadId = await merchantService.createLead(updatedData.email, {
+        firstName: updatedData.firstName || '',
+        lastName: updatedData.lastName || '',
+        uid: user?.uid || updatedData.uid || '',
+      })
+      setLeadId(activeLeadId)
+    }
+
+    if (activeLeadId) {
       try {
-        await merchantService.updateLead(leadId, {
-          formData: updatedData,
-          currentStep: step,
-          status: step === 6 ? 'completed' : 'in_progress',
-          pipelineStatus: 'lead'
-        })
+        if (step === 6) {
+          await merchantService.submitApplication(
+            activeLeadId,
+            updatedData,
+            user?.uid || updatedData.uid || ''
+          )
+        } else {
+          await merchantService.updateLead(activeLeadId, {
+            formData: updatedData,
+            currentStep: step,
+            status: 'in_progress',
+            pipelineStatus: 'lead',
+            uid: user?.uid || updatedData.uid || '',
+          })
+        }
       } catch (error) {
         console.error('Error updating lead:', error)
+        throw error
       }
     }
     

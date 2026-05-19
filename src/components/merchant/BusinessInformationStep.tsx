@@ -1,7 +1,7 @@
-import { useState, useEffect, useImperativeHandle, forwardRef } from "react"
+import { useState, useImperativeHandle, forwardRef } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, UseFormRegister } from "react-hook-form"
-import * as z from "zod"
+import * as z from "zod/v3"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -93,20 +93,6 @@ const BUSINESS_TYPES: { value: BusinessType; label: string }[] = [
 
 type BusinessFormData = z.infer<typeof merchantSchema>
 
-// Add this type for just the business information fields
-type BusinessInfoFields = Pick<BusinessFormData, 
-  | 'businessName'
-  | 'businessType'
-  | 'businessDescription'
-  | 'taxId'
-  | 'yearEstablished'
-  | 'website'
-  | 'customerServiceEmail'
-  | 'customerServicePhone'
-  | 'companyAddress'
-  | 'dba'
->;
-
 // Create a specific schema for just the business information step
 const businessInfoSchema = z.object({
   businessName: z.string()
@@ -131,12 +117,6 @@ const businessInfoSchema = z.object({
       return yearNum >= 1900 && yearNum <= currentYear
     }, "Please enter a valid year between 1900 and current year"),
   website: z.string()
-    .transform(val => {
-      if (val && !val.match(/^https?:\/\//)) {
-        return `https://${val}`
-      }
-      return val
-    })
     .optional(),
   customerServiceEmail: z.string()
     .email("Invalid customer service email address"),
@@ -150,6 +130,8 @@ const businessInfoSchema = z.object({
   }),
   dba: z.string().optional(),
 });
+
+type BusinessInfoFields = z.infer<typeof businessInfoSchema>
 
 export type BusinessInformationStepHandle = {
   submit: () => Promise<void>
@@ -167,7 +149,7 @@ export const BusinessInformationStep = forwardRef<
 >(function BusinessInformationStep(
   { onSave, initialData = {}, onSubmit: parentSubmit },
   ref
-): JSX.Element {
+): React.JSX.Element {
   const [serverError, setServerError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -182,7 +164,9 @@ export const BusinessInformationStep = forwardRef<
     resolver: zodResolver(businessInfoSchema),
     defaultValues: {
       businessName: initialData?.businessName || '',
-      businessType: initialData?.businessType,
+      businessType: BUSINESS_TYPES.some((type) => type.value === initialData?.businessType)
+        ? initialData.businessType as BusinessType
+        : undefined,
       businessDescription: initialData?.businessDescription || '',
       taxId: initialData?.taxId || '',
       yearEstablished: initialData?.yearEstablished || '',
@@ -199,46 +183,6 @@ export const BusinessInformationStep = forwardRef<
     },
     mode: "onBlur",
   })
-
-  useEffect(() => {
-    const subscription = watch((value, { name, type }) => 
-      console.log('Form value changed:', name, value)
-    )
-    return () => subscription.unsubscribe()
-  }, [watch])
-
-  const getNestedValue = (obj: any, path: string) => {
-    return path.split('.').reduce((acc, part) => acc?.[part], obj);
-  };
-
-  useEffect(() => {
-    // Debug check for required fields
-    const requiredFields = [
-      'businessName',
-      'businessType',
-      'businessDescription',
-      'taxId',
-      'yearEstablished',
-      'customerServiceEmail',
-      'customerServicePhone',
-      'companyAddress.street',
-      'companyAddress.city',
-      'companyAddress.state',
-      'companyAddress.zipCode'
-    ] as const;
-    
-    const formValues = watch();
-    const missingFields = requiredFields.filter(field => {
-      const value = field.includes('.')
-        ? getNestedValue(formValues, field)
-        : (formValues as any)[field];
-      return !value;
-    });
-    
-    if (missingFields.length > 0) {
-      console.log('Missing required fields:', missingFields);
-    }
-  }, [watch]);
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.replace(/\D/g, '')
@@ -271,8 +215,14 @@ export const BusinessInformationStep = forwardRef<
         return;
       }
 
-      // Only pass the business info fields to onSave
-      await onSave(data as BusinessFormData);
+      const normalizedData = {
+        ...data,
+        website: data.website && !data.website.match(/^https?:\/\//)
+          ? `https://${data.website}`
+          : data.website,
+      }
+
+      await onSave(normalizedData as BusinessFormData);
       if (parentSubmit) {
         parentSubmit();
       }
@@ -356,10 +306,6 @@ export const BusinessInformationStep = forwardRef<
       }
     }
   }));
-
-  const formValues = watch()
-  console.log('Current form values:', formValues)
-  console.log('Current form errors:', errors)
 
   return (
     <TooltipProvider>

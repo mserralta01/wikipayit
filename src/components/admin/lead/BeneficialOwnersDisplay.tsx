@@ -39,7 +39,7 @@ export function BeneficialOwnersDisplay({
   onFieldClick,
   onBlur,
   hideHeader = false
-}: BeneficialOwnersDisplayProps): JSX.Element {
+}: BeneficialOwnersDisplayProps): React.JSX.Element {
   const totalOwnership = formData?.beneficialOwners?.owners.reduce(
     (sum, owner: BeneficialOwnerData) => sum + (Number(owner.ownershipPercentage) || 0), 
     0

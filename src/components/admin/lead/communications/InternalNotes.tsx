@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
+import * as z from "zod/v3"
 import { format } from "date-fns"
 import { Timestamp } from "firebase/firestore"
 import { useToast } from "@/hooks/use-toast"
@@ -45,7 +45,7 @@ interface InternalNotesProps {
 
 const noteSchema = z.object({
   content: z.string().min(1, "Note content is required"),
-  isPinned: z.boolean().default(false),
+  isPinned: z.boolean(),
 })
 
 type NoteFormValues = z.infer<typeof noteSchema>

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import * as z from 'zod/v3';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,7 +33,7 @@ const formSchema = z.object({
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
   department: z.enum(['sales', 'support', 'underwriting', 'management', 'other']),
-  isMainContact: z.boolean().default(false),
+  isMainContact: z.boolean(),
 });
 
 interface BankContactFormProps {

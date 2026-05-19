@@ -2,7 +2,7 @@ import { useState, useCallback, forwardRef, useImperativeHandle } from "react"
 import { useDropzone } from "react-dropzone"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import * as z from "zod"
+import * as z from "zod/v3"
 import { Alert, AlertDescription } from "../../components/ui/alert"
 import { AlertCircle, Upload, X, FileText, Check, AlertTriangle } from "lucide-react"
 import { Button } from "../../components/ui/button"
@@ -28,9 +28,9 @@ const ACCEPTED_FILE_TYPES = [
 type FileFields = "voided_check" | "bank_statements" | "drivers_license"
 
 const documentSchema = z.object({
-  voided_check: z.array(z.string().url("Invalid voided check URL")).default([]),
-  bank_statements: z.array(z.string().url("Invalid bank statement URL")).default([]),
-  drivers_license: z.array(z.string().url("Invalid driver's license URL")).default([]),
+  voided_check: z.array(z.string().url("Invalid voided check URL")),
+  bank_statements: z.array(z.string().url("Invalid bank statement URL")),
+  drivers_license: z.array(z.string().url("Invalid driver's license URL")),
 })
 
 type DocumentFormData = z.infer<typeof documentSchema>
@@ -81,12 +81,12 @@ export const DocumentationStep = forwardRef<DocumentationStepHandle, Documentati
       setValue,
     } = useForm<DocumentFormData>({
       resolver: zodResolver(documentSchema),
-      defaultValues: documentSchema.parse({
+      defaultValues: {
         voided_check: [],
         bank_statements: [],
         drivers_license: [],
         ...initialData,
-      }),
+      },
     })
 
     useImperativeHandle(ref, () => ({

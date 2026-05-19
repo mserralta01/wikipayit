@@ -19,6 +19,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function ownsExistingRecord() {
+      return isAuthenticated() && (
+        resource.data.uid == request.auth.uid ||
+        resource.data.email == request.auth.token.email
+      );
+    }
+
+    function ownsIncomingRecord() {
+      return isAuthenticated() && (
+        request.resource.data.uid == request.auth.uid ||
+        request.resource.data.email == request.auth.token.email
+      );
+    }
+
     // Banking Partners
     match /bankingPartners/{partnerId} {
       allow read: if isAuthenticated();
@@ -40,14 +54,45 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Allow authenticated users to read and write leads
+    // Applicants can manage only their own application data. Admins can manage
+    // all back-office and pipeline fields.
     match /leads/{leadId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
+      allow read: if isAdmin() || ownsExistingRecord();
+      allow create: if ownsIncomingRecord();
       allow update: if isAuthenticated() && (
-        // Allow pipeline updates
-        (request.resource.data.diff(resource.data).affectedKeys().hasAny(['pipelineStatus', 'position', 'updatedAt']) && isAdmin())
+        (
+          isAdmin() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'pipelineStatus',
+            'position',
+            'updatedAt',
+            'status',
+            'assignedBanks',
+            'pricing'
+          ])
+        ) ||
+        (
+          ownsExistingRecord() &&
+          ownsIncomingRecord() &&
+          request.resource.data.pipelineStatus == 'lead' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'formData',
+            'currentStep',
+            'status',
+            'pipelineStatus',
+            'uid',
+            'submittedAt',
+            'updatedAt'
+          ])
+        )
       );
+      allow delete: if isAdmin();
+    }
+
+    match /applications/{applicationId} {
+      allow read: if isAdmin() || ownsExistingRecord();
+      allow create: if ownsIncomingRecord();
+      allow update: if isAdmin() || (ownsExistingRecord() && ownsIncomingRecord());
       allow delete: if isAdmin();
     }
 

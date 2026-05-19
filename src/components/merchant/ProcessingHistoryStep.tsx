@@ -1,7 +1,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import * as z from "zod"
+import * as z from "zod/v3"
 import { Input } from "../../components/ui/input"
 import { Label } from "../../components/ui/label"
 import { Alert, AlertDescription } from "../../components/ui/alert"
@@ -20,20 +20,15 @@ const processingSchema = z
     hasBeenTerminated: z.string(),
     terminationExplanation: z.string().optional().nullable(),
     monthlyVolume: z.string()
-      .regex(/^\d+$/, "Monthly volume must be a number")
-      .transform(Number),
+      .regex(/^\d+$/, "Monthly volume must be a number"),
     averageTicket: z.string()
-      .regex(/^\d+$/, "Average ticket must be a number")
-      .transform(Number),
+      .regex(/^\d+$/, "Average ticket must be a number"),
     highTicket: z.string()
-      .regex(/^\d+$/, "High ticket must be a number")
-      .transform(Number),
+      .regex(/^\d+$/, "High ticket must be a number"),
     cardPresentPercentage: z.string()
-      .regex(/^\d+$/, "Percentage must be a number")
-      .transform(Number),
+      .regex(/^\d+$/, "Percentage must be a number"),
     ecommercePercentage: z.string()
-      .regex(/^\d+$/, "Percentage must be a number")
-      .transform(Number),
+      .regex(/^\d+$/, "Percentage must be a number"),
   })
   .refine(
     (data) => {

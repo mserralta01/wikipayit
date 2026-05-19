@@ -7,7 +7,7 @@ import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../ui/card"
 import { AlertCircle, Plus, Trash2, Edit2, Users } from "lucide-react"
-import * as z from "zod"
+import * as z from "zod/v3"
 import {
   Select,
   SelectContent,
