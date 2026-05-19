@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useCustomers } from '../../contexts/CustomerContext';
 import { CustomerStatus, Customer } from '../../types/customer';
 import { Card } from '../ui/card';
