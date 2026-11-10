@@ -6,7 +6,7 @@
 
 export const BRAND = {
   name: "WikiPayIt",
-  ai: "WikiPayIt AI",
+  ai: "Wiki",
   siteUrl: "https://www.wikipayit.com",
   appUrl: "https://app.wikipayit.com",
   supportEmail: "support@wikipayit.com",
@@ -35,7 +35,7 @@ export function fmt(cents: number, opts: { cents?: boolean } = {}): string {
 
 export const NAV = [
   { href: "#features", label: "Features" },
-  { href: "#ai", label: "WikiPayIt AI" },
+  { href: "#ai", label: "Ask Wiki" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ] as const
@@ -201,7 +201,7 @@ export const START_PLAN = [
   "Bank sync for every account*",
   "Double-entry books, 21 reports, budgets",
   "Bills, vendors, team and accountant roles",
-  "WikiPayIt AI to sort, match and close your month",
+  "Wiki, your AI bookkeeper, to sort, match and close your month",
 ]
 
 export const TALK_PLAN = [
@@ -214,7 +214,7 @@ export const TALK_PLAN = [
 ]
 
 export const TRUST = [
-  { lead: "It asks first.", body: "WikiPayIt AI prepares every change as a proposal. Nothing touches your books until you confirm." },
+  { lead: "It asks first.", body: "Wiki prepares every change as a proposal. Nothing touches your books until you confirm." },
   { lead: "Undo, always.", body: "Every applied change can be undone, row by row, back to exactly how it was." },
   { lead: "Closed means closed.", body: "Once you close a month, changes post as adjustments. History is never rewritten." },
   { lead: "Every change on the record.", body: "A permanent activity log shows who changed what, people and AI alike." },
@@ -227,7 +227,7 @@ export const TRUST = [
 export const FAQ = [
   {
     q: "What is WikiPayIt?",
-    a: "WikiPayIt is accounting and payments software for small businesses and for people who run more than one business. It includes invoicing, card and bank payments, bank sync, double-entry books with 21 reports, and WikiPayIt AI, a bookkeeper that proposes changes you confirm and can undo.",
+    a: "WikiPayIt is accounting and payments software for small businesses and for people who run more than one business. It includes invoicing, card and bank payments, bank sync, double-entry books with 21 reports, and Wiki, an AI bookkeeper that proposes changes you confirm and can undo.",
   },
   {
     q: "What does it cost?",
@@ -238,7 +238,7 @@ export const FAQ = [
     a: "Create your account, then complete a short application inside WikiPayIt so we can verify your business. Once you're approved, every invoice can be paid by card, Apple Pay, Google Pay or bank transfer, and payouts land in your bank account already matched to the invoices they paid.",
   },
   {
-    q: "Does the AI change my books on its own?",
+    q: "Does Wiki change my books on its own?",
     a: "Not unless you let it. Every change is a proposal you confirm, and every applied change can be undone. Autopilot stays off until an admin turns it on, and even then it only files high-confidence items under a limit you set.",
   },
   {

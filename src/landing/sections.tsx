@@ -476,7 +476,7 @@ export function AiDemo() {
       <div data-sc-stage className="ai-stage">
         <div className="sc-wrap ai-grid">
           <div className="ai-copy">
-            <p className="sc-label">{BRAND.ai}</p>
+            <p className="sc-label">Meet {BRAND.ai}, your AI bookkeeper</p>
             <div className="ai-copy__lines">
               <h2 id="ai-title" className="ai-line" data-sc-cue="0 0.26 0 0.25">
                 Monday morning. {s.count} transactions waiting.
